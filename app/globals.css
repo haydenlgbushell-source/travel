@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Sticky shortcut nav + section headers shouldn't swallow the anchor target. */
+    scroll-padding-bottom: 96px;
+    scroll-padding-top: 16px;
+  }
+
+  body {
+    @apply bg-paper font-body text-ink-text antialiased;
+  }
+
+  /* Anchor targets sit above the sticky bottom nav when jumped to. */
+  section[id] {
+    scroll-margin-bottom: 96px;
+  }
+}
+
+@layer components {
+  /*
+   * Signature pattern 1 — perforation divider.
+   * Dashed rule with scalloped cut-outs punched into each edge, so a card
+   * reads as a ticket stub that could be torn along the line.
+   * `--perf-bg` is the colour "behind" the card, i.e. what shows through the cut.
+   */
+  .perf {
+    --perf-bg: theme("colors.paper.DEFAULT");
+    position: relative;
+    height: 0;
+    border-top: 2px dashed theme("colors.line");
+  }
+
+  .perf::before,
+  .perf::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--perf-bg);
+    border: 2px solid theme("colors.line");
+    box-sizing: border-box;
+    transform: translateY(-50%);
+  }
+
+  .perf::before {
+    left: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .perf::after {
+    right: 0;
+    transform: translate(50%, -50%);
+  }
+
+  /* Vertical variant — splits the boarding pass from its barcode stub. */
+  .perf-v {
+    --perf-bg: theme("colors.paper.hi");
+    position: relative;
+    width: 0;
+    border-left: 2px dashed theme("colors.line");
+  }
+
+  .perf-v::before,
+  .perf-v::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: theme("colors.paper.DEFAULT");
+    border: 2px solid theme("colors.line");
+    box-sizing: border-box;
+  }
+
+  .perf-v::before {
+    top: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .perf-v::after {
+    bottom: 0;
+    transform: translate(-50%, 50%);
+  }
+
+  /*
+   * Signature pattern 3 — receipt paper.
+   * Faint horizontal rules so monospace figures sit on a ledger.
+   */
+  .receipt-rules {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 27px,
+      theme("colors.line") 27px,
+      theme("colors.line") 28px
+    );
+  }
+
+  /* Decorative barcode for the boarding pass stub. */
+  .barcode {
+    background-image: repeating-linear-gradient(
+      to right,
+      theme("colors.ink.text") 0 2px,
+      transparent 2px 4px,
+      theme("colors.ink.text") 4px 5px,
+      transparent 5px 9px,
+      theme("colors.ink.text") 9px 12px,
+      transparent 12px 13px
+    );
+  }
+
+  /* Decorative QR block for the ticket wallet. */
+  .qr-block {
+    background-color: theme("colors.paper.hi");
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        theme("colors.ink.text") 0 4px,
+        transparent 4px 8px
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        theme("colors.ink.text") 0 4px,
+        transparent 4px 8px
+      );
+    background-blend-mode: multiply;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
