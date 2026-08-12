@@ -4,9 +4,10 @@ A platform for building personalised group trip itineraries. Anyone can create a
 trip, invite the people they're travelling with, and plan flights, stays, days,
 budget and packing in one shared place.
 
-This repo currently holds the **production scaffold and full static shell**:
-every screen of the design system is built as a real component against typed
-mock data. There is no database and no auth yet — see [What's next](#whats-next).
+This repo holds the **full app with working write paths**: create a trip, invite
+people, and edit every section, plus the per-user interactions (voting, packing
+ticks, alert dismissal). It runs against an **in-memory store**, not a database
+— see [The data layer](#the-data-layer).
 
 ## Stack
 
@@ -25,6 +26,15 @@ npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run typecheck  # tsc --noEmit
 npm run lint
+```
+
+End-to-end coverage of the write paths (Playwright is deliberately not a
+dependency, so install it on demand):
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+npm run build && npm run start -- -p 3111
+node e2e/write-paths.js
 ```
 
 ## Design system
@@ -67,16 +77,47 @@ app/
 components/
   shell/                 PhoneFrame, Card/Pill/Overline, SectionDivider, ShortcutNav
   trip/                  One component per itinerary section
+  edit/                  Editor shell + one form per entity
+  form/                  Field primitives, submit/delete buttons
 lib/
   types.ts               Domain types, shaped to match the planned DB tables
-  mock-data.ts           Demo seed — the single source of fabricated data
+  auth.ts                Auth seam — the one place "who is this" is decided
+  validation.ts          Zod schemas + FormData plumbing
+  actions/               Server actions, one module per area
+  data/store.ts          In-memory data layer (normalised) + read projection
+  mock-data.ts           Demo seed
   format.ts              Dates, money, budget splitting
   ics.ts                 Calendar export (RFC 5545)
+e2e/write-paths.js       End-to-end coverage of every mutation
 ```
 
-`lib/mock-data.ts` is the only module that invents data. Swapping it for
-Supabase queries that return the same types from `lib/types.ts` is the whole
-data migration — components shouldn't need to change.
+## The data layer
+
+`lib/data/store.ts` is a module-level singleton. **It does not persist.** It
+survives navigation within one running server and resets when the process
+restarts; on serverless hosting each instance holds its own copy, so two
+requests can legitimately disagree. It exists so the write paths — forms,
+validation, authorisation, revalidation — could be built and reviewed properly
+ahead of the database.
+
+What makes it a useful rehearsal rather than a fake is that it is **normalised
+the way Postgres will be**, not shaped like the UI:
+
+- poll votes are rows keyed by `(poll, user)`, so counts are derived and one
+  member can't vote twice
+- packing ticks are `(item, user)`, so two people tick their own sunscreen
+- alert dismissals are `(alert, user)`, so dismissing hides it only for you
+
+`getTripDetail(slug, userId)` is the read query that joins all of that into the
+`TripDetail` the UI consumes. Swapping to Supabase replaces the bodies of these
+functions — the signatures, the projection, and every component stay as they
+are.
+
+Two other seams are already in place: `lib/auth.ts` is the single place that
+decides who the current user is, and `requireTripAccess` in
+`lib/actions/guard.ts` is the membership check every mutation runs — the same
+rule that becomes an RLS policy, with the guard turning "no rows" into a 404
+rather than a 403.
 
 ## Decisions worth knowing
 
@@ -92,9 +133,15 @@ Day 1 existed. `components/trip/DayPlan.tsx` pairs the tabs with the timeline in
 one client component, so selecting a day switches the content and "All days"
 shows every day's highlights. All 8 days are populated.
 
-**Interactive pieces work, but state is local.** Voting, packing checkboxes and
-alert dismissal are real interactions held in React state — they reset on
-reload. Each component documents the table it should write to instead.
+**Interactive pieces write to the server.** Voting, packing ticks and alert
+dismissal go through server actions and survive a reload. They update
+optimistically, so the UI responds immediately and rolls back if the write
+fails. Changing your vote moves the count off your previous option rather than
+adding a second one.
+
+**Validation runs on the server.** HTML attributes help someone filling a form
+in; `lib/validation.ts` is what actually decides. A rejected submit comes back
+with per-field messages and the values the user typed, not a blank form.
 
 **Placeholders announce themselves.** The map is drawn as a blueprint rather
 than a fake map; the weather widget is labelled "seasonal averages, not a
@@ -110,9 +157,9 @@ September 2026 so the countdown and status logic have something real to compute.
 
 ## What's next
 
-1. **Supabase schema + RLS.** Because this is multi-tenant, auth is foundational
-   rather than a later step: every table's policy keys off `trip_members`, so a
-   user only sees trips they belong to.
+1. **Supabase schema + RLS**, replacing `lib/data/store.ts`. The table list
+   below is what the store already implements in memory, including the join
+   tables that keep per-user state per-user.
 
    ```
    trips             (id, slug, name, destination, cover_route,
@@ -133,7 +180,17 @@ September 2026 so the countdown and status logic have something real to compute.
    notifications     (trip_id, kind, title, body, created_at)
    ```
 
-2. **Write paths.** Every section is currently read-only. Creating a trip,
-   inviting members and editing each section need forms and server actions.
+2. **Real auth.** `getCurrentUser()` returns a fixed identity. Replacing it with
+   Supabase Auth also turns "add a member by name" into an email invite.
 3. **Real integrations.** Maps embed, weather API, flight status, QR generation
    where a vendor code exists.
+
+### Known limits
+
+- A trip holds one accommodation. Multi-leg stays need a list — a schema change,
+  not a form change.
+- A trip runs one poll at a time.
+- Entry requirements and emergency contacts are seeded reference content with no
+  editor; they belong to a destination, not to a trip.
+- Renaming a poll option clears the votes cast for it, since the option is
+  matched by label.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Plus } from "lucide-react";
-import { getTripSummaries } from "@/lib/mock-data";
+import { getCurrentUser } from "@/lib/auth";
+import { listTripsForUser } from "@/lib/data/store";
 import { formatDateRange } from "@/lib/format";
 import { PhoneFrame } from "@/components/shell/PhoneFrame";
 import { Card, Overline, Pill } from "@/components/shell/Card";
@@ -31,13 +32,17 @@ function countdownCopy(daysUntil: number | null, status: TripStatus): string {
   return `${Math.round(daysUntil / 7)} weeks away`;
 }
 
+/** Reflects trips created moments ago, so it can't be prerendered. */
+export const dynamic = "force-dynamic";
+
 /**
  * The platform's home screen. Each row is a trip the signed-in user belongs to;
  * with Supabase this becomes a query over `trip_members` for the current user,
  * with RLS doing the filtering rather than the query.
  */
-export default function TripsIndexPage() {
-  const trips = getTripSummaries();
+export default async function TripsIndexPage() {
+  const user = await getCurrentUser();
+  const trips = await listTripsForUser(user.id);
 
   return (
     <PhoneFrame>
@@ -110,19 +115,19 @@ export default function TripsIndexPage() {
           ))}
         </ul>
 
-        {/*
-          Creating a trip needs auth and a write path, so it announces itself as
-          not-yet-wired rather than pretending to work.
-        */}
-        <div className="mt-4 rounded-card border border-dashed border-line px-4 py-5 text-center">
-          <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted">
-            <Plus size={15} aria-hidden="true" />
-            New trip
-          </span>
-          <p className="mt-1 text-xs text-muted">
-            Available once accounts are wired up.
-          </p>
-        </div>
+        <Link
+          href="/trips/new"
+          className="
+            mt-4 flex items-center justify-center gap-2 rounded-card border
+            border-dashed border-line px-4 py-5 text-sm font-semibold text-lagoon-dark
+            transition-colors hover:border-lagoon/50 hover:bg-paper-hi
+            focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-offset-2 focus-visible:outline-lagoon-dark
+          "
+        >
+          <Plus size={15} aria-hidden="true" />
+          Start a trip
+        </Link>
       </main>
     </PhoneFrame>
   );

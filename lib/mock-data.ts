@@ -382,6 +382,8 @@ export const BALI_TRIP: TripDetail = {
     question: "Where are we doing the last-night dinner?",
     closesAt: "2026-09-14T12:00:00Z",
     totalVoters: 4,
+    // Seed only — the store replaces this with the real viewer's vote.
+    myVote: null,
     options: [
       {
         id: "po-1",

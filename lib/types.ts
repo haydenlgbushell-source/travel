@@ -182,13 +182,15 @@ export interface PollOption {
   voteCount: number;
 }
 
-/** polls */
+/** polls, projected for one viewer */
 export interface Poll {
   id: string;
   question: string;
   closesAt: string;
   options: PollOption[];
   totalVoters: number;
+  /** The viewer's own choice, or null if they haven't voted. */
+  myVote: string | null;
 }
 
 /** packing_items */
@@ -242,12 +244,13 @@ export interface TripDetail {
   trip: Trip;
   alerts: TripAlert[];
   notifications: TripNotification[];
-  accommodation: Accommodation;
+  /** Null until the organiser adds one — a new trip starts empty. */
+  accommodation: Accommodation | null;
   flights: Flight[];
   transport: TransportItem[];
   days: TripDay[];
   budget: Budget;
-  poll: Poll;
+  poll: Poll | null;
   packing: PackingItem[];
   wallet: WalletTicket[];
   entryRequirements: EntryRequirement[];

@@ -173,6 +173,14 @@ export function DayPlan({ days }: { days: TripDay[] }) {
 }
 
 function DayTimeline({ day }: { day: TripDay }) {
+  if (day.events.length === 0) {
+    return (
+      <Card className="px-4 py-6 text-center">
+        <p className="text-sm text-muted">Nothing planned for this day.</p>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-4">
       <ol className="relative space-y-4 border-l border-dashed border-line pl-5">

@@ -1,6 +1,11 @@
 import type { Budget, TripMember } from "@/lib/types";
 import { formatMoney, settleBalances, summariseBudget } from "@/lib/format";
-import { Card, Overline, SectionHeading } from "@/components/shell/Card";
+import {
+  Card,
+  EmptyState,
+  Overline,
+  SectionHeading,
+} from "@/components/shell/Card";
 
 /**
  * Signature pattern 3 — the receipt.
@@ -11,12 +16,30 @@ import { Card, Overline, SectionHeading } from "@/components/shell/Card";
  * remainder lands on whoever paid, so the balances always sum to zero.
  */
 export function BudgetReceipt({
+  slug,
   budget,
   members,
 }: {
+  slug: string;
   budget: Budget;
   members: TripMember[];
 }) {
+  if (budget.expenses.length === 0) {
+    return (
+      <section id="budget" aria-labelledby="budget-heading">
+        <SectionHeading title="Budget" meta="Nothing logged yet" />
+        <h3 id="budget-heading" className="sr-only">
+          Budget
+        </h3>
+        <EmptyState
+          message="No expenses on this trip yet."
+          href={`/trips/${slug}/edit/budget`}
+          cta="Log an expense"
+        />
+      </section>
+    );
+  }
+
   const totals = summariseBudget(budget, members.length);
   const balances = settleBalances(budget, members);
   const currency = budget.currency;

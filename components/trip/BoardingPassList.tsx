@@ -1,7 +1,13 @@
 import { ArrowRight, Clock } from "lucide-react";
 import type { Flight } from "@/lib/types";
 import { formatOffsetDate, formatOffsetTime } from "@/lib/format";
-import { Card, Overline, Pill, SectionHeading } from "@/components/shell/Card";
+import {
+  Card,
+  EmptyState,
+  Overline,
+  Pill,
+  SectionHeading,
+} from "@/components/shell/Card";
 import { StubDivider } from "@/components/shell/SectionDivider";
 
 const STATUS_TONE = {
@@ -126,7 +132,29 @@ function BoardingPass({ flight }: { flight: Flight }) {
   );
 }
 
-export function BoardingPassList({ flights }: { flights: Flight[] }) {
+export function BoardingPassList({
+  slug,
+  flights,
+}: {
+  slug: string;
+  flights: Flight[];
+}) {
+  if (flights.length === 0) {
+    return (
+      <section id="flights" aria-labelledby="flights-heading">
+        <SectionHeading title="Flights" meta="Nothing booked yet" />
+        <h3 id="flights-heading" className="sr-only">
+          Flights
+        </h3>
+        <EmptyState
+          message="No flights on this trip yet."
+          href={`/trips/${slug}/edit/flights`}
+          cta="Add a flight"
+        />
+      </section>
+    );
+  }
+
   return (
     <section id="flights" aria-labelledby="flights-heading">
       <SectionHeading

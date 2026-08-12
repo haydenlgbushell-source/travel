@@ -1,30 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { Check } from "lucide-react";
 import type { Poll } from "@/lib/types";
+import { castVoteAction } from "@/lib/actions/engagement";
+import { formatShortDate } from "@/lib/format";
 import { Card, Overline, SectionHeading } from "@/components/shell/Card";
 
+interface VoteState {
+  myVote: string | null;
+  counts: Record<string, number>;
+}
+
 /**
- * Voting is optimistic and local for now. With the data layer it becomes an
- * upsert into `poll_votes` keyed by (poll_id, user_id) — one vote per member,
- * changeable until `closes_at` — with the counts derived rather than stored.
+ * One vote per member, changeable until the poll closes. Clicking your current
+ * choice clears it.
+ *
+ * The optimistic reducer has to move the count off the previous option as well
+ * as onto the new one, or a changed vote briefly reads as two votes.
  */
-export function PollCard({ poll }: { poll: Poll }) {
-  const [votedFor, setVotedFor] = useState<string | null>(null);
+export function PollCard({ slug, poll }: { slug: string; poll: Poll }) {
+  const [, startTransition] = useTransition();
 
-  const options = poll.options.map((option) => ({
-    ...option,
-    voteCount: option.voteCount + (votedFor === option.id ? 1 : 0),
-  }));
+  const [state, applyVote] = useOptimistic<VoteState, string>(
+    {
+      myVote: poll.myVote,
+      counts: Object.fromEntries(
+        poll.options.map((option) => [option.id, option.voteCount]),
+      ),
+    },
+    (current, optionId) => {
+      const counts = { ...current.counts };
+      if (current.myVote) counts[current.myVote] -= 1;
 
-  const totalVotes = options.reduce((sum, o) => sum + o.voteCount, 0);
+      if (current.myVote === optionId) return { myVote: null, counts };
+
+      counts[optionId] = (counts[optionId] ?? 0) + 1;
+      return { myVote: optionId, counts };
+    },
+  );
+
+  const totalVotes = Object.values(state.counts).reduce((a, b) => a + b, 0);
 
   return (
     <section aria-labelledby="poll-heading">
       <SectionHeading
         title="Group vote"
-        meta={votedFor ? "Your vote is in" : "Waiting on you"}
+        meta={state.myVote ? "Your vote is in" : "Waiting on you"}
       />
 
       <div className="px-5">
@@ -40,12 +62,11 @@ export function PollCard({ poll }: { poll: Poll }) {
           </p>
 
           <ul className="mt-4 space-y-2">
-            {options.map((option) => {
-              const isChosen = votedFor === option.id;
+            {poll.options.map((option) => {
+              const count = state.counts[option.id] ?? 0;
+              const isChosen = state.myVote === option.id;
               const share =
-                totalVotes > 0
-                  ? Math.round((option.voteCount / totalVotes) * 100)
-                  : 0;
+                totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
 
               return (
                 <li key={option.id}>
@@ -53,9 +74,10 @@ export function PollCard({ poll }: { poll: Poll }) {
                     type="button"
                     aria-pressed={isChosen}
                     onClick={() =>
-                      setVotedFor((current) =>
-                        current === option.id ? null : option.id,
-                      )
+                      startTransition(async () => {
+                        applyVote(option.id);
+                        await castVoteAction(slug, poll.id, option.id);
+                      })
                     }
                     className={`
                       relative w-full overflow-hidden rounded-card border px-3 py-2.5
@@ -106,7 +128,9 @@ export function PollCard({ poll }: { poll: Poll }) {
           </ul>
 
           <p className="mt-3">
-            <Overline>Closes 14 Sep · one vote each</Overline>
+            <Overline>
+              Closes {formatShortDate(poll.closesAt.slice(0, 10))} · one vote each
+            </Overline>
           </p>
         </Card>
       </div>

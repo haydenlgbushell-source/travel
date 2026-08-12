@@ -32,6 +32,21 @@ export function EntryRequirements({
   requirements: EntryRequirement[];
   destination: string;
 }) {
+  if (requirements.length === 0) {
+    return (
+      <section id="info" aria-labelledby="entry-heading">
+        <SectionHeading title="Entry requirements" meta={destination} />
+        <h3 id="entry-heading" className="sr-only">
+          Entry requirements
+        </h3>
+        <p className="mx-5 rounded-card border border-dashed border-line px-4 py-5 text-center text-sm text-muted">
+          Nothing recorded for this destination yet. Entry rules are reference
+          content maintained per destination, not something you enter per trip.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section id="info" aria-labelledby="entry-heading">
       <SectionHeading

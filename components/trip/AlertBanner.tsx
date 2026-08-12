@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import type { TripAlert } from "@/lib/types";
+import { dismissAlertAction } from "@/lib/actions/engagement";
 
 const TONES = {
   urgent: {
@@ -20,13 +21,21 @@ const TONES = {
 } as const;
 
 /**
- * Dismissal is local-only for now. Once the data layer lands it should write to
- * an `alert_dismissals` row keyed by (alert_id, user_id) so it sticks per
- * member rather than per browser session.
+ * Dismissal writes an `alert_dismissals` row for this user, so it sticks across
+ * devices and doesn't hide the alert from anyone else. The optimistic update
+ * removes it immediately; if the action fails React restores it.
  */
-export function AlertBanner({ alerts }: { alerts: TripAlert[] }) {
-  const [dismissed, setDismissed] = useState<string[]>([]);
-  const visible = alerts.filter((alert) => !dismissed.includes(alert.id));
+export function AlertBanner({
+  slug,
+  alerts,
+}: {
+  slug: string;
+  alerts: TripAlert[];
+}) {
+  const [, startTransition] = useTransition();
+  const [visible, dismiss] = useOptimistic(alerts, (current, id: string) =>
+    current.filter((alert) => alert.id !== id),
+  );
 
   if (visible.length === 0) return null;
 
@@ -52,7 +61,12 @@ export function AlertBanner({ alerts }: { alerts: TripAlert[] }) {
             {alert.dismissible ? (
               <button
                 type="button"
-                onClick={() => setDismissed((ids) => [...ids, alert.id])}
+                onClick={() =>
+                  startTransition(async () => {
+                    dismiss(alert.id);
+                    await dismissAlertAction(slug, alert.id);
+                  })
+                }
                 aria-label={`Dismiss alert: ${alert.title}`}
                 className="
                   -mr-1 -mt-1 shrink-0 rounded-full p-1 opacity-60

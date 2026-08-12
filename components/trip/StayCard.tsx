@@ -1,9 +1,37 @@
 import { ExternalLink, Users } from "lucide-react";
 import type { Accommodation } from "@/lib/types";
 import { formatShortDate } from "@/lib/format";
-import { Card, Overline, Pill, SectionHeading } from "@/components/shell/Card";
+import {
+  Card,
+  EmptyState,
+  Overline,
+  Pill,
+  SectionHeading,
+} from "@/components/shell/Card";
 
-export function StayCard({ stay }: { stay: Accommodation }) {
+export function StayCard({
+  slug,
+  stay,
+}: {
+  slug: string;
+  stay: Accommodation | null;
+}) {
+  if (!stay) {
+    return (
+      <section id="stay" aria-labelledby="stay-heading">
+        <SectionHeading title="Where you're staying" meta="Not booked yet" />
+        <h3 id="stay-heading" className="sr-only">
+          Accommodation
+        </h3>
+        <EmptyState
+          message="No accommodation on this trip yet."
+          href={`/trips/${slug}/edit/stay`}
+          cta="Add where you're staying"
+        />
+      </section>
+    );
+  }
+
   return (
     <section id="stay" aria-labelledby="stay-heading">
       <SectionHeading

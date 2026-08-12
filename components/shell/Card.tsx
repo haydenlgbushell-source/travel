@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
@@ -64,6 +66,39 @@ export function Pill({
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * What a section shows before anything has been added to it. A new trip is
+ * nothing but empty states, so each one names the gap and links straight to the
+ * editor that fills it.
+ */
+export function EmptyState({
+  message,
+  href,
+  cta,
+}: {
+  message: string;
+  href: string;
+  cta: string;
+}) {
+  return (
+    <div className="mx-5 rounded-card border border-dashed border-line px-4 py-5 text-center">
+      <p className="text-sm text-muted">{message}</p>
+      <Link
+        href={href}
+        className="
+          mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-lagoon-dark
+          underline-offset-2 hover:underline
+          focus-visible:outline focus-visible:outline-2
+          focus-visible:outline-offset-2 focus-visible:outline-lagoon-dark
+        "
+      >
+        <Plus size={14} aria-hidden="true" />
+        {cta}
+      </Link>
+    </div>
   );
 }
 
