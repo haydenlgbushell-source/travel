@@ -451,7 +451,15 @@ export const DAYS: Day[] = AUTHORED_DAYS.map((day, d) => ({
   items: day.items.map((item, i) => ({ ...item, id: `d${d}-i${i}` })),
 }));
 
-export const TABS = ["Plan", "Stay & travel", "Money", "Info", "People"];
+/** Full label for the tab's accessible name, short one for the bottom bar
+ *  where five items share the width of a phone. */
+export const TABS = [
+  { label: "Plan", short: "Plan" },
+  { label: "Stay & travel", short: "Stay" },
+  { label: "Money", short: "Money" },
+  { label: "Info", short: "Info" },
+  { label: "People", short: "People" },
+];
 
 /** Pin positions on the day map, as [left, top]. */
 export const PIN_POS: Array<[string, string]> = [

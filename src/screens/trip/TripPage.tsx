@@ -287,42 +287,35 @@ export function TripPage({
       </div>
 
       <div
-        role="tablist"
-        className="trip-page__tabs"
+        className="trip-page__actions"
         style={{ background: theme.bg, borderBottomColor: STRIP_LINE }}
       >
-        {TABS.map((label, i) => (
-          <button
-            key={label}
-            type="button"
-            role="tab"
-            id={`wf-tab-${i}`}
-            aria-controls="wf-tabpanel"
-            aria-selected={i === tab && !airport}
-            tabIndex={i === tab ? 0 : -1}
-            className="trip-page__reset trip-page__tab"
-            onClick={() => pickTab(i)}
-            onKeyDown={(e) => {
-              /* Arrow keys move between tabs, as the tab pattern expects. */
-              const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-              if (step === 0) return;
-              e.preventDefault();
-              const next = (i + step + TABS.length) % TABS.length;
-              pickTab(next);
-              document.getElementById(`wf-tab-${next}`)?.focus();
-            }}
-            style={{ color: i === tab ? theme.ink : theme.meta }}
+        <button
+          type="button"
+          className="trip-page__reset trip-page__add"
+          onClick={() => setAddOpen(true)}
+          style={{
+            color: canApprove ? theme.btnInk : theme.accentInk,
+            background: canApprove ? theme.ink : "var(--wf-accent-tint)",
+            borderColor: canApprove ? theme.ink : "var(--wf-accent-edge)",
+          }}
+        >
+          {canApprove ? "Add to this day" : "Suggest something"}
+        </button>
+        <button
+          type="button"
+          className="trip-page__reset trip-page__decisions"
+          onClick={() => setSheetOpen(true)}
+          style={{ fontFamily: theme.fontMono }}
+        >
+          Decisions
+          <span
+            className="trip-page__decisions-count"
+            style={{ background: theme.accent, color: theme.btnInk }}
           >
-            {label}
-            <span
-              className="trip-page__tab-underline"
-              style={{
-                background: theme.accent,
-                transform: `scaleX(${i === tab ? 1 : 0})`,
-              }}
-            />
-          </button>
-        ))}
+            {DECISION_COUNT}
+          </span>
+        </button>
       </div>
 
       <div
@@ -386,36 +379,45 @@ export function TripPage({
         )}
       </div>
 
+      {/* The menu sits under the thumb; the day's actions sit up by the day. */}
       <div
-        className="trip-page__bar"
+        role="tablist"
+        className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
-        <button
-          type="button"
-          className="trip-page__reset trip-page__add"
-          onClick={() => setAddOpen(true)}
-          style={{
-            color: canApprove ? theme.btnInk : theme.accentInk,
-            background: canApprove ? theme.ink : "var(--wf-accent-tint)",
-            borderColor: canApprove ? theme.ink : "var(--wf-accent-edge)",
-          }}
-        >
-          {canApprove ? "Add to this day" : "Suggest something"}
-        </button>
-        <button
-          type="button"
-          className="trip-page__reset trip-page__decisions"
-          onClick={() => setSheetOpen(true)}
-          style={{ fontFamily: theme.fontMono }}
-        >
-          Decisions
-          <span
-            className="trip-page__decisions-count"
-            style={{ background: theme.accent, color: theme.btnInk }}
-          >
-            {DECISION_COUNT}
-          </span>
-        </button>
+        {TABS.map((entry, i) => {
+          const on = i === tab && !airport;
+          return (
+            <button
+              key={entry.label}
+              type="button"
+              role="tab"
+              id={`wf-tab-${i}`}
+              aria-controls="wf-tabpanel"
+              aria-selected={on}
+              aria-label={entry.label}
+              tabIndex={i === tab ? 0 : -1}
+              className="trip-page__reset trip-page__nav-item"
+              onClick={() => pickTab(i)}
+              onKeyDown={(e) => {
+                /* Arrow keys move between tabs, as the tab pattern expects. */
+                const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                if (step === 0) return;
+                e.preventDefault();
+                const next = (i + step + TABS.length) % TABS.length;
+                pickTab(next);
+                document.getElementById(`wf-tab-${next}`)?.focus();
+              }}
+              style={{ color: on ? theme.ink : theme.meta }}
+            >
+              <span
+                className="trip-page__nav-mark"
+                style={{ background: theme.accent, opacity: on ? 1 : 0 }}
+              />
+              {entry.short}
+            </button>
+          );
+        })}
       </div>
 
       {added && !sheetItemOpen && (
