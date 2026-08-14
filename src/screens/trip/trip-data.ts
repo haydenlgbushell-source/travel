@@ -1066,11 +1066,12 @@ export function applyDraft(item: TripItem, draft: DraftItem): TripItem {
 
 const STORAGE_KEY = "wayfare.trip.v1";
 
-/** Bumped whenever the seed itinerary changes materially (a different city,
- *  a different date range). A save tagged with an older version is someone's
- *  browser still holding the *previous* trip — Lisbon days under a Chicago
- *  header — so it gets discarded rather than shown back to them. */
-const CONTENT_VERSION = "chicago-1";
+/** Bumped whenever the seed itinerary changes materially — a different city,
+ *  a different date range, or fields added to every item (like the lat/lng
+ *  the map needs). A save tagged with an older version is someone's browser
+ *  still holding the *previous* shape of the trip, so it gets discarded
+ *  rather than shown back to them. */
+const CONTENT_VERSION = "chicago-2";
 
 export interface SavedState {
   days: Day[];
