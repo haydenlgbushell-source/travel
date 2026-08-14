@@ -28,3 +28,10 @@ a {
   background: rgba(20, 23, 26, 0.14);
   border-radius: 8px;
 }
+
+/* Keyboard focus is visible everywhere, including on controls that reset
+   their own styling. */
+:focus-visible {
+  outline: 2px solid oklch(0.52 0.13 285);
+  outline-offset: 2px;
+}

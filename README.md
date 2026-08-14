@@ -23,6 +23,15 @@ Trip planning app. React + TypeScript + Vite.
   mode replaces the tabs with times, places and booking refs on one dark card.
   The bottom bar opens a decisions sheet with the open votes.
 
+  Editors can add, edit and remove items. The add sheet asks only what and
+  when, offering times taken from the gaps in that day, and warns — without
+  blocking — when a time lands near something already booked; take the
+  warning and the day keeps a note about it. Day totals and the money bars
+  are summed from the items, so adding a cost moves the numbers, and an
+  unapproved suggestion stays out until an editor takes it. The plan is
+  kept in `localStorage`, so it survives a refresh. "View as" on the People
+  tab switches role — a prototype stand-in for what an invite would set.
+
 - **Theme system** (`src/theme`): the four style definitions, typed and
   exposed as `THEMES`, plus a `<ThemeProvider theme={...}>` that surfaces
   every token as a `--wf-*` CSS custom property (colour, radius, font

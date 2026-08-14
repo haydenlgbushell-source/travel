@@ -1,8 +1,17 @@
 import type { Theme } from "../../theme";
-import { BUDGET, DAYS, dayCost } from "./trip-data";
+import { BUDGET, dayTotal, euros, type Day } from "./trip-data";
 
-export function MoneyTab({ theme }: { theme: Theme }) {
-  const maxCost = Math.max(...DAYS.map(dayCost));
+export function MoneyTab({
+  days,
+  resolved,
+  theme,
+}: {
+  days: Day[];
+  resolved: Record<string, string>;
+  theme: Theme;
+}) {
+  const totals = days.map((day) => dayTotal(day, resolved));
+  const maxCost = Math.max(...totals, 1);
 
   return (
     <div className="trip-page__stack trip-page__tab-panel">
@@ -73,7 +82,7 @@ export function MoneyTab({ theme }: { theme: Theme }) {
         >
           Day by day
         </div>
-        {DAYS.map((day) => (
+        {days.map((day, i) => (
           <div key={day.num} className="bar">
             <span
               className="bar__label"
@@ -84,14 +93,14 @@ export function MoneyTab({ theme }: { theme: Theme }) {
             <span className="bar__track">
               <span
                 className="bar__fill"
-                style={{ width: `${Math.round((dayCost(day) / maxCost) * 100)}%` }}
+                style={{ width: `${Math.round((totals[i] / maxCost) * 100)}%` }}
               />
             </span>
             <span
               className="bar__value"
               style={{ fontFamily: theme.fontMono, color: theme.ink }}
             >
-              {day.cost}
+              {euros(totals[i])}
             </span>
           </div>
         ))}

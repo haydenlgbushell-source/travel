@@ -5,11 +5,7 @@ import type { TripItem } from "./trip-data";
 export type Verdict = "approved" | "declined";
 
 const PENDING_BG = "#F7F7F3";
-const PENDING_BORDER = "oklch(0.88 0.05 285)";
-const ACCENT_INK = "oklch(0.42 0.13 285)";
-const ACCENT_LINE = "oklch(0.88 0.05 285)";
 const WARN_INK = "oklch(0.52 0.13 60)";
-const DECLINED_INK = "oklch(0.5 0.13 30)";
 const APPROVED_INK = "oklch(0.42 0.11 155)";
 const NO_BOOKING_INK = "oklch(0.5 0.13 60)";
 
@@ -19,6 +15,7 @@ export function ItemCard({
   verdict,
   canApprove,
   onResolve,
+  onEdit,
   highlighted,
   theme,
 }: {
@@ -26,7 +23,8 @@ export function ItemCard({
   index: number;
   verdict?: Verdict;
   canApprove: boolean;
-  onResolve: (verdict: Verdict) => void;
+  onResolve: (verdict: Verdict | undefined) => void;
+  onEdit?: () => void;
   highlighted?: boolean;
   theme: Theme;
 }) {
@@ -36,6 +34,33 @@ export function ItemCard({
   useEffect(() => {
     if (highlighted) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [highlighted]);
+
+  /* Declined means declined — the card collapses to a line that says so and
+     offers the way back, rather than claiming to be hidden while sitting
+     there in full. */
+  if (verdict === "declined") {
+    return (
+      <div
+        className="declined"
+        style={{ borderColor: theme.line, background: theme.strip }}
+      >
+        <span
+          className="declined__text"
+          style={{ fontFamily: theme.fontMono, color: theme.meta }}
+        >
+          Declined · {item.title}
+        </span>
+        <button
+          type="button"
+          className="trip-page__reset declined__action"
+          onClick={() => onResolve(undefined)}
+          style={{ fontFamily: theme.fontMono, color: theme.accent }}
+        >
+          Put it back
+        </button>
+      </div>
+    );
+  }
 
   /* A suggestion stays visually provisional — tinted and dashed — until an
      editor approves it. Declining leaves the card in place with a verdict. */
@@ -49,7 +74,7 @@ export function ItemCard({
         style={{
           background: unresolved ? PENDING_BG : theme.card,
           borderStyle: unresolved ? "dashed" : "solid",
-          borderColor: unresolved ? PENDING_BORDER : theme.line,
+          borderColor: unresolved ? "var(--wf-accent-edge)" : theme.line,
         }}
       >
         {item.photo && (
@@ -191,7 +216,7 @@ export function ItemCard({
                     type="button"
                     className="trip-page__reset item__pending-btn"
                     onClick={() => onResolve("approved")}
-                    style={{ color: ACCENT_INK, border: `1px solid ${ACCENT_LINE}` }}
+                    style={{ color: theme.accentInk, border: "1px solid var(--wf-accent-edge)" }}
                   >
                     Back this
                   </button>
@@ -200,17 +225,12 @@ export function ItemCard({
             </div>
           )}
 
-          {verdict && (
+          {verdict === "approved" && (
             <div
               className="item__verdict"
-              style={{
-                fontFamily: theme.fontMono,
-                color: verdict === "declined" ? DECLINED_INK : APPROVED_INK,
-              }}
+              style={{ fontFamily: theme.fontMono, color: APPROVED_INK }}
             >
-              {verdict === "approved"
-                ? "Approved · now in the plan"
-                : "Declined · hidden from the plan"}
+              Approved · now in the plan
             </div>
           )}
 
@@ -228,6 +248,16 @@ export function ItemCard({
               {item.who}
             </span>
             <span className="item__foot-spacer" />
+            {onEdit && (
+              <button
+                type="button"
+                className="trip-page__reset item__edit"
+                onClick={onEdit}
+                style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              >
+                Edit
+              </button>
+            )}
             {item.mapsUrl && (
               <a
                 className="item__maps"

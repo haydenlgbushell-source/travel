@@ -29,6 +29,8 @@ export interface TripItem {
   note: string;
   place: string;
   meta: string;
+  /** Per person, in euros. Drives the day total and the money bars. */
+  costEach?: number;
   who: string;
   accent: string;
   /** Set when the item is only going ahead for part of the group. */
@@ -54,10 +56,12 @@ export interface Day {
   label: string;
   fullDate: string;
   weather: string;
-  cost: string;
   mapArea: string;
   walk: string;
+  /** Authored clash for the day. */
   conflict?: string;
+  /** Clashes the group created themselves, added as items land. */
+  flags?: string[];
   items: TripItem[];
 }
 
@@ -85,7 +89,6 @@ const AUTHORED_DAYS: AuthoredDay[] = [
     label: "Landing and Alfama",
     fullDate: "Thursday 4 June",
     weather: "24° · clear",
-    cost: "€41",
     mapArea: "Alfama",
     walk: "2.1 km",
     items: [
@@ -95,6 +98,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Passport control is the slow part — allow 40 minutes before anyone books a transfer.",
         place: "LIS · Terminal 1",
         meta: "TP1235 · on time",
+        costEach: 1.8,
         who: "All five",
         accent: ACCENT,
         transit: "Metro red then green · 35 min · €1.80",
@@ -126,6 +130,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Small room, no bar to wait at. They hold the table fifteen minutes, no longer.",
         place: "Calçada do Forte 22",
         meta: "≈ €32 each",
+        costEach: 32,
         who: "All five",
         accent: GREEN,
         photo: "Restaurant interior",
@@ -164,7 +169,6 @@ const AUTHORED_DAYS: AuthoredDay[] = [
     label: "Belém and the river",
     fullDate: "Friday 5 June",
     weather: "26° · light wind",
-    cost: "€28",
     mapArea: "Belém",
     walk: "3.4 km",
     conflict:
@@ -176,6 +180,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Buy the 24-hour Carris pass at the kiosk. Paying the driver costs three times as much.",
         place: "Cais do Sodré",
         meta: "€6.80 each",
+        costEach: 6.8,
         who: "All five",
         accent: ACCENT,
         transit: "Tram · 22 min to Belém",
@@ -186,6 +191,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Entry is timed at 10:00 and ours is paid. The long queue at the door is for walk-ups.",
         place: "Praça do Império",
         meta: "Paid · €12 each",
+        costEach: 12,
         who: "All five",
         accent: GREEN,
         photo: "Monastery cloister",
@@ -207,6 +213,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "No reservations. The room at the back moves faster than the takeaway queue.",
         place: "Rua de Belém 84",
         meta: "≈ €8 each",
+        costEach: 8,
         who: "All five",
         accent: AMBER,
         photo: "Pastéis counter",
@@ -227,6 +234,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Whether we eat over the river or come back is still a vote. Ferries every 20 minutes until 23:30.",
         place: "Cais do Sodré terminal",
         meta: "€1.55 each",
+        costEach: 1.55,
         who: "Waiting on 3",
         accent: AMBER,
         photo: "River crossing at dusk",
@@ -242,6 +250,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Tables sit on the water on the far side. Only works if the ferry vote lands on staying over.",
         place: "Rua do Ginjal 72",
         meta: "≈ €30 each",
+        costEach: 30,
         who: "Suggested",
         accent: AMBER,
         suggested: true,
@@ -260,7 +269,6 @@ const AUTHORED_DAYS: AuthoredDay[] = [
     label: "Sintra, all day",
     fullDate: "Saturday 6 June",
     weather: "21° · cloud",
-    cost: "€39",
     mapArea: "Sintra",
     walk: "5.8 km",
     conflict:
@@ -272,6 +280,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Forty minutes. Later trains fill up and the 434 bus queue doubles by ten.",
         place: "Rossio station",
         meta: "€4.60 return",
+        costEach: 4.6,
         who: "All five",
         accent: ACCENT,
         transit: "Bus 434 · 15 min",
@@ -282,6 +291,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Timed at 10:00. If the queue looks long, do the park first and the rooms after noon.",
         place: "Estrada da Pena",
         meta: "Paid · €20 each",
+        costEach: 20,
         who: "All five",
         accent: GREEN,
         photo: "Pena Palace terrace",
@@ -303,6 +313,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Nothing booked after this. The last comfortable train back is 20:11.",
         place: "R. Barbosa du Bocage",
         meta: "≈ €14 each",
+        costEach: 14,
         who: "4 of 5 going",
         split: true,
         accent: AMBER,
@@ -322,7 +333,6 @@ const AUTHORED_DAYS: AuthoredDay[] = [
     label: "Market and the last night",
     fullDate: "Sunday 7 June",
     weather: "25° · clear",
-    cost: "€18",
     mapArea: "Graça",
     walk: "1.6 km",
     conflict:
@@ -366,7 +376,6 @@ const AUTHORED_DAYS: AuthoredDay[] = [
     label: "Home",
     fullDate: "Monday 8 June",
     weather: "23° · clear",
-    cost: "€6",
     mapArea: "Alfama to LIS",
     walk: "No walking",
     items: [
@@ -376,6 +385,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
         note: "Two taxis booked for 08:30. Bags can stay at the desk if anyone wants a last coffee.",
         place: "Casa Bela",
         meta: "€28 total",
+        costEach: 5.6,
         who: "All five",
         accent: GREEN,
         bookingKind: "Cars booked",
@@ -583,10 +593,6 @@ export const ROLE_COLORS: Record<Role, { ink: string; bg: string }> = {
   Contributor: { ink: "oklch(0.48 0.12 60)", bg: "oklch(0.96 0.04 60)" },
 };
 
-/** Euro amount of a day's per-person cost, for the day-by-day bars. */
-export function dayCost(day: Day): number {
-  return Number(day.cost.replace("€", ""));
-}
 
 /* ---------- times ---------- */
 
@@ -596,9 +602,8 @@ export function toMinutes(time: string): number {
 }
 
 export function toTime(minutes: number): string {
-  const wrapped = ((minutes % 1440) + 1440) % 1440;
-  const h = Math.floor(wrapped / 60);
-  const m = wrapped % 60;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -606,13 +611,16 @@ export function byTime(a: TripItem, b: TripItem): number {
   return toMinutes(a.time) - toMinutes(b.time);
 }
 
+const END_OF_DAY = 23 * 60 + 59;
+
 export interface Slot {
   time: string;
   caption: string;
 }
 
 /** The day already knows where its holes are: offer the gaps big enough to
- *  put something in, rather than opening on an empty clock. */
+ *  put something in, rather than opening on an empty clock. Nothing is ever
+ *  proposed past midnight — that would sort to the top of the wrong day. */
 export function suggestSlots(items: TripItem[]): Slot[] {
   if (items.length === 0) {
     return [
@@ -635,19 +643,46 @@ export function suggestSlots(items: TripItem[]): Slot[] {
   }
 
   const last = sorted[sorted.length - 1];
-  slots.push({ time: toTime(toMinutes(last.time) + 90), caption: `after ${last.title}` });
+  const afterLast = toMinutes(last.time) + 90;
+  if (afterLast <= END_OF_DAY) {
+    slots.push({ time: toTime(afterLast), caption: `after ${last.title}` });
+  }
 
   return slots.slice(0, 3);
 }
 
 /** A booked thing within an hour of the new time is worth mentioning — but
  *  it is the organiser's call, so this never blocks the add. */
-export function clashAt(time: string, items: TripItem[]): TripItem | undefined {
+export function clashAt(
+  time: string,
+  items: TripItem[],
+  ignoreId?: string,
+): TripItem | undefined {
   const at = toMinutes(time);
   return items.find(
-    (item) => item.booking !== undefined && Math.abs(toMinutes(item.time) - at) < 60,
+    (item) =>
+      item.id !== ignoreId &&
+      item.booking !== undefined &&
+      Math.abs(toMinutes(item.time) - at) < 60,
   );
 }
+
+/* ---------- money ---------- */
+
+/** An unapproved suggestion is not money anyone has agreed to spend, so it
+ *  stays out of the total until an editor takes it. */
+export function dayTotal(day: Day, resolved: Record<string, string>): number {
+  return day.items.reduce((sum, item) => {
+    const counts = !item.suggested || resolved[item.id] === "approved";
+    return counts ? sum + (item.costEach ?? 0) : sum;
+  }, 0);
+}
+
+export function euros(amount: number): string {
+  return `€${amount % 1 === 0 ? amount : amount.toFixed(2)}`;
+}
+
+/* ---------- editing ---------- */
 
 export interface DraftItem {
   title: string;
@@ -655,26 +690,97 @@ export interface DraftItem {
   place: string;
   note: string;
   booked: boolean;
+  costEach: string;
+}
+
+export function draftFrom(item: TripItem): DraftItem {
+  return {
+    title: item.title,
+    time: item.time,
+    place: item.place === "Not set" ? "" : item.place,
+    note: item.note,
+    booked: item.booking !== undefined,
+    costEach: item.costEach === undefined ? "" : String(item.costEach),
+  };
 }
 
 let addedCount = 0;
 
-/** Turn what the sheet collected into a full item, inferring the rest: an
- *  unbooked plan is unsettled (amber), a booked one is confirmed (green). */
-export function buildItem(draft: DraftItem, suggested: boolean): TripItem {
-  addedCount += 1;
+function fields(draft: DraftItem) {
+  const cost = Number.parseFloat(draft.costEach);
+  const costEach = Number.isFinite(cost) && cost >= 0 ? cost : undefined;
   return {
-    id: `added-${addedCount}`,
     time: draft.time,
     title: draft.title.trim(),
     note: draft.note.trim(),
     place: draft.place.trim() || "Not set",
+    costEach,
     meta: draft.booked ? "Booked" : "Nothing booked yet",
-    who: suggested ? "Suggested" : "All five",
     accent: draft.booked ? GREEN : AMBER,
-    suggested: suggested || undefined,
-    suggestedBy: suggested ? "you" : undefined,
     bookingKind: draft.booked ? "Confirmed" : undefined,
     booking: draft.booked ? [{ label: "At", value: draft.time }] : undefined,
   };
+}
+
+/** Turn what the sheet collected into a full item, inferring the rest: an
+ *  unbooked plan reads as unsettled, a booked one as confirmed. */
+export function buildItem(draft: DraftItem, suggested: boolean): TripItem {
+  addedCount += 1;
+  return {
+    id: `added-${addedCount}-${Date.now()}`,
+    who: suggested ? "Suggested" : "All five",
+    suggested: suggested || undefined,
+    suggestedBy: suggested ? "you" : undefined,
+    ...fields(draft),
+  };
+}
+
+/** Editing keeps everything the sheet does not ask about — rating, photo,
+ *  transit leg, booking ref — so an authored item survives a small change. */
+export function applyDraft(item: TripItem, draft: DraftItem): TripItem {
+  const next = fields(draft);
+  return {
+    ...item,
+    ...next,
+    meta: item.costEach !== next.costEach || !item.meta ? next.meta : item.meta,
+    booking: draft.booked ? (item.booking ?? next.booking) : undefined,
+    bookingKind: draft.booked ? (item.bookingKind ?? next.bookingKind) : undefined,
+  };
+}
+
+/* ---------- persistence ---------- */
+
+const STORAGE_KEY = "wayfare.trip.v1";
+
+export interface SavedState {
+  days: Day[];
+  resolved: Record<string, string>;
+}
+
+export function loadSaved(): SavedState | undefined {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as SavedState;
+    if (!Array.isArray(parsed.days) || parsed.days.length === 0) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+export function save(state: SavedState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* private mode or a full quota — the trip still works, it just won't keep. */
+  }
+}
+
+export function clearSaved(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* nothing to do */
+  }
 }

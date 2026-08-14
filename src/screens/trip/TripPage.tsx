@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import type { Theme } from "../../theme";
+import { ThemeProvider, type Theme } from "../../theme";
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
+import { ItemSheet } from "./ItemSheet";
 import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
-import { AddItemSheet } from "./AddItemSheet";
 import type { Verdict } from "./ItemCard";
 import {
   DAYS,
   DECISION_COUNT,
   TABS,
   TRIP,
+  applyDraft,
   buildItem,
   byTime,
+  clashAt,
+  loadSaved,
+  save,
   type Day,
   type DraftItem,
   type Role,
@@ -28,9 +32,6 @@ const STRIP_LINE = "#E1E1DA";
 const AIRPORT_BORDER = "#3A3F42";
 const AIRPORT_OFF_INK = "#C3C7C0";
 const DAY_META_ON = "#9DA39B";
-const SUGGEST_INK = "oklch(0.42 0.13 285)";
-const SUGGEST_BG = "oklch(0.97 0.02 285)";
-const SUGGEST_LINE = "oklch(0.9 0.04 285)";
 
 /** How long the day switch shows skeletons before the plan lands. */
 const DAY_SWITCH_MS = 380;
@@ -39,20 +40,31 @@ const DAY_SWITCH_MS = 380;
 const UNDO_MS = 8000;
 
 export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void }) {
-  const [days, setDays] = useState<Day[]>(DAYS);
+  const saved = useRef(loadSaved()).current;
+  const [days, setDays] = useState<Day[]>(saved?.days ?? DAYS);
+  const [resolved, setResolved] = useState<Record<string, Verdict>>(
+    (saved?.resolved as Record<string, Verdict>) ?? {},
+  );
   const [dayIndex, setDayIndex] = useState(1);
-  const [addOpen, setAddOpen] = useState(false);
-  const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
   const [voted, setVoted] = useState(false);
-  const [resolved, setResolved] = useState<Record<string, Verdict>>({});
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [role] = useState<Role>("Editor");
+  const [role, setRole] = useState<Role>("Editor");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | undefined>();
+  const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const body = useRef<HTMLDivElement>(null);
+
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  /* The plan survives a refresh. */
+  useEffect(() => {
+    save({ days, resolved });
+  }, [days, resolved]);
 
   /* The undo strip and the ring on the new card clear themselves, so the plan
      goes back to being just the plan. */
@@ -64,6 +76,12 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
 
   const canApprove = role === "Organiser" || role === "Editor";
   const day = days[dayIndex];
+  const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
+  const sheetItemOpen = addOpen || editing !== undefined;
+
+  function toTop() {
+    body.current?.scrollTo({ top: 0 });
+  }
 
   function pickDay(i: number) {
     if (i === dayIndex) return;
@@ -73,40 +91,73 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
     setAirport(false);
     setAdded(undefined);
     setLoading(true);
+    toTop();
     timer.current = setTimeout(() => setLoading(false), DAY_SWITCH_MS);
   }
 
+  function pickTab(i: number) {
+    setTab(i);
+    setAirport(false);
+    toTop();
+  }
+
+  function updateDay(change: (d: Day) => Day) {
+    setDays((prev) => prev.map((d, i) => (i === dayIndex ? change(d) : d)));
+  }
+
   /* New items slot into the day by time rather than landing at the end, so
-     the plan still reads as a sequence. */
+     the plan still reads as a sequence. A clash the group creates is kept on
+     the day, not just flashed in the sheet. */
   function addItem(draft: DraftItem) {
     const item = buildItem(draft, !canApprove);
-    setDays((prev) =>
-      prev.map((d, i) =>
-        i === dayIndex ? { ...d, items: [...d.items, item].sort(byTime) } : d,
-      ),
-    );
+    const clash = clashAt(item.time, day.items);
+    const flag = clash
+      ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
+      : undefined;
+
+    updateDay((d) => ({
+      ...d,
+      items: [...d.items, item].sort(byTime),
+      flags: flag ? [...(d.flags ?? []), flag] : d.flags,
+    }));
     setAddOpen(false);
     setTab(0);
     setAdded({ id: item.id, title: item.title });
   }
 
-  function undoAdd() {
-    if (!added) return;
-    setDays((prev) =>
-      prev.map((d, i) =>
-        i === dayIndex ? { ...d, items: d.items.filter((it) => it.id !== added.id) } : d,
-      ),
-    );
+  function saveEdit(draft: DraftItem) {
+    if (!editing) return;
+    const next = applyDraft(editing, draft);
+    updateDay((d) => ({
+      ...d,
+      items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
+    }));
+    setEditingId(undefined);
+    setAdded({ id: next.id, title: next.title });
+  }
+
+  function removeItem(id: string) {
+    updateDay((d) => ({ ...d, items: d.items.filter((i) => i.id !== id) }));
+    setEditingId(undefined);
     setAdded(undefined);
   }
 
-  function openSuggestion(i: number) {
-    setDayIndex(i);
-    setTab(0);
+  function resolve(id: string, verdict: Verdict | undefined) {
+    setResolved((prev) => {
+      if (verdict === undefined) {
+        const { [id]: _drop, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [id]: verdict };
+    });
   }
 
   return (
-    <div className="trip-page" style={{ background: theme.bg, color: theme.ink }}>
+    <ThemeProvider
+      theme={theme}
+      className="trip-page"
+      style={{ background: theme.bg, color: theme.ink }}
+    >
       <div
         className="trip-page__head"
         style={{ background: theme.headBg, color: theme.headInk }}
@@ -133,6 +184,7 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
             </span>
             <button
               type="button"
+              aria-pressed={airport}
               className="trip-page__reset trip-page__airport"
               onClick={() => setAirport((on) => !on)}
               style={{
@@ -182,12 +234,15 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
         className="trip-page__days"
         style={{ background: theme.bg, borderBottomColor: STRIP_LINE }}
       >
-        {DAYS.map((d, i) => {
+        {days.map((d, i) => {
           const on = i === dayIndex;
+          const flagged = d.conflict !== undefined || (d.flags?.length ?? 0) > 0;
           return (
             <button
               key={d.num}
               type="button"
+              aria-pressed={on}
+              aria-label={`${d.fullDate}${flagged ? ", has a clash" : ""}`}
               className="trip-page__reset trip-page__day"
               onClick={() => pickDay(i)}
               style={{
@@ -198,29 +253,24 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
             >
               <span
                 className="trip-page__day-dow"
-                style={{
-                  fontFamily: theme.fontMono,
-                  color: on ? DAY_META_ON : theme.meta,
-                }}
+                style={{ fontFamily: theme.fontMono, color: on ? DAY_META_ON : theme.meta }}
               >
                 {d.dow}
               </span>
               <span
                 className="trip-page__day-num"
-                style={{
-                  fontFamily: theme.fontDisplay,
-                  color: on ? theme.bg : theme.ink,
-                }}
+                style={{ fontFamily: theme.fontDisplay, color: on ? theme.bg : theme.ink }}
               >
                 {d.num}
               </span>
-              {d.conflict && <span className="trip-page__day-flag" />}
+              {flagged && <span className="trip-page__day-flag" />}
             </button>
           );
         })}
       </div>
 
       <div
+        role="tablist"
         className="trip-page__tabs"
         style={{ background: theme.bg, borderBottomColor: STRIP_LINE }}
       >
@@ -228,10 +278,21 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
           <button
             key={label}
             type="button"
+            role="tab"
+            id={`wf-tab-${i}`}
+            aria-controls="wf-tabpanel"
+            aria-selected={i === tab && !airport}
+            tabIndex={i === tab ? 0 : -1}
             className="trip-page__reset trip-page__tab"
-            onClick={() => {
-              setTab(i);
-              setAirport(false);
+            onClick={() => pickTab(i)}
+            onKeyDown={(e) => {
+              /* Arrow keys move between tabs, as the tab pattern expects. */
+              const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+              if (step === 0) return;
+              e.preventDefault();
+              const next = (i + step + TABS.length) % TABS.length;
+              pickTab(next);
+              document.getElementById(`wf-tab-${next}`)?.focus();
             }}
             style={{ color: i === tab ? theme.ink : theme.meta }}
           >
@@ -247,7 +308,14 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
         ))}
       </div>
 
-      <div className="trip-page__body">
+      <div
+        ref={body}
+        id="wf-tabpanel"
+        role={airport ? undefined : "tabpanel"}
+        aria-labelledby={airport ? undefined : `wf-tab-${tab}`}
+        tabIndex={0}
+        className="trip-page__body"
+      >
         {airport ? (
           <AirportPanel day={day} theme={theme} />
         ) : (
@@ -259,17 +327,26 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
                 loading={loading}
                 resolved={resolved}
                 canApprove={canApprove}
-                onResolve={(key, verdict) =>
-                  setResolved((prev) => ({ ...prev, [key]: verdict }))
-                }
+                onResolve={resolve}
+                onEdit={setEditingId}
+                onAdd={() => setAddOpen(true)}
                 theme={theme}
               />
             )}
             {tab === 1 && <TravelTab theme={theme} />}
-            {tab === 2 && <MoneyTab theme={theme} />}
+            {tab === 2 && <MoneyTab days={days} resolved={resolved} theme={theme} />}
             {tab === 3 && <InfoTab theme={theme} />}
             {tab === 4 && (
-              <PeopleTab role={role} onOpenSuggestion={openSuggestion} theme={theme} />
+              <PeopleTab
+                role={role}
+                onRoleChange={setRole}
+                onOpenSuggestion={(i) => {
+                  setDayIndex(i);
+                  setTab(0);
+                  toTop();
+                }}
+                theme={theme}
+              />
             )}
           </>
         )}
@@ -284,9 +361,9 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
           className="trip-page__reset trip-page__add"
           onClick={() => setAddOpen(true)}
           style={{
-            color: canApprove ? theme.btnInk : SUGGEST_INK,
-            background: canApprove ? theme.ink : SUGGEST_BG,
-            borderColor: canApprove ? theme.ink : SUGGEST_LINE,
+            color: canApprove ? theme.btnInk : theme.accentInk,
+            background: canApprove ? theme.ink : "var(--wf-accent-tint)",
+            borderColor: canApprove ? theme.ink : "var(--wf-accent-edge)",
           }}
         >
           {canApprove ? "Add to this day" : "Suggest something"}
@@ -307,18 +384,15 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
         </button>
       </div>
 
-      {added && !addOpen && (
-        <div
-          className="undo"
-          style={{ background: theme.ink, color: theme.btnInk }}
-        >
+      {added && !sheetItemOpen && (
+        <div className="undo" role="status" style={{ background: theme.ink, color: theme.btnInk }}>
           <span className="undo__text">
             {canApprove ? "Added" : "Sent to editors"} · {added.title}
           </span>
           <button
             type="button"
             className="trip-page__reset undo__action"
-            onClick={undoAdd}
+            onClick={() => removeItem(added.id)}
             style={{ fontFamily: theme.fontMono, color: theme.bg }}
           >
             Undo
@@ -326,12 +400,17 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
         </div>
       )}
 
-      {addOpen && (
-        <AddItemSheet
+      {sheetItemOpen && (
+        <ItemSheet
           day={day}
+          editing={editing}
           canApprove={canApprove}
-          onAdd={addItem}
-          onClose={() => setAddOpen(false)}
+          onSave={editing ? saveEdit : addItem}
+          onDelete={editing ? () => removeItem(editing.id) : undefined}
+          onClose={() => {
+            setAddOpen(false);
+            setEditingId(undefined);
+          }}
           theme={theme}
         />
       )}
@@ -344,6 +423,6 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
           theme={theme}
         />
       )}
-    </div>
+    </ThemeProvider>
   );
 }

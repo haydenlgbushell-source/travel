@@ -1,12 +1,16 @@
 import type { Theme } from "../../theme";
 import { INBOX, PEOPLE, ROLE_COLORS, ROLE_RULES, type Role } from "./trip-data";
 
+const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
+
 export function PeopleTab({
   role,
+  onRoleChange,
   onOpenSuggestion,
   theme,
 }: {
   role: Role;
+  onRoleChange: (role: Role) => void;
   onOpenSuggestion: (dayIndex: number) => void;
   theme: Theme;
 }) {
@@ -100,6 +104,37 @@ export function PeopleTab({
         >
           What each role can do
         </div>
+
+        {/* Prototype control: the real app takes your role from the invite. */}
+        <div className="role-switch">
+          <span
+            className="wf-card__eyebrow"
+            style={{ fontFamily: theme.fontMono, color: theme.meta }}
+          >
+            View as
+          </span>
+          {ROLES.map((r) => {
+            const on = r === role;
+            return (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={on}
+                className="trip-page__reset role-switch__option"
+                onClick={() => onRoleChange(r)}
+                style={{
+                  fontFamily: theme.fontMono,
+                  background: on ? theme.ink : theme.card,
+                  borderColor: on ? theme.ink : theme.line,
+                  color: on ? theme.bg : theme.body,
+                }}
+              >
+                {r}
+              </button>
+            );
+          })}
+        </div>
+
         {ROLE_RULES.map((rule) => (
           <div key={rule.role} className="roles__rule">
             <span
