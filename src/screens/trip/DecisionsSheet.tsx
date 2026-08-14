@@ -14,9 +14,9 @@ export function DecisionsSheet({
   theme: Theme;
 }) {
   const poll = [
-    { label: "Ramiro", votes: voted ? "3" : "2", width: voted ? "60%" : "40%" },
-    { label: "Cervejaria Liberdade", votes: "2", width: "40%" },
-    { label: "A Cevicheria", votes: voted ? "0" : "1", width: voted ? "0%" : "20%" },
+    { label: "Girl & the Goat again", votes: voted ? "3" : "2", width: voted ? "60%" : "40%" },
+    { label: "RPM Italian", votes: "2", width: "40%" },
+    { label: "Smoque BBQ", votes: voted ? "0" : "1", width: voted ? "0%" : "20%" },
   ];
 
   return (
@@ -44,7 +44,7 @@ export function DecisionsSheet({
           className="sheet__poll-eyebrow"
           style={{ fontFamily: theme.fontMono, color: theme.meta }}
         >
-          Sunday dinner
+          Tuesday dinner
         </span>
         {poll.map((option) => (
           <div

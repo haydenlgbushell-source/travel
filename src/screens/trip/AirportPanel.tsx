@@ -1,5 +1,5 @@
 import type { Theme } from "../../theme";
-import type { Day } from "./trip-data";
+import { EMERGENCY_NUMBER, STAY, type Day } from "./trip-data";
 
 const REF_INK = "oklch(0.8 0.11 60)";
 
@@ -46,8 +46,10 @@ export function AirportPanel({ day, theme }: { day: Day; theme: Theme }) {
       </div>
 
       <div className="airport__contacts" style={{ fontFamily: theme.fontMono }}>
-        <span>Emergency 112</span>
-        <span>Casa Bela +351 218 041 200</span>
+        <span>Emergency {EMERGENCY_NUMBER}</span>
+        <span>
+          {STAY.name.split(",")[0]} {STAY.phone}
+        </span>
       </div>
     </div>
   );

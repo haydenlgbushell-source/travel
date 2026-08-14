@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { ThemeProvider, type Theme } from "../../theme";
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
@@ -7,6 +7,7 @@ import { ItemSheet } from "./ItemSheet";
 import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
 import { MoreSheet } from "./MoreSheet";
+import { HamburgerIcon, InfoIcon, MapIcon, PlanIcon, TravelIcon } from "./NavIcons";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
@@ -45,16 +46,17 @@ const DAY_SWITCH_MS = 380;
 const UNDO_MS = 8000;
 
 /** What sits in the bottom tablist. Money and People are one tap further,
- *  behind More — this is what a thumb reaches for most often. */
+ *  behind the hamburger in the header — this is what a thumb reaches for
+ *  most often. */
 type NavEntry =
-  | { label: string; short: string; kind: "tab"; tab: number }
-  | { label: string; short: string; kind: "map" };
+  | { label: string; short: string; kind: "tab"; tab: number; icon: ComponentType }
+  | { label: string; short: string; kind: "map"; icon: ComponentType };
 
 const NAV_TABS: NavEntry[] = [
-  { label: "Plan", short: "Plan", kind: "tab", tab: 0 },
-  { label: "Stay & travel", short: "Travel", kind: "tab", tab: 1 },
-  { label: "Trip map", short: "Map", kind: "map" },
-  { label: "Info", short: "Info", kind: "tab", tab: 3 },
+  { label: "Plan", short: "Plan", kind: "tab", tab: 0, icon: PlanIcon },
+  { label: "Stay & travel", short: "Travel", kind: "tab", tab: 1, icon: TravelIcon },
+  { label: "Trip map", short: "Map", kind: "map", icon: MapIcon },
+  { label: "Info", short: "Info", kind: "tab", tab: 3, icon: InfoIcon },
 ];
 
 export function TripPage({
@@ -212,18 +214,30 @@ export function TripPage({
         style={{ background: theme.headBg, color: theme.headInk }}
       >
         <div className="trip-page__head-row">
-          <button
-            type="button"
-            className="trip-page__reset trip-page__wordmark"
-            onClick={onBack}
-            style={{
-              fontFamily: theme.fontDisplay,
-              letterSpacing: theme.wordTrack,
-              cursor: onBack ? "pointer" : "default",
-            }}
-          >
-            {theme.wordmark}
-          </button>
+          <div className="trip-page__head-left">
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={moreOpen}
+              className="trip-page__reset trip-page__hamburger"
+              onClick={() => setMoreOpen(true)}
+            >
+              <HamburgerIcon />
+              <span className="trip-page__visually-hidden">More — Money and People</span>
+            </button>
+            <button
+              type="button"
+              className="trip-page__reset trip-page__wordmark"
+              onClick={onBack}
+              style={{
+                fontFamily: theme.fontDisplay,
+                letterSpacing: theme.wordTrack,
+                cursor: onBack ? "pointer" : "default",
+              }}
+            >
+              {theme.wordmark}
+            </button>
+          </div>
           <div className="trip-page__head-actions">
             <span
               className="trip-page__countdown"
@@ -417,64 +431,50 @@ export function TripPage({
       </div>
 
       {/* The menu sits under the thumb; the day's actions sit up by the day.
-          Money and People live one level down, behind More — Plan, Travel,
-          Map and Info are what a thumb needs most often. */}
+          Money and People live behind the hamburger in the header — Plan,
+          Travel, Map and Info are what a thumb needs most often. */}
       <div
+        role="tablist"
         className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
-        <div role="tablist" className="trip-page__nav-tabs">
-          {NAV_TABS.map((entry, i) => {
-            const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
-            return (
-              <button
-                key={entry.label}
-                type="button"
-                role="tab"
-                id={`wf-tab-nav-${i}`}
-                aria-controls="wf-tabpanel"
-                aria-selected={on}
-                aria-label={entry.label}
-                tabIndex={on ? 0 : -1}
-                className="trip-page__reset trip-page__nav-item"
-                onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
-                onKeyDown={(e) => {
-                  /* Arrow keys move between tabs, as the tab pattern expects. */
-                  const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-                  if (step === 0) return;
-                  e.preventDefault();
-                  const next = (i + step + NAV_TABS.length) % NAV_TABS.length;
-                  const nextEntry = NAV_TABS[next];
-                  if (nextEntry.kind === "map") setMapOpenTab();
-                  else pickTab(nextEntry.tab);
-                  document.getElementById(`wf-tab-nav-${next}`)?.focus();
-                }}
-                style={{ color: on ? theme.ink : theme.meta }}
-              >
-                <span
-                  className="trip-page__nav-mark"
-                  style={{ background: theme.accent, opacity: on ? 1 : 0 }}
-                />
-                {entry.short}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={moreOpen}
-          className="trip-page__reset trip-page__nav-item"
-          onClick={() => setMoreOpen(true)}
-          style={{ color: theme.meta }}
-        >
-          <span className="trip-page__nav-more-icon">
-            <span />
-            <span />
-            <span />
-          </span>
-          More
-        </button>
+        {NAV_TABS.map((entry, i) => {
+          const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
+          const Icon = entry.icon;
+          return (
+            <button
+              key={entry.label}
+              type="button"
+              role="tab"
+              id={`wf-tab-nav-${i}`}
+              aria-controls="wf-tabpanel"
+              aria-selected={on}
+              aria-label={entry.label}
+              tabIndex={on ? 0 : -1}
+              className="trip-page__reset trip-page__nav-item"
+              onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
+              onKeyDown={(e) => {
+                /* Arrow keys move between tabs, as the tab pattern expects. */
+                const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                if (step === 0) return;
+                e.preventDefault();
+                const next = (i + step + NAV_TABS.length) % NAV_TABS.length;
+                const nextEntry = NAV_TABS[next];
+                if (nextEntry.kind === "map") setMapOpenTab();
+                else pickTab(nextEntry.tab);
+                document.getElementById(`wf-tab-nav-${next}`)?.focus();
+              }}
+              style={{ color: on ? theme.ink : theme.meta }}
+            >
+              <span
+                className="trip-page__nav-mark"
+                style={{ background: theme.accent, opacity: on ? 1 : 0 }}
+              />
+              <Icon />
+              {entry.short}
+            </button>
+          );
+        })}
       </div>
 
       {added && !sheetItemOpen && (
