@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Theme } from "../../theme";
+import { Photo } from "./Photo";
 import type { TripItem } from "./trip-data";
 
 export type Verdict = "approved" | "declined";
@@ -77,19 +78,13 @@ export function ItemCard({
           borderColor: unresolved ? "var(--wf-accent-edge)" : theme.line,
         }}
       >
-        {item.photo && (
-          <div className="item__photo" style={{ background: theme.photoFill }}>
-            <span
-              className="item__photo-tag"
-              style={{
-                fontFamily: theme.fontMono,
-                background: theme.card,
-                borderColor: theme.line,
-              }}
-            >
-              {item.photo}
-            </span>
-          </div>
+        {(item.photo || item.photoUrl) && (
+          <Photo
+            className="item__photo"
+            url={item.photoUrl}
+            caption={item.photo}
+            theme={theme}
+          />
         )}
 
         <div className="item__body">

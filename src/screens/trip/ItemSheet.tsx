@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import type { Theme } from "../../theme";
+import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
 import {
   ITEM_KINDS,
@@ -19,6 +20,7 @@ const DANGER_INK = "oklch(0.5 0.13 30)";
 const EMPTY: DraftItem = {
   kind: "Do",
   title: "",
+  photoUrl: "",
   time: "",
   place: "",
   note: "",
@@ -54,6 +56,7 @@ export function ItemSheet({
     place: useId(),
     note: useId(),
     cost: useId(),
+    photo: useId(),
   };
 
   const set = <K extends keyof DraftItem>(key: K, value: DraftItem[K]) =>
@@ -219,6 +222,25 @@ export function ItemSheet({
               placeholder="Optional"
               style={{ ...fieldStyle, fontFamily: theme.fontMono }}
             />
+          </div>
+
+          <div className="add-sheet__field">
+            <label htmlFor={ids.photo} className="wf-card__eyebrow" style={labelStyle}>
+              Photo link
+            </label>
+            <input
+              id={ids.photo}
+              className="add-sheet__input"
+              type="url"
+              inputMode="url"
+              value={draft.photoUrl}
+              onChange={(e) => set("photoUrl", e.target.value)}
+              placeholder="Paste a picture URL (optional)"
+              style={fieldStyle}
+            />
+            {draft.photoUrl.trim() !== "" && (
+              <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
+            )}
           </div>
 
           <div className="add-sheet__field">

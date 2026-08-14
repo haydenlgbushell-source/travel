@@ -1,4 +1,5 @@
 import type { Theme } from "../../theme";
+import { Photo } from "./Photo";
 import { ITEM_KINDS, KIND_HEADINGS, type ItemKind } from "./trip-data";
 
 export interface Place {
@@ -7,6 +8,7 @@ export interface Place {
   place?: string;
   note?: string;
   rating?: string;
+  photoUrl?: string;
   day?: string;
 }
 
@@ -32,6 +34,9 @@ export function PlacesList({ places, theme }: { places: Place[]; theme: Theme })
                 className="place"
                 style={{ background: theme.card, borderColor: theme.line }}
               >
+                {item.photoUrl && (
+                  <Photo className="place__photo" url={item.photoUrl} theme={theme} />
+                )}
                 <div className="place__head">
                   <span className="place__title" style={{ color: theme.ink }}>
                     {item.title}

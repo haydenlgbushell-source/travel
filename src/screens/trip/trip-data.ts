@@ -51,7 +51,10 @@ export interface TripItem {
   split?: boolean;
   transit?: string;
   transitWarn?: boolean;
+  /** Caption for the photo block. */
   photo?: string;
+  /** Link to an actual picture of the place; absent falls back to the fill. */
+  photoUrl?: string;
   rating?: string;
   reviews?: string;
   price?: string;
@@ -753,6 +756,7 @@ export function money(amountInEuros: number, code: string): string {
 export interface DraftItem {
   kind: ItemKind;
   title: string;
+  photoUrl: string;
   time: string;
   place: string;
   note: string;
@@ -764,6 +768,7 @@ export function draftFrom(item: TripItem): DraftItem {
   return {
     kind: item.kind,
     title: item.title,
+    photoUrl: item.photoUrl ?? "",
     time: item.time,
     place: item.place === "Not set" ? "" : item.place,
     note: item.note,
@@ -781,6 +786,7 @@ function fields(draft: DraftItem) {
     kind: draft.kind,
     time: draft.time,
     title: draft.title.trim(),
+    photoUrl: draft.photoUrl.trim() || undefined,
     note: draft.note.trim(),
     place: draft.place.trim() || "Not set",
     costEach,
@@ -863,6 +869,7 @@ export interface SavedPlace {
   place: string;
   note: string;
   rating?: string;
+  photoUrl?: string;
   costEach?: number;
   day: string;
 }
@@ -900,6 +907,7 @@ export function archive(
         place: item.place,
         note: item.note,
         rating: item.rating,
+        photoUrl: item.photoUrl,
         costEach: item.costEach,
         day: day.label,
       });
@@ -961,7 +969,7 @@ interface SharePayload {
   n: string;
   d: string;
   f?: string;
-  p: Array<{ k: ItemKind; t: string; l?: string; o?: string; r?: string }>;
+  p: Array<{ k: ItemKind; t: string; l?: string; o?: string; r?: string; g?: string }>;
 }
 
 function toBase64Url(text: string): string {
@@ -991,6 +999,7 @@ export function encodeShare(trip: PastTrip, kinds: ItemKind[], from: string): st
         l: place.place === "Not set" ? undefined : place.place,
         o: place.note || undefined,
         r: place.rating,
+        g: place.photoUrl,
       })),
   };
   return toBase64Url(JSON.stringify(payload));
@@ -1000,7 +1009,14 @@ export interface SharedList {
   name: string;
   dates: string;
   from?: string;
-  places: Array<{ kind: ItemKind; title: string; place?: string; note?: string; rating?: string }>;
+  places: Array<{
+    kind: ItemKind;
+    title: string;
+    place?: string;
+    note?: string;
+    rating?: string;
+    photoUrl?: string;
+  }>;
 }
 
 export function decodeShare(encoded: string): SharedList | undefined {
@@ -1017,6 +1033,7 @@ export function decodeShare(encoded: string): SharedList | undefined {
         place: x.l,
         note: x.o,
         rating: x.r,
+        photoUrl: x.g,
       })),
     };
   } catch {
