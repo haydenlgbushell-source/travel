@@ -1,5 +1,6 @@
 import type { Theme } from "../../theme";
-import { locatedItems, mapsLink, pinPosition, type Day } from "./trip-data";
+import { locatedItems, mapsLink, type Day } from "./trip-data";
+import { TripMap } from "./TripMap";
 
 /** Every place across the trip in one view, grouped by day underneath —
  *  the day maps show one day at a time, this is the whole picture. */
@@ -46,22 +47,11 @@ export function MapTab({ days, theme }: { days: Day[]; theme: Theme }) {
         </span>
       </div>
 
-      <div className="map-canvas" style={{ background: theme.photoFill, borderColor: theme.line }}>
-        {located.map((entry, i) => (
-          <span
-            key={entry.item.id}
-            className="day-map__pin"
-            style={{
-              ...pinPosition(i),
-              fontFamily: theme.fontMono,
-              background: entry.item.accent,
-              color: theme.btnInk,
-              animationDelay: `${40 + i * 35}ms`,
-            }}
-          >
-            {i + 1}
-          </span>
-        ))}
+      <div className="map-canvas" style={{ borderColor: theme.line }}>
+        <TripMap
+          pins={located.map((entry) => ({ item: entry.item, number: pinNumber.get(entry.item.id) ?? 0 }))}
+          height={220}
+        />
       </div>
 
       {days.map((day) => {
