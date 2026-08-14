@@ -432,6 +432,7 @@ export function TripPage({
                 onResolve={resolve}
                 onEdit={setEditingId}
                 onAdd={() => setAddOpen(true)}
+                onOpenMap={setMapOpenTab}
                 currency={currency}
                 theme={theme}
               />

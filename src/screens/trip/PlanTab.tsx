@@ -1,6 +1,7 @@
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, money, pinPosition, type Day } from "./trip-data";
+import { dayTotal, money, type Day } from "./trip-data";
+import { TripMap } from "./TripMap";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -15,6 +16,7 @@ export function PlanTab({
   onResolve,
   onEdit,
   onAdd,
+  onOpenMap,
   highlightId,
   currency,
   theme,
@@ -26,6 +28,7 @@ export function PlanTab({
   onResolve: (id: string, verdict: Verdict | undefined) => void;
   onEdit: (id: string) => void;
   onAdd: () => void;
+  onOpenMap: () => void;
   highlightId?: string;
   currency: string;
   theme: Theme;
@@ -148,29 +151,18 @@ export function PlanTab({
       )}
 
       {live.length > 0 && (
-        <button
-          type="button"
-          className="trip-page__reset day-map"
-          style={{ background: theme.card, borderColor: theme.line }}
-        >
-          <div className="day-map__canvas" style={{ background: theme.photoFill }}>
-            {live.map((item, i) => (
-              <span
-                key={item.id}
-                className="day-map__pin"
-                style={{
-                  ...pinPosition(i),
-                  fontFamily: theme.fontMono,
-                  background: item.accent,
-                  color: theme.btnInk,
-                  animationDelay: `${80 + i * 70}ms`,
-                }}
-              >
-                {i + 1}
-              </span>
-            ))}
+        <div className="day-map" style={{ background: theme.card, borderColor: theme.line }}>
+          <div className="day-map__canvas">
+            <TripMap
+              pins={live.map((item, i) => ({ item, number: i + 1 }))}
+              height={130}
+            />
           </div>
-          <div className="day-map__foot">
+          <button
+            type="button"
+            className="trip-page__reset day-map__foot"
+            onClick={onOpenMap}
+          >
             <span
               className="day-map__area"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}
@@ -183,8 +175,8 @@ export function PlanTab({
             >
               Open route ↗
             </span>
-          </div>
-        </button>
+          </button>
+        </div>
       )}
     </div>
   );
