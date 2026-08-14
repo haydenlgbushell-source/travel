@@ -1,22 +1,11 @@
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, money, type Day } from "./trip-data";
+import { dayTotal, money, pinPosition, type Day } from "./trip-data";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
 const CONFLICT_BORDER = "oklch(0.88 0.07 60)";
 const CONFLICT_INK = "oklch(0.45 0.12 60)";
-
-/** Pins are laid out on a fixed spiral of positions so a day of any length
- *  gets one per item, rather than the first five only. */
-function pinPosition(i: number): { left: string; top: string } {
-  const golden = 137.508 * i * (Math.PI / 180);
-  const radius = 0.11 + 0.34 * Math.sqrt(i / 8);
-  return {
-    left: `${(0.5 + radius * Math.cos(golden)) * 100}%`,
-    top: `${(0.5 + radius * 0.82 * Math.sin(golden)) * 100}%`,
-  };
-}
 
 export function PlanTab({
   day,

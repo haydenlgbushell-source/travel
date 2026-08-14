@@ -452,14 +452,47 @@ export const DAYS: Day[] = AUTHORED_DAYS.map((day, d) => ({
 }));
 
 /** Full label for the tab's accessible name, short one for the bottom bar
- *  where five items share the width of a phone. */
+ *  where several items share the width of a phone. */
 export const TABS = [
   { label: "Plan", short: "Plan" },
-  { label: "Stay & travel", short: "Stay" },
+  { label: "Stay & travel", short: "Travel" },
   { label: "Money", short: "Money" },
   { label: "Info", short: "Info" },
   { label: "People", short: "People" },
 ];
+
+/** Pins are laid out on a fixed spiral, capped so a long list still lands
+ *  inside the canvas rather than drifting past its edge. */
+export function pinPosition(i: number): { left: string; top: string } {
+  const golden = 137.508 * i * (Math.PI / 180);
+  const radius = Math.min(0.11 + 0.34 * Math.sqrt(i / 8), 0.42);
+  return {
+    left: `${(0.5 + radius * Math.cos(golden)) * 100}%`,
+    top: `${(0.5 + radius * 0.82 * Math.sin(golden)) * 100}%`,
+  };
+}
+
+export interface LocatedItem {
+  item: TripItem;
+  day: Day;
+}
+
+/** Everything worth putting a pin on, across the whole trip — a plan that
+ *  never landed on a place has nothing to show. */
+export function locatedItems(days: Day[]): LocatedItem[] {
+  const out: LocatedItem[] = [];
+  for (const day of days) {
+    for (const item of day.items) {
+      if (item.place && item.place !== "Not set") out.push({ item, day });
+    }
+  }
+  return out;
+}
+
+/** A real link to open, even for an item that never got one of its own. */
+export function mapsLink(item: TripItem): string {
+  return item.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(`${item.title} ${item.place}`)}`;
+}
 
 /** Pin positions on the day map, as [left, top]. */
 export const PIN_POS: Array<[string, string]> = [

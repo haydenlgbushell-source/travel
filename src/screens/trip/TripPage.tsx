@@ -4,7 +4,9 @@ import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
 import { ItemSheet } from "./ItemSheet";
+import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
+import { MoreSheet } from "./MoreSheet";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
@@ -12,7 +14,6 @@ import type { Verdict } from "./ItemCard";
 import {
   DAYS,
   DECISION_COUNT,
-  TABS,
   TRIP,
   applyDraft,
   buildItem,
@@ -43,6 +44,19 @@ const DAY_SWITCH_MS = 380;
 /** How long undo stays offered after an add. */
 const UNDO_MS = 8000;
 
+/** What sits in the bottom tablist. Money and People are one tap further,
+ *  behind More — this is what a thumb reaches for most often. */
+type NavEntry =
+  | { label: string; short: string; kind: "tab"; tab: number }
+  | { label: string; short: string; kind: "map" };
+
+const NAV_TABS: NavEntry[] = [
+  { label: "Plan", short: "Plan", kind: "tab", tab: 0 },
+  { label: "Stay & travel", short: "Travel", kind: "tab", tab: 1 },
+  { label: "Trip map", short: "Map", kind: "map" },
+  { label: "Info", short: "Info", kind: "tab", tab: 3 },
+];
+
 export function TripPage({
   theme,
   savedCount,
@@ -65,6 +79,8 @@ export function TripPage({
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [voted, setVoted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [role, setRole] = useState<Role>("Editor");
@@ -106,6 +122,7 @@ export function TripPage({
     setDayIndex(i);
     setTab(0);
     setAirport(false);
+    setMapOpen(false);
     setAdded(undefined);
     setLoading(true);
     toTop();
@@ -114,6 +131,21 @@ export function TripPage({
 
   function pickTab(i: number) {
     setTab(i);
+    setAirport(false);
+    setMapOpen(false);
+    toTop();
+  }
+
+  function openFromMore(label: string) {
+    setTab(label === "Money" ? 2 : 4);
+    setAirport(false);
+    setMapOpen(false);
+    setMoreOpen(false);
+    toTop();
+  }
+
+  function setMapOpenTab() {
+    setMapOpen(true);
     setAirport(false);
     toTop();
   }
@@ -321,13 +353,15 @@ export function TripPage({
       <div
         ref={body}
         id="wf-tabpanel"
-        role={airport ? undefined : "tabpanel"}
-        aria-labelledby={airport ? undefined : `wf-tab-${tab}`}
+        role={airport || mapOpen ? undefined : "tabpanel"}
+        aria-labelledby={airport || mapOpen ? undefined : `wf-tab-${tab}`}
         tabIndex={0}
         className="trip-page__body"
       >
         {airport ? (
           <AirportPanel day={day} theme={theme} />
+        ) : mapOpen ? (
+          <MapTab days={days} theme={theme} />
         ) : (
           <>
             {tab === 0 && (
@@ -345,7 +379,8 @@ export function TripPage({
               />
             )}
             {tab === 1 && <TravelTab theme={theme} />}
-            {tab === 2 && <MoneyTab
+            {tab === 2 && (
+              <MoneyTab
                 days={days}
                 resolved={resolved}
                 currency={currency}
@@ -354,7 +389,8 @@ export function TripPage({
                   saveCurrency(code);
                 }}
                 theme={theme}
-              />}
+              />
+            )}
             {tab === 3 && (
               <InfoTab
                 savedCount={savedCount}
@@ -370,6 +406,7 @@ export function TripPage({
                 onOpenSuggestion={(i) => {
                   setDayIndex(i);
                   setTab(0);
+                  setMapOpen(false);
                   toTop();
                 }}
                 theme={theme}
@@ -379,45 +416,65 @@ export function TripPage({
         )}
       </div>
 
-      {/* The menu sits under the thumb; the day's actions sit up by the day. */}
+      {/* The menu sits under the thumb; the day's actions sit up by the day.
+          Money and People live one level down, behind More — Plan, Travel,
+          Map and Info are what a thumb needs most often. */}
       <div
-        role="tablist"
         className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
-        {TABS.map((entry, i) => {
-          const on = i === tab && !airport;
-          return (
-            <button
-              key={entry.label}
-              type="button"
-              role="tab"
-              id={`wf-tab-${i}`}
-              aria-controls="wf-tabpanel"
-              aria-selected={on}
-              aria-label={entry.label}
-              tabIndex={i === tab ? 0 : -1}
-              className="trip-page__reset trip-page__nav-item"
-              onClick={() => pickTab(i)}
-              onKeyDown={(e) => {
-                /* Arrow keys move between tabs, as the tab pattern expects. */
-                const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-                if (step === 0) return;
-                e.preventDefault();
-                const next = (i + step + TABS.length) % TABS.length;
-                pickTab(next);
-                document.getElementById(`wf-tab-${next}`)?.focus();
-              }}
-              style={{ color: on ? theme.ink : theme.meta }}
-            >
-              <span
-                className="trip-page__nav-mark"
-                style={{ background: theme.accent, opacity: on ? 1 : 0 }}
-              />
-              {entry.short}
-            </button>
-          );
-        })}
+        <div role="tablist" className="trip-page__nav-tabs">
+          {NAV_TABS.map((entry, i) => {
+            const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
+            return (
+              <button
+                key={entry.label}
+                type="button"
+                role="tab"
+                id={`wf-tab-nav-${i}`}
+                aria-controls="wf-tabpanel"
+                aria-selected={on}
+                aria-label={entry.label}
+                tabIndex={on ? 0 : -1}
+                className="trip-page__reset trip-page__nav-item"
+                onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
+                onKeyDown={(e) => {
+                  /* Arrow keys move between tabs, as the tab pattern expects. */
+                  const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+                  if (step === 0) return;
+                  e.preventDefault();
+                  const next = (i + step + NAV_TABS.length) % NAV_TABS.length;
+                  const nextEntry = NAV_TABS[next];
+                  if (nextEntry.kind === "map") setMapOpenTab();
+                  else pickTab(nextEntry.tab);
+                  document.getElementById(`wf-tab-nav-${next}`)?.focus();
+                }}
+                style={{ color: on ? theme.ink : theme.meta }}
+              >
+                <span
+                  className="trip-page__nav-mark"
+                  style={{ background: theme.accent, opacity: on ? 1 : 0 }}
+                />
+                {entry.short}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          className="trip-page__reset trip-page__nav-item"
+          onClick={() => setMoreOpen(true)}
+          style={{ color: theme.meta }}
+        >
+          <span className="trip-page__nav-more-icon">
+            <span />
+            <span />
+            <span />
+          </span>
+          More
+        </button>
       </div>
 
       {added && !sheetItemOpen && (
@@ -458,6 +515,10 @@ export function TripPage({
           onClose={() => setSheetOpen(false)}
           theme={theme}
         />
+      )}
+
+      {moreOpen && (
+        <MoreSheet onOpen={openFromMore} onClose={() => setMoreOpen(false)} theme={theme} />
       )}
     </ThemeProvider>
   );

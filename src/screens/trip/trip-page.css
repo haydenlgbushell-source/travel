@@ -1891,3 +1891,127 @@
   transform: translateX(-50%);
   transition: opacity 0.24s ease;
 }
+
+/* ---------- trip map ---------- */
+
+.map-canvas {
+  position: relative;
+  height: 190px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
+}
+
+.map-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-list {
+  display: flex;
+  flex-direction: column;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.map-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+  border-bottom: 1px solid #edede6;
+}
+
+.map-row:last-child {
+  border-bottom: none;
+}
+
+.map-row__pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.map-row__title {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.map-row__place {
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-row__link {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* ---------- hamburger / more ---------- */
+
+.trip-page__nav-tabs {
+  display: flex;
+  flex: 1;
+}
+
+.trip-page__nav-more-icon {
+  width: 16px;
+  height: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.trip-page__nav-more-icon span {
+  display: block;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.more-sheet__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 15px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+}
+
+.more-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.more-sheet__label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.more-sheet__note {
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
