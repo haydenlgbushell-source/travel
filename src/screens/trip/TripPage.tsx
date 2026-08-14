@@ -18,10 +18,14 @@ import {
   buildItem,
   byTime,
   clashAt,
+  archive,
+  loadCurrency,
   loadSaved,
   save,
+  saveCurrency,
   type Day,
   type DraftItem,
+  type PastTrip,
   type Role,
 } from "./trip-data";
 import "./trip-page.css";
@@ -39,7 +43,19 @@ const DAY_SWITCH_MS = 380;
 /** How long undo stays offered after an add. */
 const UNDO_MS = 8000;
 
-export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void }) {
+export function TripPage({
+  theme,
+  savedCount,
+  onSaveTrip,
+  onOpenPast,
+  onBack,
+}: {
+  theme: Theme;
+  savedCount: number;
+  onSaveTrip: (trip: PastTrip) => void;
+  onOpenPast: () => void;
+  onBack?: () => void;
+}) {
   const saved = useRef(loadSaved()).current;
   const [days, setDays] = useState<Day[]>(saved?.days ?? DAYS);
   const [resolved, setResolved] = useState<Record<string, Verdict>>(
@@ -52,6 +68,7 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
   const [voted, setVoted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [role, setRole] = useState<Role>("Editor");
+  const [currency, setCurrency] = useState(loadCurrency);
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
@@ -330,12 +347,29 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
                 onResolve={resolve}
                 onEdit={setEditingId}
                 onAdd={() => setAddOpen(true)}
+                currency={currency}
                 theme={theme}
               />
             )}
             {tab === 1 && <TravelTab theme={theme} />}
-            {tab === 2 && <MoneyTab days={days} resolved={resolved} theme={theme} />}
-            {tab === 3 && <InfoTab theme={theme} />}
+            {tab === 2 && <MoneyTab
+                days={days}
+                resolved={resolved}
+                currency={currency}
+                onCurrencyChange={(code) => {
+                  setCurrency(code);
+                  saveCurrency(code);
+                }}
+                theme={theme}
+              />}
+            {tab === 3 && (
+              <InfoTab
+                savedCount={savedCount}
+                onSaveTrip={() => onSaveTrip(archive(TRIP.name, TRIP.dates, days, resolved))}
+                onOpenPast={onOpenPast}
+                theme={theme}
+              />
+            )}
             {tab === 4 && (
               <PeopleTab
                 role={role}

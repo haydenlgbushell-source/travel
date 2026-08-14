@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import type { Theme } from "../../theme";
 import { Sheet } from "./Sheet";
 import {
+  ITEM_KINDS,
   clashAt,
   draftFrom,
   suggestSlots,
@@ -16,6 +17,7 @@ const WARN_LINE = "oklch(0.88 0.07 60)";
 const DANGER_INK = "oklch(0.5 0.13 30)";
 
 const EMPTY: DraftItem = {
+  kind: "Do",
   title: "",
   time: "",
   place: "",
@@ -89,6 +91,33 @@ export function ItemSheet({
           autoFocus
           style={fieldStyle}
         />
+      </div>
+
+      <div className="add-sheet__section">
+        <span className="wf-card__eyebrow" style={labelStyle}>
+          What kind
+        </span>
+        <div className="kind-picker">
+          {ITEM_KINDS.map((kind) => {
+            const on = kind === draft.kind;
+            return (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={on}
+                className="trip-page__reset kind-picker__option"
+                onClick={() => set("kind", kind)}
+                style={{
+                  background: on ? theme.ink : theme.card,
+                  borderColor: on ? theme.ink : theme.line,
+                  color: on ? theme.bg : theme.body,
+                }}
+              >
+                {kind}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="add-sheet__section">

@@ -1,13 +1,17 @@
 import type { Theme } from "../../theme";
-import { BUDGET, dayTotal, euros, type Day } from "./trip-data";
+import { BUDGET, CURRENCIES, dayTotal, money, type Day } from "./trip-data";
 
 export function MoneyTab({
   days,
   resolved,
+  currency,
+  onCurrencyChange,
   theme,
 }: {
   days: Day[];
   resolved: Record<string, string>;
+  currency: string;
+  onCurrencyChange: (code: string) => void;
   theme: Theme;
 }) {
   const totals = days.map((day) => dayTotal(day, resolved));
@@ -20,12 +24,30 @@ export function MoneyTab({
         style={{ background: theme.card, borderColor: theme.line, gap: "12px" }}
       >
         <div className="money__head">
-          <span
-            className="wf-card__eyebrow"
+          <label
+            className="wf-card__eyebrow currency"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
           >
-            Shared spend · EUR
-          </span>
+            Shared spend
+            <select
+              className="currency__select"
+              value={currency}
+              onChange={(e) => onCurrencyChange(e.target.value)}
+              aria-label="Currency"
+              style={{
+                fontFamily: theme.fontMono,
+                color: theme.ink,
+                background: theme.strip,
+                borderColor: theme.line,
+              }}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}
+                </option>
+              ))}
+            </select>
+          </label>
           <span
             className="wf-card__eyebrow"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
@@ -44,13 +66,13 @@ export function MoneyTab({
                 className="money__each"
                 style={{ fontFamily: theme.fontMono, color: theme.body }}
               >
-                {row.each}
+                {money(row.each, currency)}
               </span>
               <span
                 className="money__total"
                 style={{ fontFamily: theme.fontMono, color: theme.ink }}
               >
-                {row.total}
+                {money(row.total, currency)}
               </span>
             </div>
           ))}
@@ -67,7 +89,7 @@ export function MoneyTab({
             className="money__sum-value"
             style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
           >
-            {BUDGET.total} · {BUDGET.each}
+            {money(BUDGET.total, currency)} · {money(BUDGET.each, currency)}
           </span>
         </div>
       </div>
@@ -100,7 +122,7 @@ export function MoneyTab({
               className="bar__value"
               style={{ fontFamily: theme.fontMono, color: theme.ink }}
             >
-              {euros(totals[i])}
+              {money(totals[i], currency)}
             </span>
           </div>
         ))}
@@ -122,7 +144,7 @@ export function MoneyTab({
               {owe.who}
             </span>
             <span className="owes__amount" style={{ fontFamily: theme.fontMono }}>
-              {owe.amount}
+              {money(owe.amount, currency)}
             </span>
           </div>
         ))}

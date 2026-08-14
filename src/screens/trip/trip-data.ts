@@ -21,9 +21,23 @@ export interface BookingFact {
   value: string;
 }
 
+export type ItemKind = "Eat" | "Stay" | "Do" | "Travel";
+
+export const ITEM_KINDS: ItemKind[] = ["Eat", "Stay", "Do", "Travel"];
+
+/** What the kinds are called when a saved trip is read back as somebody
+ *  else's recommendations. */
+export const KIND_HEADINGS: Record<ItemKind, string> = {
+  Eat: "Places to eat",
+  Stay: "Where we stayed",
+  Do: "Things we did",
+  Travel: "Getting around",
+};
+
 export interface TripItem {
   /** Stable across inserts and reordering — approvals are keyed off it. */
   id: string;
+  kind: ItemKind;
   time: string;
   title: string;
   note: string;
@@ -95,6 +109,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "14:20",
         title: "Land at Humberto Delgado",
+        kind: "Travel",
         note: "Passport control is the slow part — allow 40 minutes before anyone books a transfer.",
         place: "LIS · Terminal 1",
         meta: "TP1235 · on time",
@@ -106,6 +121,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "16:00",
         title: "Check in at Casa Bela",
+        kind: "Stay",
         note: "Roof key is at the desk. Two rooms are on the third floor with no lift.",
         place: "Rua dos Remédios 48",
         meta: "Held under Ana",
@@ -127,6 +143,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "19:30",
         title: "Taberna Sal Grosso",
+        kind: "Eat",
         note: "Small room, no bar to wait at. They hold the table fifteen minutes, no longer.",
         place: "Calçada do Forte 22",
         meta: "≈ €32 each",
@@ -149,6 +166,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "22:00",
         title: "Miradouro das Portas do Sol",
+        kind: "Do",
         note: "Nothing planned after — first night, keep it loose.",
         place: "Largo Portas do Sol",
         meta: "Free",
@@ -177,6 +195,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "09:15",
         title: "Tram 15E from Cais do Sodré",
+        kind: "Travel",
         note: "Buy the 24-hour Carris pass at the kiosk. Paying the driver costs three times as much.",
         place: "Cais do Sodré",
         meta: "€6.80 each",
@@ -188,6 +207,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "10:00",
         title: "Mosteiro dos Jerónimos",
+        kind: "Do",
         note: "Entry is timed at 10:00 and ours is paid. The long queue at the door is for walk-ups.",
         place: "Praça do Império",
         meta: "Paid · €12 each",
@@ -210,6 +230,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "12:30",
         title: "Pastéis de Belém",
+        kind: "Eat",
         note: "No reservations. The room at the back moves faster than the takeaway queue.",
         place: "Rua de Belém 84",
         meta: "≈ €8 each",
@@ -231,6 +252,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "18:00",
         title: "Sunset ferry to Cacilhas",
+        kind: "Do",
         note: "Whether we eat over the river or come back is still a vote. Ferries every 20 minutes until 23:30.",
         place: "Cais do Sodré terminal",
         meta: "€1.55 each",
@@ -247,6 +269,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "21:00",
         title: "Ponto Final, Cacilhas",
+        kind: "Eat",
         note: "Tables sit on the water on the far side. Only works if the ferry vote lands on staying over.",
         place: "Rua do Ginjal 72",
         meta: "≈ €30 each",
@@ -277,6 +300,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "08:05",
         title: "Train from Rossio",
+        kind: "Travel",
         note: "Forty minutes. Later trains fill up and the 434 bus queue doubles by ten.",
         place: "Rossio station",
         meta: "€4.60 return",
@@ -288,6 +312,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "10:00",
         title: "Pena Palace",
+        kind: "Do",
         note: "Timed at 10:00. If the queue looks long, do the park first and the rooms after noon.",
         place: "Estrada da Pena",
         meta: "Paid · €20 each",
@@ -310,6 +335,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "15:00",
         title: "Quinta da Regaleira",
+        kind: "Do",
         note: "Nothing booked after this. The last comfortable train back is 20:11.",
         place: "R. Barbosa du Bocage",
         meta: "≈ €14 each",
@@ -341,6 +367,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "10:30",
         title: "Feira da Ladra",
+        kind: "Do",
         note: "Cash for most stalls, and it thins out badly after two.",
         place: "Campo de Santa Clara",
         meta: "Free",
@@ -357,6 +384,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "20:00",
         title: "Last dinner — undecided",
+        kind: "Eat",
         note: "Three restaurants in the vote: Ramiro, Cervejaria Liberdade, A Cevicheria.",
         place: "Not set",
         meta: "Waiting on 3",
@@ -382,6 +410,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "08:30",
         title: "Checkout and airport transfer",
+        kind: "Travel",
         note: "Two taxis booked for 08:30. Bags can stay at the desk if anyone wants a last coffee.",
         place: "Casa Bela",
         meta: "€28 total",
@@ -398,6 +427,7 @@ const AUTHORED_DAYS: AuthoredDay[] = [
       {
         time: "11:40",
         title: "TP1234 to Gatwick",
+        kind: "Travel",
         note: "Gate closes 11:10. Ana and Tom are in row 14, the rest in 22.",
         place: "LIS · Terminal 1",
         meta: "Bags ×3",
@@ -506,20 +536,21 @@ export const FLIGHTS: Flight[] = [
   },
 ];
 
+/** Trip-level bookings, held in euros like everything else. */
 export const BUDGET = {
   rows: [
-    { label: "Flights", each: "€184", total: "€920" },
-    { label: "Casa Bela, four nights", each: "€148", total: "€740" },
-    { label: "Tickets and entries", each: "€46", total: "€230" },
-    { label: "Transport and transfers", each: "€19", total: "€95" },
-    { label: "Food, so far", each: "€40", total: "€200" },
+    { label: "Flights", each: 184, total: 920 },
+    { label: "Casa Bela, four nights", each: 148, total: 740 },
+    { label: "Tickets and entries", each: 46, total: 230 },
+    { label: "Transport and transfers", each: 19, total: 95 },
+    { label: "Food, so far", each: 40, total: 200 },
   ],
-  total: "€2,185",
-  each: "€437",
+  total: 2185,
+  each: 437,
   owes: [
-    { who: "Tom owes Ana", amount: "€96" },
-    { who: "Kit owes Ana", amount: "€72" },
-    { who: "Sam owes Jo", amount: "€24" },
+    { who: "Tom owes Ana", amount: 96 },
+    { who: "Kit owes Ana", amount: 72 },
+    { who: "Sam owes Jo", amount: 24 },
   ],
 };
 
@@ -678,13 +709,49 @@ export function dayTotal(day: Day, resolved: Record<string, string>): number {
   }, 0);
 }
 
-export function euros(amount: number): string {
-  return `€${amount % 1 === 0 ? amount : amount.toFixed(2)}`;
+/* ---------- currency ---------- */
+
+export interface Currency {
+  code: string;
+  label: string;
+  /** Units per euro. Indicative and fixed — nothing here calls a rate feed. */
+  perEuro: number;
+}
+
+export const CURRENCIES: Currency[] = [
+  { code: "EUR", label: "Euro", perEuro: 1 },
+  { code: "GBP", label: "Pound", perEuro: 0.85 },
+  { code: "USD", label: "US dollar", perEuro: 1.09 },
+  { code: "AUD", label: "Australian dollar", perEuro: 1.65 },
+  { code: "NZD", label: "NZ dollar", perEuro: 1.79 },
+  { code: "CAD", label: "Canadian dollar", perEuro: 1.48 },
+  { code: "JPY", label: "Yen", perEuro: 170 },
+  { code: "CHF", label: "Swiss franc", perEuro: 0.94 },
+];
+
+export const DEFAULT_CURRENCY = "EUR";
+
+export function getCurrency(code: string): Currency {
+  return CURRENCIES.find((c) => c.code === code) ?? CURRENCIES[0];
+}
+
+/** Amounts are held in euros; the chosen currency is a display conversion. */
+export function money(amountInEuros: number, code: string): string {
+  const currency = getCurrency(code);
+  const converted = amountInEuros * currency.perEuro;
+  const whole = currency.code === "JPY";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currency.code,
+    minimumFractionDigits: whole ? 0 : converted % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  }).format(converted);
 }
 
 /* ---------- editing ---------- */
 
 export interface DraftItem {
+  kind: ItemKind;
   title: string;
   time: string;
   place: string;
@@ -695,6 +762,7 @@ export interface DraftItem {
 
 export function draftFrom(item: TripItem): DraftItem {
   return {
+    kind: item.kind,
     title: item.title,
     time: item.time,
     place: item.place === "Not set" ? "" : item.place,
@@ -710,6 +778,7 @@ function fields(draft: DraftItem) {
   const cost = Number.parseFloat(draft.costEach);
   const costEach = Number.isFinite(cost) && cost >= 0 ? cost : undefined;
   return {
+    kind: draft.kind,
     time: draft.time,
     title: draft.title.trim(),
     note: draft.note.trim(),
@@ -783,4 +852,190 @@ export function clearSaved(): void {
   } catch {
     /* nothing to do */
   }
+}
+
+/* ---------- saved trips ---------- */
+
+export interface SavedPlace {
+  id: string;
+  kind: ItemKind;
+  title: string;
+  place: string;
+  note: string;
+  rating?: string;
+  costEach?: number;
+  day: string;
+}
+
+export interface PastTrip {
+  id: string;
+  name: string;
+  dates: string;
+  savedAt: string;
+  places: SavedPlace[];
+}
+
+/** What a finished trip is worth keeping: the places, not the timings. A
+ *  declined suggestion or one nobody approved never happened, so it is left
+ *  out. */
+export function archive(
+  name: string,
+  dates: string,
+  days: Day[],
+  resolved: Record<string, string>,
+): PastTrip {
+  const places: SavedPlace[] = [];
+  for (const day of days) {
+    for (const item of day.items) {
+      const happened =
+        resolved[item.id] !== "declined" &&
+        (!item.suggested || resolved[item.id] === "approved") &&
+        /* Something that never landed on a place is not a recommendation. */
+        item.place !== "Not set";
+      if (!happened) continue;
+      places.push({
+        id: item.id,
+        kind: item.kind,
+        title: item.title,
+        place: item.place,
+        note: item.note,
+        rating: item.rating,
+        costEach: item.costEach,
+        day: day.label,
+      });
+    }
+  }
+  return {
+    id: `trip-${Date.now()}`,
+    name,
+    dates,
+    savedAt: new Date().toISOString(),
+    places,
+  };
+}
+
+const PAST_KEY = "wayfare.past.v1";
+
+export function loadPastTrips(): PastTrip[] {
+  try {
+    const raw = localStorage.getItem(PAST_KEY);
+    const parsed = raw ? (JSON.parse(raw) as PastTrip[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePastTrips(trips: PastTrip[]): void {
+  try {
+    localStorage.setItem(PAST_KEY, JSON.stringify(trips));
+  } catch {
+    /* private mode or a full quota */
+  }
+}
+
+const CURRENCY_KEY = "wayfare.currency.v1";
+
+export function loadCurrency(): string {
+  try {
+    return localStorage.getItem(CURRENCY_KEY) ?? DEFAULT_CURRENCY;
+  } catch {
+    return DEFAULT_CURRENCY;
+  }
+}
+
+export function saveCurrency(code: string): void {
+  try {
+    localStorage.setItem(CURRENCY_KEY, code);
+  } catch {
+    /* nothing to do */
+  }
+}
+
+/* ---------- sharing ---------- */
+
+/** A shared list travels inside the link itself, so there is no server and
+ *  nothing to sign in to at the other end. Keys are short because the whole
+ *  payload has to fit in a URL. */
+interface SharePayload {
+  n: string;
+  d: string;
+  f?: string;
+  p: Array<{ k: ItemKind; t: string; l?: string; o?: string; r?: string }>;
+}
+
+function toBase64Url(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(encoded: string): string {
+  const padded = encoded.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(padded + "=".repeat((4 - (padded.length % 4)) % 4));
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export function encodeShare(trip: PastTrip, kinds: ItemKind[], from: string): string {
+  const payload: SharePayload = {
+    n: trip.name,
+    d: trip.dates,
+    f: from || undefined,
+    p: trip.places
+      .filter((place) => kinds.includes(place.kind))
+      .map((place) => ({
+        k: place.kind,
+        t: place.title,
+        l: place.place === "Not set" ? undefined : place.place,
+        o: place.note || undefined,
+        r: place.rating,
+      })),
+  };
+  return toBase64Url(JSON.stringify(payload));
+}
+
+export interface SharedList {
+  name: string;
+  dates: string;
+  from?: string;
+  places: Array<{ kind: ItemKind; title: string; place?: string; note?: string; rating?: string }>;
+}
+
+export function decodeShare(encoded: string): SharedList | undefined {
+  try {
+    const payload = JSON.parse(fromBase64Url(encoded)) as SharePayload;
+    if (!payload?.n || !Array.isArray(payload.p)) return undefined;
+    return {
+      name: payload.n,
+      dates: payload.d,
+      from: payload.f,
+      places: payload.p.map((x) => ({
+        kind: x.k,
+        title: x.t,
+        place: x.l,
+        note: x.o,
+        rating: x.r,
+      })),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** The same list as something you can paste into a chat. */
+export function shareText(trip: PastTrip, kinds: ItemKind[], from: string): string {
+  const lines = [`${trip.name} · ${trip.dates}${from ? ` · from ${from}` : ""}`];
+  for (const kind of ITEM_KINDS) {
+    if (!kinds.includes(kind)) continue;
+    const places = trip.places.filter((p) => p.kind === kind);
+    if (places.length === 0) continue;
+    lines.push("", KIND_HEADINGS[kind].toUpperCase());
+    for (const place of places) {
+      lines.push(`· ${place.title}${place.place !== "Not set" ? ` — ${place.place}` : ""}`);
+      if (place.note) lines.push(`  ${place.note}`);
+    }
+  }
+  return lines.join("\n");
 }

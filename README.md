@@ -32,6 +32,19 @@ Trip planning app. React + TypeScript + Vite.
   kept in `localStorage`, so it survives a refresh. "View as" on the People
   tab switches role — a prototype stand-in for what an invite would set.
 
+- **Past trips and sharing** (`src/screens/trip`): a finished trip is saved
+  from the Info tab, keeping the places rather than the timings — anything
+  declined, unapproved, or never decided on is left out. A saved trip reads
+  as recommendations, grouped into places to eat, where we stayed and things
+  we did. Sharing picks which of those groups to include and produces either
+  a link or plain text to paste into a chat. The link carries the list in its
+  own fragment, so whoever opens it needs no account and there is no server
+  in the loop; they land on a read-only view of the places.
+
+- **Currency** (`money()` in `trip-data`): amounts are held in euros and
+  converted for display against fixed indicative rates — no rate feed is
+  called. The picker sits on the Money tab and the choice is remembered.
+
 - **Theme system** (`src/theme`): the four style definitions, typed and
   exposed as `THEMES`, plus a `<ThemeProvider theme={...}>` that surfaces
   every token as a `--wf-*` CSS custom property (colour, radius, font

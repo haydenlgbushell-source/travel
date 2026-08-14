@@ -1,6 +1,6 @@
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, euros, type Day } from "./trip-data";
+import { dayTotal, money, type Day } from "./trip-data";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -27,6 +27,7 @@ export function PlanTab({
   onEdit,
   onAdd,
   highlightId,
+  currency,
   theme,
 }: {
   day: Day;
@@ -37,6 +38,7 @@ export function PlanTab({
   onEdit: (id: string) => void;
   onAdd: () => void;
   highlightId?: string;
+  currency: string;
   theme: Theme;
 }) {
   const live = day.items.filter((item) => resolved[item.id] !== "declined");
@@ -46,7 +48,7 @@ export function PlanTab({
   const chips = [
     { label: "Planned", value: `${live.length}` },
     { label: "First move", value: live[0]?.time ?? "—" },
-    { label: "Each", value: euros(dayTotal(day, resolved)) },
+    { label: "Each", value: money(dayTotal(day, resolved), currency) },
     { label: "On foot", value: day.walk },
   ];
   const notes = [day.conflict, ...(day.flags ?? [])].filter(Boolean) as string[];
