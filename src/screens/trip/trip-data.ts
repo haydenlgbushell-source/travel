@@ -1056,3 +1056,13 @@ export function shareText(trip: PastTrip, kinds: ItemKind[], from: string): stri
   }
   return lines.join("\n");
 }
+
+/** Whether a link points straight at a picture, as opposed to a page that
+ *  merely contains one. */
+export function looksLikeImage(url: string): boolean {
+  return (
+    /^data:image\//i.test(url) ||
+    /^blob:/i.test(url) ||
+    /\.(jpe?g|png|gif|webp|avif|svg)(\?|#|$)/i.test(url)
+  );
+}

@@ -15,8 +15,10 @@ export function Photo({
   className: string;
   theme: Theme;
 }) {
-  const [failed, setFailed] = useState(false);
-  const showImage = url !== undefined && url !== "" && !failed;
+  /* Remember which URL failed, not merely that one did — otherwise swapping a
+     broken link for a good one leaves the picture hidden. */
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const showImage = url !== undefined && url !== "" && failedUrl !== url;
 
   return (
     <div className={className} style={{ background: theme.photoFill }}>
@@ -28,7 +30,7 @@ export function Photo({
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
+          onError={() => setFailedUrl(url)}
         />
       )}
       {caption && (

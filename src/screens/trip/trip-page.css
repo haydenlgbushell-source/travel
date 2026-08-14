@@ -1867,3 +1867,10 @@
   border-radius: 10px;
   overflow: hidden;
 }
+
+.add-sheet__hint {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-wrap: pretty;
+}

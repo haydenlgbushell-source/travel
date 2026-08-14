@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
@@ -6,6 +6,7 @@ import {
   ITEM_KINDS,
   clashAt,
   draftFrom,
+  looksLikeImage,
   suggestSlots,
   type Day,
   type DraftItem,
@@ -50,6 +51,7 @@ export function ItemSheet({
 }) {
   const [draft, setDraft] = useState<DraftItem>(editing ? draftFrom(editing) : EMPTY);
   const [detailOpen, setDetailOpen] = useState(editing !== undefined);
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const ids = {
     title: useId(),
     time: useId(),
@@ -61,6 +63,40 @@ export function ItemSheet({
 
   const set = <K extends keyof DraftItem>(key: K, value: DraftItem[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
+
+  /* Pasting the hotel's website is the natural thing to do, so look up the
+     picture that page advertises rather than failing quietly. */
+  useEffect(() => {
+    const url = draft.photoUrl.trim();
+    if (url === "") {
+      setPhotoStatus("idle");
+      return;
+    }
+    if (looksLikeImage(url) || !/^https?:\/\//i.test(url)) return;
+
+    let cancelled = false;
+    setPhotoStatus("looking");
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/.netlify/functions/unfurl?url=${encodeURIComponent(url)}`);
+        const data = (await response.json()) as { image?: string };
+        if (cancelled) return;
+        if (data.image) {
+          setDraft((d) => ({ ...d, photoUrl: data.image as string }));
+          setPhotoStatus("found");
+        } else {
+          setPhotoStatus("none");
+        }
+      } catch {
+        if (!cancelled) setPhotoStatus("none");
+      }
+    }, 700);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [draft.photoUrl]);
 
   const slots = suggestSlots(day.items.filter((i) => i.id !== editing?.id));
   const clash = draft.time ? clashAt(draft.time, day.items, editing?.id) : undefined;
@@ -235,9 +271,24 @@ export function ItemSheet({
               inputMode="url"
               value={draft.photoUrl}
               onChange={(e) => set("photoUrl", e.target.value)}
-              placeholder="Paste a picture URL (optional)"
+              placeholder="Picture, or the place's website (optional)"
               style={fieldStyle}
             />
+            {photoStatus !== "idle" && (
+              <span
+                className="add-sheet__hint"
+                style={{
+                  fontFamily: theme.fontMono,
+                  color: photoStatus === "none" ? WARN_INK : theme.meta,
+                }}
+              >
+                {photoStatus === "looking"
+                  ? "Looking for a picture on that page…"
+                  : photoStatus === "found"
+                    ? "Found the picture that page shows"
+                    : "No picture found there — open the photo itself and copy its address"}
+              </span>
+            )}
             {draft.photoUrl.trim() !== "" && (
               <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
             )}
