@@ -9,19 +9,19 @@ const CONFLICT_INK = "oklch(0.45 0.12 60)";
 
 export function PlanTab({
   day,
-  dayIndex,
   loading,
   resolved,
   canApprove,
   onResolve,
+  highlightId,
   theme,
 }: {
   day: Day;
-  dayIndex: number;
   loading: boolean;
   resolved: Record<string, Verdict>;
   canApprove: boolean;
-  onResolve: (key: string, verdict: Verdict) => void;
+  onResolve: (id: string, verdict: Verdict) => void;
+  highlightId?: string;
   theme: Theme;
 }) {
   const chips = [
@@ -102,20 +102,18 @@ export function PlanTab({
         </div>
       ) : (
         <div className="items">
-          {day.items.map((item, i) => {
-            const key = `${dayIndex}-${i}`;
-            return (
-              <ItemCard
-                key={key}
-                item={item}
-                index={i}
-                verdict={resolved[key]}
-                canApprove={canApprove}
-                onResolve={(verdict) => onResolve(key, verdict)}
-                theme={theme}
-              />
-            );
-          })}
+          {day.items.map((item, i) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              index={i}
+              verdict={resolved[item.id]}
+              canApprove={canApprove}
+              onResolve={(verdict) => onResolve(item.id, verdict)}
+              highlighted={item.id === highlightId}
+              theme={theme}
+            />
+          ))}
         </div>
       )}
 

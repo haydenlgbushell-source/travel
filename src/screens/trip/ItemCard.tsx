@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Theme } from "../../theme";
 import type { TripItem } from "./trip-data";
 
@@ -18,6 +19,7 @@ export function ItemCard({
   verdict,
   canApprove,
   onResolve,
+  highlighted,
   theme,
 }: {
   item: TripItem;
@@ -25,17 +27,25 @@ export function ItemCard({
   verdict?: Verdict;
   canApprove: boolean;
   onResolve: (verdict: Verdict) => void;
+  highlighted?: boolean;
   theme: Theme;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  /* Bring a freshly added item into view so its place in the day is obvious. */
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlighted]);
+
   /* A suggestion stays visually provisional — tinted and dashed — until an
      editor approves it. Declining leaves the card in place with a verdict. */
   const unresolved = item.suggested && verdict !== "approved";
   const pending = item.suggested && !verdict;
 
   return (
-    <div className="item" style={{ animationDelay: `${index * 55}ms` }}>
+    <div ref={ref} className="item" style={{ animationDelay: `${index * 55}ms` }}>
       <div
-        className="item__card"
+        className={highlighted ? "item__card item__card--new" : "item__card"}
         style={{
           background: unresolved ? PENDING_BG : theme.card,
           borderStyle: unresolved ? "dashed" : "solid",

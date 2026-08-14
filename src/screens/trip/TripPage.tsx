@@ -7,8 +7,19 @@ import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
+import { AddItemSheet } from "./AddItemSheet";
 import type { Verdict } from "./ItemCard";
-import { DAYS, DECISION_COUNT, TABS, TRIP, type Role } from "./trip-data";
+import {
+  DAYS,
+  DECISION_COUNT,
+  TABS,
+  TRIP,
+  buildItem,
+  byTime,
+  type Day,
+  type DraftItem,
+  type Role,
+} from "./trip-data";
 import "./trip-page.css";
 
 /** Strip rules (day selector, tabs, bottom bar) sit a shade darker than card
@@ -24,8 +35,14 @@ const SUGGEST_LINE = "oklch(0.9 0.04 285)";
 /** How long the day switch shows skeletons before the plan lands. */
 const DAY_SWITCH_MS = 380;
 
+/** How long undo stays offered after an add. */
+const UNDO_MS = 8000;
+
 export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void }) {
+  const [days, setDays] = useState<Day[]>(DAYS);
   const [dayIndex, setDayIndex] = useState(1);
+  const [addOpen, setAddOpen] = useState(false);
+  const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
@@ -37,8 +54,16 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  /* The undo strip and the ring on the new card clear themselves, so the plan
+     goes back to being just the plan. */
+  useEffect(() => {
+    if (!added) return;
+    const t = setTimeout(() => setAdded(undefined), UNDO_MS);
+    return () => clearTimeout(t);
+  }, [added]);
+
   const canApprove = role === "Organiser" || role === "Editor";
-  const day = DAYS[dayIndex];
+  const day = days[dayIndex];
 
   function pickDay(i: number) {
     if (i === dayIndex) return;
@@ -46,8 +71,33 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
     setDayIndex(i);
     setTab(0);
     setAirport(false);
+    setAdded(undefined);
     setLoading(true);
     timer.current = setTimeout(() => setLoading(false), DAY_SWITCH_MS);
+  }
+
+  /* New items slot into the day by time rather than landing at the end, so
+     the plan still reads as a sequence. */
+  function addItem(draft: DraftItem) {
+    const item = buildItem(draft, !canApprove);
+    setDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIndex ? { ...d, items: [...d.items, item].sort(byTime) } : d,
+      ),
+    );
+    setAddOpen(false);
+    setTab(0);
+    setAdded({ id: item.id, title: item.title });
+  }
+
+  function undoAdd() {
+    if (!added) return;
+    setDays((prev) =>
+      prev.map((d, i) =>
+        i === dayIndex ? { ...d, items: d.items.filter((it) => it.id !== added.id) } : d,
+      ),
+    );
+    setAdded(undefined);
   }
 
   function openSuggestion(i: number) {
@@ -205,7 +255,7 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
             {tab === 0 && (
               <PlanTab
                 day={day}
-                dayIndex={dayIndex}
+                highlightId={added?.id}
                 loading={loading}
                 resolved={resolved}
                 canApprove={canApprove}
@@ -232,6 +282,7 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
         <button
           type="button"
           className="trip-page__reset trip-page__add"
+          onClick={() => setAddOpen(true)}
           style={{
             color: canApprove ? theme.btnInk : SUGGEST_INK,
             background: canApprove ? theme.ink : SUGGEST_BG,
@@ -255,6 +306,35 @@ export function TripPage({ theme, onBack }: { theme: Theme; onBack?: () => void 
           </span>
         </button>
       </div>
+
+      {added && !addOpen && (
+        <div
+          className="undo"
+          style={{ background: theme.ink, color: theme.btnInk }}
+        >
+          <span className="undo__text">
+            {canApprove ? "Added" : "Sent to editors"} · {added.title}
+          </span>
+          <button
+            type="button"
+            className="trip-page__reset undo__action"
+            onClick={undoAdd}
+            style={{ fontFamily: theme.fontMono, color: theme.bg }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
+
+      {addOpen && (
+        <AddItemSheet
+          day={day}
+          canApprove={canApprove}
+          onAdd={addItem}
+          onClose={() => setAddOpen(false)}
+          theme={theme}
+        />
+      )}
 
       {sheetOpen && (
         <DecisionsSheet

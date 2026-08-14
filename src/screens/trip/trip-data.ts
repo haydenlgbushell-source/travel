@@ -22,6 +22,8 @@ export interface BookingFact {
 }
 
 export interface TripItem {
+  /** Stable across inserts and reordering — approvals are keyed off it. */
+  id: string;
   time: string;
   title: string;
   note: string;
@@ -73,7 +75,10 @@ export const TRIP = {
   members: PEOPLE,
 };
 
-export const DAYS: Day[] = [
+/** Authored without ids; `DAYS` stamps them on once at module load. */
+type AuthoredDay = Omit<Day, "items"> & { items: Array<Omit<TripItem, "id">> };
+
+const AUTHORED_DAYS: AuthoredDay[] = [
   {
     dow: "Thu",
     num: "04",
@@ -398,6 +403,11 @@ export const DAYS: Day[] = [
   },
 ];
 
+export const DAYS: Day[] = AUTHORED_DAYS.map((day, d) => ({
+  ...day,
+  items: day.items.map((item, i) => ({ ...item, id: `d${d}-i${i}` })),
+}));
+
 export const TABS = ["Plan", "Stay & travel", "Money", "Info", "People"];
 
 /** Pin positions on the day map, as [left, top]. */
@@ -576,4 +586,95 @@ export const ROLE_COLORS: Record<Role, { ink: string; bg: string }> = {
 /** Euro amount of a day's per-person cost, for the day-by-day bars. */
 export function dayCost(day: Day): number {
   return Number(day.cost.replace("€", ""));
+}
+
+/* ---------- times ---------- */
+
+export function toMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export function toTime(minutes: number): string {
+  const wrapped = ((minutes % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+export function byTime(a: TripItem, b: TripItem): number {
+  return toMinutes(a.time) - toMinutes(b.time);
+}
+
+export interface Slot {
+  time: string;
+  caption: string;
+}
+
+/** The day already knows where its holes are: offer the gaps big enough to
+ *  put something in, rather than opening on an empty clock. */
+export function suggestSlots(items: TripItem[]): Slot[] {
+  if (items.length === 0) {
+    return [
+      { time: "09:00", caption: "morning" },
+      { time: "13:00", caption: "afternoon" },
+      { time: "19:30", caption: "evening" },
+    ];
+  }
+
+  const sorted = [...items].sort(byTime);
+  const slots: Slot[] = [];
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = toMinutes(sorted[i].time);
+    const end = toMinutes(sorted[i + 1].time);
+    if (end - start >= 150) {
+      const mid = Math.round((start + end) / 2 / 5) * 5;
+      slots.push({ time: toTime(mid), caption: `after ${sorted[i].title}` });
+    }
+  }
+
+  const last = sorted[sorted.length - 1];
+  slots.push({ time: toTime(toMinutes(last.time) + 90), caption: `after ${last.title}` });
+
+  return slots.slice(0, 3);
+}
+
+/** A booked thing within an hour of the new time is worth mentioning — but
+ *  it is the organiser's call, so this never blocks the add. */
+export function clashAt(time: string, items: TripItem[]): TripItem | undefined {
+  const at = toMinutes(time);
+  return items.find(
+    (item) => item.booking !== undefined && Math.abs(toMinutes(item.time) - at) < 60,
+  );
+}
+
+export interface DraftItem {
+  title: string;
+  time: string;
+  place: string;
+  note: string;
+  booked: boolean;
+}
+
+let addedCount = 0;
+
+/** Turn what the sheet collected into a full item, inferring the rest: an
+ *  unbooked plan is unsettled (amber), a booked one is confirmed (green). */
+export function buildItem(draft: DraftItem, suggested: boolean): TripItem {
+  addedCount += 1;
+  return {
+    id: `added-${addedCount}`,
+    time: draft.time,
+    title: draft.title.trim(),
+    note: draft.note.trim(),
+    place: draft.place.trim() || "Not set",
+    meta: draft.booked ? "Booked" : "Nothing booked yet",
+    who: suggested ? "Suggested" : "All five",
+    accent: draft.booked ? GREEN : AMBER,
+    suggested: suggested || undefined,
+    suggestedBy: suggested ? "you" : undefined,
+    bookingKind: draft.booked ? "Confirmed" : undefined,
+    booking: draft.booked ? [{ label: "At", value: draft.time }] : undefined,
+  };
 }
