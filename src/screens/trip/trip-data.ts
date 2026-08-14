@@ -1022,6 +1022,12 @@ export function applyDraft(item: TripItem, draft: DraftItem): TripItem {
 
 const STORAGE_KEY = "wayfare.trip.v1";
 
+/** Bumped whenever the seed itinerary changes materially (a different city,
+ *  a different date range). A save tagged with an older version is someone's
+ *  browser still holding the *previous* trip — Lisbon days under a Chicago
+ *  header — so it gets discarded rather than shown back to them. */
+const CONTENT_VERSION = "chicago-1";
+
 export interface SavedState {
   days: Day[];
   resolved: Record<string, string>;
@@ -1031,7 +1037,8 @@ export function loadSaved(): SavedState | undefined {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as SavedState;
+    const parsed = JSON.parse(raw) as SavedState & { version?: string };
+    if (parsed.version !== CONTENT_VERSION) return undefined;
     if (!Array.isArray(parsed.days) || parsed.days.length === 0) return undefined;
     return parsed;
   } catch {
@@ -1041,7 +1048,7 @@ export function loadSaved(): SavedState | undefined {
 
 export function save(state: SavedState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, version: CONTENT_VERSION }));
   } catch {
     /* private mode or a full quota — the trip still works, it just won't keep. */
   }
