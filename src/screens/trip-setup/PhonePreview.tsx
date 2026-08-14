@@ -1,13 +1,13 @@
 import type { Theme } from "../../theme";
 
 const DAYS: Array<[dow: string, num: string]> = [
-  ["Thu", "04"],
-  ["Fri", "05"],
-  ["Sat", "06"],
-  ["Sun", "07"],
-  ["Mon", "08"],
+  ["Fri", "14"],
+  ["Sat", "15"],
+  ["Sun", "16"],
+  ["Mon", "17"],
+  ["Tue", "18"],
 ];
-const ACTIVE_DAY_INDEX = 1; // Friday
+const ACTIVE_DAY_INDEX = 0; // Friday
 const MEMBER_INITIALS = ["AN", "TM", "JR", "SB", "KE"];
 
 export function PhonePreview({ theme }: { theme: Theme }) {
@@ -45,13 +45,13 @@ export function PhonePreview({ theme }: { theme: Theme }) {
               className="wf-mono wf-label"
               style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
             >
-              4 – 8 June 2026
+              14 – 19 August 2026
             </div>
             <div
               className="wf-phone__city"
               style={{ fontFamily: theme.fontDisplay, color: theme.headInk }}
             >
-              Lisbon
+              Chicago
             </div>
             <div
               className="wf-phone__strapline"
@@ -121,7 +121,7 @@ export function PhonePreview({ theme }: { theme: Theme }) {
             className="wf-mono wf-label"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
           >
-            Friday 5 June
+            Friday 14 August
           </div>
           <div
             className="wf-phone__day-title"
@@ -149,7 +149,7 @@ export function PhonePreview({ theme }: { theme: Theme }) {
                 borderColor: theme.line,
               }}
             >
-              Restaurant interior
+              Deep dish, straight from the oven
             </span>
           </div>
           <div className="wf-phone__card-body">
@@ -164,7 +164,7 @@ export function PhonePreview({ theme }: { theme: Theme }) {
                 className="wf-phone__item-name"
                 style={{ fontFamily: theme.fontSans, color: theme.ink }}
               >
-                Taberna Sal Grosso
+                Lou Malnati's Pizzeria
               </span>
               <span
                 className="wf-mono wf-pill-tag"
@@ -184,13 +184,13 @@ export function PhonePreview({ theme }: { theme: Theme }) {
                 4.6
               </span>
               <span className="wf-mono" style={{ fontFamily: theme.fontMono, color: theme.meta, fontSize: 11 }}>
-                2,184
+                9,240
               </span>
               <span className="wf-mono" style={{ fontFamily: theme.fontMono, color: theme.meta, fontSize: 11 }}>
-                €€
+                $$
               </span>
               <span className="wf-mono" style={{ fontFamily: theme.fontMono, color: theme.okInk, fontSize: 11 }}>
-                Until 23:00
+                Until 22:00
               </span>
             </div>
             <div
@@ -249,7 +249,7 @@ export function PhonePreview({ theme }: { theme: Theme }) {
             </span>
             <span className="wf-phone__flight-line" style={{ background: theme.line }} />
             <span className="wf-phone__airport" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
-              LIS
+              ORD
             </span>
           </div>
           <div
@@ -261,7 +261,7 @@ export function PhonePreview({ theme }: { theme: Theme }) {
               className="wf-mono wf-label"
               style={{ fontFamily: theme.fontMono, color: theme.warnInk }}
             >
-              Delayed 25 min · gate B42
+              Delayed 20 min · gate D42
             </span>
           </div>
         </div>

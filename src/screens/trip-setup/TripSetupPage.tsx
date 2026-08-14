@@ -50,7 +50,7 @@ export function TripSetupPage({
 
         <div className="trip-setup__content">
           <div className="trip-setup__intro">
-            <h1 className="trip-setup__title">Pick a style for Lisbon</h1>
+            <h1 className="trip-setup__title">Pick a style for Chicago</h1>
             <p className="trip-setup__lede">
               Style changes the palette, the type and the tone of labels across every
               screen the group sees. Nothing about the plan, the bookings or the money

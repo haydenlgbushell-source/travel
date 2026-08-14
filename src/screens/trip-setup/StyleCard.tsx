@@ -48,7 +48,7 @@ export function StyleCard({
               className="style-card__mini-city"
               style={{ fontFamily: theme.fontDisplay, color: theme.headInk }}
             >
-              Lisbon
+              Chicago
             </div>
           </div>
           <span
@@ -79,7 +79,7 @@ export function StyleCard({
                 className="style-card__mini-item-name"
                 style={{ fontFamily: theme.fontSans, color: theme.ink }}
               >
-                Taberna Sal Grosso
+                Lou Malnati's Pizzeria
               </span>
               <span
                 className="wf-mono wf-pill-tag"

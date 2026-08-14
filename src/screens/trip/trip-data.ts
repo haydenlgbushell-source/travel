@@ -1,4 +1,4 @@
-/** Trip content for the Lisbon trip. Static for now — the screen reads it the
+/** Trip content for the Chicago trip. Static for now — the screen reads it the
  *  way it will eventually read the API, so swapping the source is a one-file job. */
 
 /** Item status colours. These are semantic (route / confirmed / needs attention)
