@@ -654,3 +654,37 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ---------- narrow screens ---------- */
+
+/* Below the width that fits the 470px preview column beside the cards, the
+   preview moves under them instead of overlapping the page. */
+@media (max-width: 900px) {
+  .trip-setup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trip-setup__preview {
+    border-left: none;
+    border-top: 1px solid #d8d9d1;
+    padding: 24px 16px;
+  }
+
+  .trip-setup__preview-head,
+  .wf-phone {
+    width: 100%;
+    max-width: 390px;
+  }
+}
+
+@media (max-width: 560px) {
+  .trip-setup__header,
+  .trip-setup__content {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .style-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

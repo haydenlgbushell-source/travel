@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { THEMES, DEFAULT_THEME_KEY, getTheme } from "../../theme";
+import { THEMES, getTheme } from "../../theme";
 import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
@@ -22,8 +22,15 @@ const SCOPE_RULES = [
   },
 ];
 
-export function TripSetupPage() {
-  const [themeKey, setThemeKey] = useState(DEFAULT_THEME_KEY);
+export function TripSetupPage({
+  themeKey,
+  onThemeKeyChange,
+  onCreate,
+}: {
+  themeKey: string;
+  onThemeKeyChange: (key: string) => void;
+  onCreate: () => void;
+}) {
   const [editorsCanStyle, setEditorsCanStyle] = useState(false);
   const selected = getTheme(themeKey);
 
@@ -65,7 +72,7 @@ export function TripSetupPage() {
                   key={t.key}
                   theme={t}
                   selected={t.key === themeKey}
-                  onSelect={() => setThemeKey(t.key)}
+                  onSelect={() => onThemeKeyChange(t.key)}
                 />
               ))}
             </div>
@@ -98,7 +105,11 @@ export function TripSetupPage() {
           </section>
 
           <div className="trip-setup__actions">
-            <button type="button" className="trip-setup__btn trip-setup__btn--primary">
+            <button
+              type="button"
+              className="trip-setup__btn trip-setup__btn--primary"
+              onClick={onCreate}
+            >
               Create trip and invite
             </button>
             <button type="button" className="trip-setup__btn trip-setup__btn--secondary">

@@ -14,6 +14,15 @@ Trip planning app. React + TypeScript + Vite.
   money, permissions), plus a toggle for whether editors can change the
   style later too.
 
+- **Trip page, mobile** (`src/screens/trip`): the trip itself, at phone width.
+  A dark header with the countdown and an Airport-mode toggle, a scrolling day
+  selector that flags days with a clash, and five tabs — Plan, Stay & travel,
+  Money, Info, People. Plan carries the day's chips, any conflict note, the
+  item cards (photo, rating, booking box, transit leg) and a day map; a
+  suggested item stays dashed and tinted until an editor approves it. Airport
+  mode replaces the tabs with times, places and booking refs on one dark card.
+  The bottom bar opens a decisions sheet with the open votes.
+
 - **Theme system** (`src/theme`): the four style definitions, typed and
   exposed as `THEMES`, plus a `<ThemeProvider theme={...}>` that surfaces
   every token as a `--wf-*` CSS custom property (colour, radius, font
