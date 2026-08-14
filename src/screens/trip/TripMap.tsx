@@ -8,9 +8,10 @@ export interface MapPin {
   number: number;
 }
 
-/** A real, pannable map with OpenStreetMap tiles and a numbered pin per
- *  located item — replaces the old abstract dot-spiral visualisation with
- *  actual roads, terrain and geography. */
+/** A real, pannable map with CARTO's Voyager tiles — a clean, labelled
+ *  style close to Google Maps' look, free and keyless — and a numbered pin
+ *  per located item. Replaces the old abstract dot-spiral visualisation
+ *  with actual roads and geography. */
 export function TripMap({
   pins,
   height = 220,
@@ -28,9 +29,12 @@ export function TripMap({
       zoomControl: true,
       attributionControl: true,
     });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      subdomains: "abcd",
+      detectRetina: true,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);
