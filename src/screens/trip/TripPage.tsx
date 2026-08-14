@@ -93,6 +93,7 @@ export function TripPage({
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
+  const wikiAttempted = useRef<Set<string>>(new Set());
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -100,6 +101,49 @@ export function TripPage({
   useEffect(() => {
     save({ days, resolved });
   }, [days, resolved]);
+
+  /* Items that name a Wikipedia article get their photo resolved once, in
+     the background — a wrong or dead article just leaves the fill showing,
+     it never breaks the card. Resolved links get saved along with the trip,
+     so this only runs once per item, not on every reload. */
+  useEffect(() => {
+    const pending = days
+      .flatMap((d) => d.items)
+      .filter((it) => it.wikiTitle && !it.photoUrl && !wikiAttempted.current.has(it.id));
+    if (pending.length === 0) return;
+    pending.forEach((it) => wikiAttempted.current.add(it.id));
+
+    let cancelled = false;
+    Promise.all(
+      pending.map(async (it) => {
+        try {
+          const res = await fetch(
+            `/.netlify/functions/wiki-photo?title=${encodeURIComponent(it.wikiTitle as string)}`,
+          );
+          const data = (await res.json()) as { image?: string };
+          return { id: it.id, image: data.image };
+        } catch {
+          return { id: it.id, image: undefined };
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const found = new Map(
+        results.filter((r): r is { id: string; image: string } => r.image !== undefined).map((r) => [r.id, r.image]),
+      );
+      if (found.size === 0) return;
+      setDays((prev) =>
+        prev.map((d) => ({
+          ...d,
+          items: d.items.map((it) => (found.has(it.id) ? { ...it, photoUrl: found.get(it.id) } : it)),
+        })),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [days]);
 
   /* The undo strip and the ring on the new card clear themselves, so the plan
      goes back to being just the plan. */
