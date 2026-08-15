@@ -130,16 +130,16 @@ function App() {
     );
   }
 
-  if (screen === "trip") {
+  if (screen === "trip" && eventDetails) {
     return (
       <TripPage
         theme={theme}
+        event={eventDetails}
+        userName={account?.name}
         savedCount={pastTrips.length}
         onSaveTrip={keepTrip}
         onOpenPast={() => setScreen("past")}
         onBack={() => setScreen("setup")}
-        eventName={eventDetails?.name}
-        eventDates={eventDetails?.dates}
       />
     );
   }

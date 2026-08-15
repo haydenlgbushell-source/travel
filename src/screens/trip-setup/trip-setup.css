@@ -224,6 +224,47 @@
   outline-offset: 1px;
 }
 
+.event-field__input:disabled {
+  background: #f1f1ea;
+  color: #6e736d;
+  cursor: not-allowed;
+}
+
+.event-field__hint {
+  font-size: 11.5px;
+  color: #8a8f88;
+}
+
+.event-example {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  cursor: pointer;
+  background: #fdfdfc;
+  border: 1px solid #e4e4dd;
+  border-radius: 12px;
+  padding: 14px 15px;
+}
+
+.event-example__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.event-example__label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #14171a;
+}
+
+.event-example__note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #5e635d;
+  text-wrap: pretty;
+}
+
 /* ---------- style picker grid ---------- */
 
 .style-grid {

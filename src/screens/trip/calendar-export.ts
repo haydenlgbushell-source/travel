@@ -1,20 +1,14 @@
 import type { Verdict } from "./ItemCard";
 import type { Day } from "./trip-data";
 
-/** Matches the itinerary's real, fixed dates — see the same constant in
- *  weather.ts. The event name/dates entered at setup are display-only and
- *  don't change what the plan itself actually happens on. */
-const ITINERARY_YEAR = 2026;
-const ITINERARY_MONTH = "08";
-
 /** Every event is written as a "floating" local time (no UTC offset, no
- *  VTIMEZONE block) rather than pinned to America/Chicago — simpler than
- *  embedding full DST rules, and calendar apps read floating time as
+ *  VTIMEZONE block) rather than pinned to the destination's zone — simpler
+ *  than embedding full DST rules, and calendar apps read floating time as
  *  "whatever timezone I'm in when I open this," which is what someone
  *  importing their own trip's plan actually wants. */
 function icsDateTime(day: Day, time: string): string {
   const [hh, mm] = time.split(":");
-  return `${ITINERARY_YEAR}${ITINERARY_MONTH}${day.num.padStart(2, "0")}T${hh.padStart(2, "0")}${mm.padStart(2, "0")}00`;
+  return `${day.date.replace(/-/g, "")}T${hh.padStart(2, "0")}${mm.padStart(2, "0")}00`;
 }
 
 /** RFC 5545 §3.3.11 — commas, semicolons and backslashes need escaping, and

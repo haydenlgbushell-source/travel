@@ -1,19 +1,8 @@
 import type { Day } from "./trip-data";
 
-/** Downtown Chicago — good enough for a single trip-wide forecast; the
- *  itinerary itself doesn't move around enough day to day to need a pin
- *  per location. */
-const TRIP_LOCATION = { lat: 41.8781, lng: -87.6298 };
-
-/** The itinerary's dates are fixed content (Chicago, August 2026) even
- *  though the event name/dates entered at setup can be anything — so the
- *  forecast follows the itinerary's real dates, not whatever the user
- *  typed in. */
-const ITINERARY_YEAR = 2026;
-const ITINERARY_MONTH = "08";
-
-function isoDateFor(day: Day): string {
-  return `${ITINERARY_YEAR}-${ITINERARY_MONTH}-${day.num.padStart(2, "0")}`;
+export interface Coords {
+  lat: number;
+  lng: number;
 }
 
 /** WMO weather codes → the short lowercase word this app already uses
@@ -40,16 +29,21 @@ interface OpenMeteoResponse {
   };
 }
 
-/** Live forecast for each day, keyed by day.num — Open-Meteo only forecasts
- *  ~16 days out and nothing in the past, so trip dates outside that window
- *  (or a failed fetch) simply come back missing and the caller keeps
- *  showing the seed weather text for those days. */
-export async function fetchWeather(days: Day[]): Promise<Record<string, string>> {
-  const dates = days.map(isoDateFor).sort();
+/** Live forecast for each day, keyed by `day.date`. Open-Meteo only
+ *  forecasts ~16 days out and nothing in the past, so dates outside that
+ *  window (or a trip with no geocoded location at all) simply come back
+ *  missing and the day header stays as it was. */
+export async function fetchWeather(
+  days: Day[],
+  coords: Coords | undefined,
+): Promise<Record<string, string>> {
+  if (!coords || days.length === 0) return {};
+
+  const dates = days.map((d) => d.date).sort();
   const startDate = dates[0];
   const endDate = dates[dates.length - 1];
   const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${TRIP_LOCATION.lat}&longitude=${TRIP_LOCATION.lng}` +
+    `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}` +
     `&daily=weathercode,temperature_2m_max&temperature_unit=fahrenheit&timezone=auto` +
     `&start_date=${startDate}&end_date=${endDate}`;
 
@@ -58,16 +52,10 @@ export async function fetchWeather(days: Day[]): Promise<Record<string, string>>
   const data = (await res.json()) as OpenMeteoResponse;
   if (!data.daily) return {};
 
-  const byDate = new Map<string, string>();
+  const byDate: Record<string, string> = {};
   data.daily.time.forEach((date, i) => {
     const temp = Math.round(data.daily!.temperature_2m_max[i]);
-    byDate.set(date, `${temp}° · ${describeCode(data.daily!.weathercode[i])}`);
+    byDate[date] = `${temp}° · ${describeCode(data.daily!.weathercode[i])}`;
   });
-
-  const byDayNum: Record<string, string> = {};
-  for (const day of days) {
-    const text = byDate.get(isoDateFor(day));
-    if (text) byDayNum[day.num] = text;
-  }
-  return byDayNum;
+  return byDate;
 }

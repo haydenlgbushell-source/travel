@@ -1,11 +1,6 @@
 import type { Verdict } from "./ItemCard";
 import type { Day } from "./trip-data";
 
-/** Matches the itinerary's real dates — see the same constant in
- *  weather.ts and calendar-export.ts. */
-const ITINERARY_YEAR = 2026;
-const ITINERARY_MONTH = 8;
-
 const LEAD_MINUTES = 30;
 const STORAGE_KEY = "wayfare.notify.v1";
 
@@ -41,7 +36,10 @@ export async function requestNotifyPermission(): Promise<NotificationPermission>
 function itemDate(day: Day, time: string): Date | undefined {
   const match = /^(\d{1,2}):(\d{2})$/.exec(time);
   if (!match) return undefined;
-  return new Date(ITINERARY_YEAR, ITINERARY_MONTH - 1, Number(day.num), Number(match[1]), Number(match[2]));
+  const when = new Date(`${day.date}T00:00:00`);
+  if (Number.isNaN(when.getTime())) return undefined;
+  when.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return when;
 }
 
 /** Schedules a browser notification `LEAD_MINUTES` before each upcoming,

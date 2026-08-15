@@ -19,11 +19,20 @@ export interface MapPin {
  *  visualisation with actual roads and geography. */
 export function TripMap({
   pins,
+  center,
   height = 220,
 }: {
   pins: MapPin[];
+  /** Where to look when nothing on the plan has coordinates yet — the trip's
+   *  destination. Without it a new, empty trip would render a blank grey
+   *  square, since Leaflet draws no tiles until a view is set. */
+  center?: { lat: number; lng: number };
   height?: number;
 }) {
+  /* Read as primitives so the effect below can depend on the coordinates
+     themselves rather than on a fresh object identity every render. */
+  const centerLat = center?.lat;
+  const centerLng = center?.lng;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -64,7 +73,14 @@ export function TripMap({
     const located = pins.filter(
       (p) => typeof p.item.lat === "number" && typeof p.item.lng === "number",
     );
-    if (located.length === 0) return;
+
+    if (located.length === 0) {
+      if (centerLat !== undefined && centerLng !== undefined) {
+        map.setView([centerLat, centerLng], 12);
+        requestAnimationFrame(() => map.invalidateSize());
+      }
+      return;
+    }
 
     located.forEach(({ item, number }) => {
       const icon = L.divIcon({
@@ -78,14 +94,16 @@ export function TripMap({
         .bindPopup(`<strong>${item.title}</strong><br>${item.place}`);
     });
 
-    const bounds = L.latLngBounds(located.map((p) => [p.item.lat as number, p.item.lng as number]));
+    const bounds = L.latLngBounds(
+      located.map((p) => [p.item.lat as number, p.item.lng as number]),
+    );
     if (located.length === 1) {
       map.setView(bounds.getCenter(), 14);
     } else {
       map.fitBounds(bounds, { padding: [28, 28] });
     }
     requestAnimationFrame(() => map.invalidateSize());
-  }, [pins]);
+  }, [pins, centerLat, centerLng]);
 
   return (
     <div

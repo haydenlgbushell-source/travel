@@ -12,15 +12,18 @@ import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
 import type { Verdict } from "./ItemCard";
+import type { EventDetails } from "../trip-setup/event-data";
 import {
   DAYS,
   DECISION_COUNT,
-  TRIP,
   applyDraft,
   buildItem,
   byTime,
   clashAt,
   archive,
+  daysForRange,
+  isoDate,
+  membersFor,
   loadCurrency,
   loadSaved,
   save,
@@ -69,27 +72,54 @@ const NAV_TABS: NavEntry[] = [
 
 export function TripPage({
   theme,
+  event,
+  userName,
   savedCount,
   onSaveTrip,
   onOpenPast,
   onBack,
-  eventName = TRIP.name,
-  eventDates = TRIP.dates,
 }: {
   theme: Theme;
+  event: EventDetails;
+  userName?: string;
   savedCount: number;
   onSaveTrip: (trip: PastTrip) => void;
   onOpenPast: () => void;
   onBack?: () => void;
-  eventName?: string;
-  eventDates?: string;
 }) {
-  const saved = useRef(loadSaved()).current;
-  const [days, setDays] = useState<Day[]>(saved?.days ?? DAYS);
+  const eventName = event.name;
+  const eventDates = event.dates;
+  const isExample = event.fromExample === true;
+  const members = membersFor(isExample, userName);
+  /* Open decisions are part of the authored example; a real trip has none
+     until the group can actually vote on anything. */
+  const decisionCount = isExample ? DECISION_COUNT : 0;
+  /* Where the map looks before anything on the plan has a location of its
+     own — otherwise a brand new trip opens on a blank grey square. */
+  const mapCenter =
+    event.lat !== undefined && event.lng !== undefined
+      ? { lat: event.lat, lng: event.lng }
+      : undefined;
+
+  /* An event either carries the authored example or starts as one blank day
+     per date in its range — either way the day strip agrees with the dates
+     in the header, which a fixed Chicago itinerary never did. */
+  const seed = useRef(
+    event.fromExample ? DAYS : daysForRange(event.startDate, event.endDate),
+  ).current;
+  const saved = useRef(loadSaved(event.id)).current;
+  const [days, setDays] = useState<Day[]>(saved?.days ?? seed);
   const [resolved, setResolved] = useState<Record<string, Verdict>>(
     (saved?.resolved as Record<string, Verdict>) ?? {},
   );
-  const [dayIndex, setDayIndex] = useState(1);
+  /* The example opens on its second day, where the authored plan is richest.
+     A real trip opens on today if the trip is running, otherwise day one. */
+  const [dayIndex, setDayIndex] = useState(() => {
+    if (event.fromExample) return 1;
+    const today = isoDate(new Date());
+    const i = (saved?.days ?? seed).findIndex((d) => d.date === today);
+    return i === -1 ? 0 : i;
+  });
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
@@ -113,8 +143,8 @@ export function TripPage({
 
   /* The plan survives a refresh. */
   useEffect(() => {
-    save({ days, resolved });
-  }, [days, resolved]);
+    save(event.id, { days, resolved });
+  }, [event.id, days, resolved]);
 
   /* Items that name a Wikipedia article get their photo resolved once, in
      the background — a wrong or dead article just leaves the fill showing,
@@ -160,24 +190,26 @@ export function TripPage({
   }, [days]);
 
   /* A live forecast for whichever of the trip's dates fall in Open-Meteo's
-     window — the itinerary's day count never changes, so this only needs
-     to run once, not every time an item is added or edited. */
+     window. The dates come from the event, which doesn't change while the
+     trip is open, so this runs once rather than on every item edit. */
   useEffect(() => {
     let cancelled = false;
-    // The day list's dates never change regardless of what's saved, so the
-    // fixed seed is enough here — no need to depend on the live `days` state.
-    fetchWeather(DAYS)
-      .then((byDayNum) => {
-        if (!cancelled) setWeather(byDayNum);
+    const coords =
+      event.lat !== undefined && event.lng !== undefined
+        ? { lat: event.lat, lng: event.lng }
+        : undefined;
+    fetchWeather(seed, coords)
+      .then((byDate) => {
+        if (!cancelled) setWeather(byDate);
       })
       .catch(() => {
-        /* offline, or the trip's dates are outside the forecast window —
-           the day-head just keeps showing the seed weather text. */
+        /* offline, no geocoded location, or dates outside the forecast
+           window — the day header simply shows no weather. */
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [event.lat, event.lng, seed]);
 
   /* Re-schedules from scratch whenever the plan changes (an item's added,
      approved or declined) or the toggle flips — only fires anything while
@@ -382,7 +414,7 @@ export function TripPage({
             </div>
           </div>
           <div className="trip-page__avatars">
-            {TRIP.members.map((member) => (
+            {members.map((member) => (
               <div
                 key={member.initials}
                 className="trip-page__avatar"
@@ -455,20 +487,22 @@ export function TripPage({
         >
           {canApprove ? "Add to this day" : "Suggest something"}
         </button>
-        <button
-          type="button"
-          className="trip-page__reset trip-page__decisions"
-          onClick={() => setSheetOpen(true)}
-          style={{ fontFamily: theme.fontMono }}
-        >
-          Decisions
-          <span
-            className="trip-page__decisions-count"
-            style={{ background: theme.accent, color: theme.btnInk }}
+        {decisionCount > 0 && (
+          <button
+            type="button"
+            className="trip-page__reset trip-page__decisions"
+            onClick={() => setSheetOpen(true)}
+            style={{ fontFamily: theme.fontMono }}
           >
-            {DECISION_COUNT}
-          </span>
-        </button>
+            Decisions
+            <span
+              className="trip-page__decisions-count"
+              style={{ background: theme.accent, color: theme.btnInk }}
+            >
+              {decisionCount}
+            </span>
+          </button>
+        )}
       </div>
 
       <div
@@ -480,9 +514,9 @@ export function TripPage({
         className="trip-page__body"
       >
         {airport ? (
-          <AirportPanel day={day} theme={theme} />
+          <AirportPanel day={day} isExample={isExample} theme={theme} />
         ) : mapOpen ? (
-          <MapTab days={days} theme={theme} />
+          <MapTab days={days} center={mapCenter} theme={theme} />
         ) : (
           <>
             {tab === 0 && (
@@ -497,11 +531,12 @@ export function TripPage({
                 onAdd={() => setAddOpen(true)}
                 onOpenMap={setMapOpenTab}
                 onReorder={reorderItem}
+                center={mapCenter}
                 currency={currency}
                 theme={theme}
               />
             )}
-            {tab === 1 && <TravelTab theme={theme} />}
+            {tab === 1 && <TravelTab isExample={isExample} theme={theme} />}
             {tab === 2 && (
               <MoneyTab
                 days={days}
@@ -511,6 +546,8 @@ export function TripPage({
                   setCurrency(code);
                   saveCurrency(code);
                 }}
+                isExample={isExample}
+                people={Math.max(members.length, 1)}
                 theme={theme}
               />
             )}
@@ -522,6 +559,7 @@ export function TripPage({
                 eventName={eventName}
                 days={days}
                 resolved={resolved}
+                isExample={isExample}
                 theme={theme}
               />
             )}
@@ -535,6 +573,8 @@ export function TripPage({
                   setMapOpen(false);
                   toTop();
                 }}
+                members={members}
+                isExample={isExample}
                 theme={theme}
               />
             )}

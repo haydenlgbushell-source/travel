@@ -4,7 +4,15 @@ import { TripMap } from "./TripMap";
 
 /** Every place across the trip in one view, grouped by day underneath —
  *  the day maps show one day at a time, this is the whole picture. */
-export function MapTab({ days, theme }: { days: Day[]; theme: Theme }) {
+export function MapTab({
+  days,
+  center,
+  theme,
+}: {
+  days: Day[];
+  center?: { lat: number; lng: number };
+  theme: Theme;
+}) {
   const located = locatedItems(days);
   const pinNumber = new Map(located.map((entry, i) => [entry.item.id, i + 1]));
 
@@ -50,6 +58,7 @@ export function MapTab({ days, theme }: { days: Day[]; theme: Theme }) {
       <div className="map-canvas" style={{ borderColor: theme.line }}>
         <TripMap
           pins={located.map((entry) => ({ item: entry.item, number: pinNumber.get(entry.item.id) ?? 0 }))}
+          center={center}
           height={220}
         />
       </div>

@@ -76,6 +76,9 @@ export interface TripItem {
 }
 
 export interface Day {
+  /** The real calendar date, ISO `YYYY-MM-DD`. Weather, calendar export and
+   *  reminders all key off this rather than guessing a month from `num`. */
+  date: string;
   dow: string;
   num: string;
   label: string;
@@ -98,14 +101,26 @@ export const PEOPLE: Person[] = [
   { initials: "KE", name: "Kit Ellis", role: "Contributor", note: "Two suggestions waiting" },
 ];
 
-export const TRIP = {
-  name: "Chicago",
-  dates: "14 – 19 August 2026",
-  members: PEOPLE,
-};
+/** "Ana Novak" → "AN", "Ana" → "AN". Used for the header avatars, where a
+ *  real trip shows whoever is signed in rather than the example's cast. */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/** The example trip comes with its authored crew; a real one starts with
+ *  just the person who made it, until sharing exists to add anyone else. */
+export function membersFor(fromExample: boolean, userName: string | undefined): Person[] {
+  if (fromExample) return PEOPLE;
+  const name = userName?.trim();
+  if (!name) return [];
+  return [{ initials: initialsOf(name), name, role: "Organiser", note: "Created this trip" }];
+}
 
 /** Authored without ids; `DAYS` stamps them on once at module load. */
-type AuthoredDay = Omit<Day, "items"> & { items: Array<Omit<TripItem, "id">> };
+type AuthoredDay = Omit<Day, "items" | "date"> & { items: Array<Omit<TripItem, "id">> };
 
 const AUTHORED_DAYS: AuthoredDay[] = [
   {
@@ -648,8 +663,69 @@ const AUTHORED_DAYS: AuthoredDay[] = [
   },
 ];
 
+/* ---------- calendar days ---------- */
+
+/** Local midnight, not UTC — `new Date("2026-08-14")` is parsed as UTC and
+ *  lands on the 13th anywhere west of Greenwich. */
+function atLocalMidnight(iso: string): Date {
+  return new Date(`${iso}T00:00:00`);
+}
+
+export function isoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export function addDays(iso: string, days: number): string {
+  const date = atLocalMidnight(iso);
+  date.setDate(date.getDate() + days);
+  return isoDate(date);
+}
+
+/** A date range typed a year out would otherwise generate hundreds of day
+ *  chips and lock the browser up. */
+const MAX_TRIP_DAYS = 60;
+
+/** One blank day per date in the range, both ends included. A new event
+ *  starts empty — the plan is the group's to fill, and a day strip that
+ *  contradicts the dates in the header is worse than an empty one. */
+export function daysForRange(startISO: string, endISO: string): Day[] {
+  const start = atLocalMidnight(startISO);
+  const end = atLocalMidnight(endISO);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+
+  const days: Day[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end && days.length < MAX_TRIP_DAYS) {
+    days.push({
+      date: isoDate(cursor),
+      dow: cursor.toLocaleDateString("en-GB", { weekday: "short" }),
+      num: String(cursor.getDate()).padStart(2, "0"),
+      label: `Day ${days.length + 1}`,
+      fullDate: cursor.toLocaleDateString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+      weather: "",
+      mapArea: "",
+      walk: "—",
+      items: [],
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
+/** The example itinerary's real dates, so the sample trip behaves like any
+ *  other event rather than being a special case downstream. */
+export const EXAMPLE_START = "2026-08-14";
+export const EXAMPLE_END = "2026-08-19";
+
 export const DAYS: Day[] = AUTHORED_DAYS.map((day, d) => ({
   ...day,
+  date: addDays(EXAMPLE_START, d),
   items: day.items.map((item, i) => ({ ...item, id: `d${d}-i${i}` })),
 }));
 
@@ -803,8 +879,12 @@ export interface Budget {
 /** Spend, recomputed from the live itinerary every time it's asked for — an
  *  item added, declined or re-priced shows up here immediately instead of
  *  leaving the money tab quoting the trip's original seed numbers. */
-export function liveBudget(days: Day[], resolved: Record<string, string>): Budget {
-  const people = PEOPLE.length;
+export function liveBudget(
+  days: Day[],
+  resolved: Record<string, string>,
+  options: { fromExample?: boolean; people?: number } = {},
+): Budget {
+  const people = options.people ?? PEOPLE.length;
   const byKind = new Map<ItemKind, number>();
   for (const day of days) {
     for (const item of day.items) {
@@ -817,14 +897,17 @@ export function liveBudget(days: Day[], resolved: Record<string, string>): Budge
   }
 
   const rows: BudgetRow[] = [
-    ...FIXED_COSTS,
+    /* The flights and hotel below were booked as part of the authored
+       example. A real trip's costs come only from what's actually on the
+       plan, so nobody is shown money they never agreed to spend. */
+    ...(options.fromExample ? FIXED_COSTS : []),
     ...ITEM_KINDS.filter((kind) => BUDGET_KIND_LABEL[kind]).map((kind) => {
       const each = byKind.get(kind) ?? 0;
       return { label: BUDGET_KIND_LABEL[kind] as string, each, total: each * people };
     }),
   ];
   const each = rows.reduce((sum, row) => sum + row.each, 0);
-  return { rows, total: each * people, each, owes: OWES };
+  return { rows, total: each * people, each, owes: options.fromExample ? OWES : [] };
 }
 
 export const INFO = [
@@ -1116,44 +1199,52 @@ export function applyDraft(item: TripItem, draft: DraftItem): TripItem {
 
 /* ---------- persistence ---------- */
 
-const STORAGE_KEY = "wayfare.trip.v1";
+/** Keyed per event, so creating a second one can't surface the first one's
+ *  plan under the new dates — the same class of bug as the old Lisbon days
+ *  showing under a Chicago header, which a single shared key invited. */
+function storageKey(eventId: string): string {
+  return `wayfare.trip.v2.${eventId}`;
+}
 
-/** Bumped whenever the seed itinerary changes materially — a different city,
- *  a different date range, or fields added to every item (like the lat/lng
- *  the map needs). A save tagged with an older version is someone's browser
- *  still holding the *previous* shape of the trip, so it gets discarded
- *  rather than shown back to them. */
-const CONTENT_VERSION = "chicago-2";
+/** Bumped when the *shape* of a saved day or item changes, so a save
+ *  written by an older build gets discarded rather than half-read. */
+const CONTENT_VERSION = "3";
 
 export interface SavedState {
   days: Day[];
   resolved: Record<string, string>;
 }
 
-export function loadSaved(): SavedState | undefined {
+export function loadSaved(eventId: string): SavedState | undefined {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(eventId));
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as SavedState & { version?: string };
     if (parsed.version !== CONTENT_VERSION) return undefined;
     if (!Array.isArray(parsed.days) || parsed.days.length === 0) return undefined;
+    /* Days written before each one carried its real date can't drive the
+       forecast or the calendar export, so they're treated as stale. */
+    if (parsed.days.some((d) => typeof d.date !== "string")) return undefined;
     return parsed;
   } catch {
     return undefined;
   }
 }
 
-export function save(state: SavedState): void {
+export function save(eventId: string, state: SavedState): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, version: CONTENT_VERSION }));
+    localStorage.setItem(
+      storageKey(eventId),
+      JSON.stringify({ ...state, version: CONTENT_VERSION }),
+    );
   } catch {
     /* private mode or a full quota — the trip still works, it just won't keep. */
   }
 }
 
-export function clearSaved(): void {
+export function clearSaved(eventId: string): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey(eventId));
   } catch {
     /* nothing to do */
   }

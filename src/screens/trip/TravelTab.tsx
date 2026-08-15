@@ -1,7 +1,29 @@
 import type { Theme } from "../../theme";
 import { FLIGHTS, STAY } from "./trip-data";
 
-export function TravelTab({ theme }: { theme: Theme }) {
+export function TravelTab({ isExample, theme }: { isExample: boolean; theme: Theme }) {
+  /* The stay and the flights below are part of the authored example. A real
+     trip has none until someone adds them, and inventing a hotel nobody
+     booked is worse than an empty tab that says so. */
+  if (!isExample) {
+    return (
+      <div className="trip-page__stack trip-page__tab-panel">
+        <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
+          <span
+            className="empty-day__title"
+            style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+          >
+            Nothing booked yet
+          </span>
+          <span className="empty-day__note">
+            Add your stay and travel to the plan as items and they'll show up on the day
+            they happen.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="trip-page__stack trip-page__tab-panel">
       <div

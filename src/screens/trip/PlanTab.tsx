@@ -82,6 +82,7 @@ export function PlanTab({
   onAdd,
   onOpenMap,
   onReorder,
+  center,
   highlightId,
   currency,
   theme,
@@ -95,6 +96,7 @@ export function PlanTab({
   onAdd: () => void;
   onOpenMap: () => void;
   onReorder: (itemId: string, newTime: string) => void;
+  center?: { lat: number; lng: number };
   highlightId?: string;
   currency: string;
   theme: Theme;
@@ -241,6 +243,7 @@ export function PlanTab({
           <div className="day-map__canvas">
             <TripMap
               pins={live.map((item, i) => ({ item, number: i + 1 }))}
+              center={center}
               height={130}
             />
           </div>
@@ -253,7 +256,7 @@ export function PlanTab({
               className="day-map__area"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}
             >
-              Day map · {day.mapArea}
+              {day.mapArea ? `Day map · ${day.mapArea}` : "Day map"}
             </span>
             <span
               className="day-map__open"

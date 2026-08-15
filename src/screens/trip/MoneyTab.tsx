@@ -6,17 +6,21 @@ export function MoneyTab({
   resolved,
   currency,
   onCurrencyChange,
+  isExample,
+  people,
   theme,
 }: {
   days: Day[];
   resolved: Record<string, string>;
   currency: string;
   onCurrencyChange: (code: string) => void;
+  isExample: boolean;
+  people: number;
   theme: Theme;
 }) {
   const totals = days.map((day) => dayTotal(day, resolved));
   const maxCost = Math.max(...totals, 1);
-  const budget = liveBudget(days, resolved);
+  const budget = liveBudget(days, resolved, { fromExample: isExample, people });
 
   return (
     <div className="trip-page__stack trip-page__tab-panel">
@@ -53,7 +57,7 @@ export function MoneyTab({
             className="wf-card__eyebrow"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
           >
-            Split 5 ways
+            {people === 1 ? "Just you" : `Split ${people} ways`}
           </span>
         </div>
 
@@ -129,6 +133,7 @@ export function MoneyTab({
         ))}
       </div>
 
+      {budget.owes.length > 0 && (
       <div
         className="wf-card wf-card--pad"
         style={{ background: theme.card, borderColor: theme.line, gap: "10px" }}
@@ -150,6 +155,7 @@ export function MoneyTab({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

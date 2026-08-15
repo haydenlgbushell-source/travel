@@ -3,7 +3,8 @@ import { THEMES, getTheme } from "../../theme";
 import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
-import type { EventDetails } from "./event-data";
+import { geocodePlace, type EventDetails } from "./event-data";
+import { EXAMPLE_END, EXAMPLE_START } from "../trip/trip-data";
 
 /** "14 – 19 August 2026" — spans a month name only once when both ends
  *  fall in the same month, the way the rest of the app already writes it. */
@@ -51,14 +52,53 @@ export function TripSetupPage({
 }) {
   const [editorsCanStyle, setEditorsCanStyle] = useState(false);
   const [eventName, setEventName] = useState("");
+  const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [useExample, setUseExample] = useState(false);
+  const [creating, setCreating] = useState(false);
   const selected = getTheme(themeKey);
 
-  const dates = formatDateRange(startDate, endDate);
-  const canCreate = eventName.trim().length > 0 && dates.length > 0;
+  /* The example is a real, authored six-day Chicago trip — its dates come
+     with it rather than being whatever was typed above. */
+  const dates = useExample
+    ? formatDateRange(EXAMPLE_START, EXAMPLE_END)
+    : formatDateRange(startDate, endDate);
+  const canCreate = eventName.trim().length > 0 && dates.length > 0 && !creating;
   const previewName = eventName.trim() || "Your event";
   const previewDates = dates || "Pick your dates";
+
+  async function create() {
+    if (!canCreate) return;
+    setCreating(true);
+    try {
+      /* A place we can't geocode still makes a perfectly good trip — it
+         just has no forecast and no map centre, so a lookup that fails
+         shouldn't stop the event being created. */
+      let place;
+      try {
+        place = useExample
+          ? await geocodePlace("Chicago")
+          : await geocodePlace(destination);
+      } catch {
+        place = undefined;
+      }
+
+      onCreate({
+        id: crypto.randomUUID(),
+        name: eventName.trim(),
+        dates,
+        startDate: useExample ? EXAMPLE_START : startDate,
+        endDate: useExample ? EXAMPLE_END : endDate,
+        destination: place?.label ?? (destination.trim() || undefined),
+        lat: place?.lat,
+        lng: place?.lng,
+        fromExample: useExample,
+      });
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <div className="trip-setup">
@@ -78,9 +118,8 @@ export function TripSetupPage({
           <div className="trip-setup__intro">
             <h1 className="trip-setup__title">Set up your event</h1>
             <p className="trip-setup__lede">
-              Give it a name and its dates, then pick a style. The itinerary underneath is
-              still the Chicago example trip — this app doesn't build a new one for you yet,
-              it just wraps your event around it.
+              Name it, say where and when, then pick a style. You'll get a day for every
+              date in the range, empty and ready to fill in.
             </p>
           </div>
 
@@ -97,12 +136,27 @@ export function TripSetupPage({
                   onChange={(e) => setEventName(e.target.value)}
                 />
               </label>
+              <label className="event-field event-field--wide">
+                <span className="wf-mono event-field__label">Where</span>
+                <input
+                  className="event-field__input"
+                  type="text"
+                  placeholder="Chicago, Illinois"
+                  value={useExample ? "Chicago, Illinois" : destination}
+                  disabled={useExample}
+                  onChange={(e) => setDestination(e.target.value)}
+                />
+                <span className="event-field__hint">
+                  Sets the forecast and where the map opens. Optional.
+                </span>
+              </label>
               <label className="event-field">
                 <span className="wf-mono event-field__label">Starts</span>
                 <input
                   className="event-field__input"
                   type="date"
-                  value={startDate}
+                  value={useExample ? EXAMPLE_START : startDate}
+                  disabled={useExample}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </label>
@@ -112,11 +166,31 @@ export function TripSetupPage({
                   className="event-field__input"
                   type="date"
                   min={startDate || undefined}
-                  value={endDate}
+                  value={useExample ? EXAMPLE_END : endDate}
+                  disabled={useExample}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
               </label>
             </div>
+
+            <label className="event-example" onClick={() => setUseExample((v) => !v)}>
+              <span
+                className="scope-panel__checkbox"
+                style={{
+                  borderColor: useExample ? "#14171A" : "#C9CAC3",
+                  background: useExample ? "#14171A" : "transparent",
+                }}
+              >
+                {useExample ? "✓" : ""}
+              </span>
+              <span className="event-example__text">
+                <span className="event-example__label">Fill it with the example trip</span>
+                <span className="event-example__note">
+                  Six days in Chicago, already planned — a quick way to see how the app
+                  works before building your own.
+                </span>
+              </span>
+            </label>
           </section>
 
           <section className="trip-setup__section">
@@ -171,9 +245,9 @@ export function TripSetupPage({
               type="button"
               className="trip-setup__btn trip-setup__btn--primary"
               disabled={!canCreate}
-              onClick={() => canCreate && onCreate({ name: eventName.trim(), dates })}
+              onClick={create}
             >
-              Create trip and invite
+              {creating ? "Creating…" : "Create trip and invite"}
             </button>
             <span className="wf-mono trip-setup__actions-note">
               {canCreate ? "Everyone joins as a contributor" : "Add a name and both dates first"}

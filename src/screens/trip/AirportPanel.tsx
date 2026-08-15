@@ -5,7 +5,15 @@ const REF_INK = "oklch(0.8 0.11 60)";
 
 /** Everything needed at a gate with no signal: times, places and references,
  *  on one dark card that survives being screenshotted. */
-export function AirportPanel({ day, theme }: { day: Day; theme: Theme }) {
+export function AirportPanel({
+  day,
+  isExample,
+  theme,
+}: {
+  day: Day;
+  isExample: boolean;
+  theme: Theme;
+}) {
   return (
     <div className="airport" style={{ background: theme.headBg, color: theme.headInk }}>
       <div className="airport__head">
@@ -45,14 +53,18 @@ export function AirportPanel({ day, theme }: { day: Day; theme: Theme }) {
         })}
       </div>
 
-      <div className="airport__contacts" style={{ fontFamily: theme.fontMono }}>
-        <a href={`tel:${EMERGENCY_NUMBER}`} className="airport__contact-link">
-          Emergency {EMERGENCY_NUMBER}
-        </a>
-        <a href={`tel:${STAY.phone.replace(/[^+\d]/g, "")}`} className="airport__contact-link">
-          {STAY.name.split(",")[0]} {STAY.phone}
-        </a>
-      </div>
+      {/* The emergency number and hotel line belong to the example's US
+          trip — the wrong emergency number is worse than none at all. */}
+      {isExample && (
+        <div className="airport__contacts" style={{ fontFamily: theme.fontMono }}>
+          <a href={`tel:${EMERGENCY_NUMBER}`} className="airport__contact-link">
+            Emergency {EMERGENCY_NUMBER}
+          </a>
+          <a href={`tel:${STAY.phone.replace(/[^+\d]/g, "")}`} className="airport__contact-link">
+            {STAY.name.split(",")[0]} {STAY.phone}
+          </a>
+        </div>
+      )}
     </div>
   );
 }

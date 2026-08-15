@@ -10,6 +10,7 @@ export function InfoTab({
   eventName,
   days,
   resolved,
+  isExample,
   theme,
 }: {
   savedCount: number;
@@ -18,11 +19,17 @@ export function InfoTab({
   eventName: string;
   days: Day[];
   resolved: Record<string, Verdict>;
+  isExample: boolean;
   theme: Theme;
 }) {
+  /* Visas, currency and emergency numbers here are written for the example's
+     US trip — showing them on someone's trip to anywhere else would be
+     actively wrong, so they only appear on the example. */
+  const entries = isExample ? INFO : [];
+
   return (
     <div className="trip-page__stack trip-page__stack--tight trip-page__tab-panel">
-      {INFO.map((entry) => (
+      {entries.map((entry) => (
         <div
           key={entry.label}
           className="info-card"

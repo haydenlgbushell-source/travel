@@ -1,19 +1,29 @@
 import type { Theme } from "../../theme";
-import { INBOX, PEOPLE, ROLE_COLORS, ROLE_RULES, type Role } from "./trip-data";
+import { INBOX, ROLE_COLORS, ROLE_RULES, type Person, type Role } from "./trip-data";
 
 const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
+
+const COUNT_WORD = ["Nobody", "One person", "Two people", "Three people", "Four people", "Five people"];
 
 export function PeopleTab({
   role,
   onRoleChange,
   onOpenSuggestion,
+  members,
+  isExample,
   theme,
 }: {
   role: Role;
   onRoleChange: (role: Role) => void;
   onOpenSuggestion: (dayIndex: number) => void;
+  members: Person[];
+  isExample: boolean;
   theme: Theme;
 }) {
+  /* Suggestions waiting are part of the authored example — a real trip has
+     none until someone else can actually reach it. */
+  const inbox = isExample ? INBOX : [];
+
   return (
     <div className="trip-page__stack trip-page__tab-panel">
       <div className="people" style={{ background: theme.card, borderColor: theme.line }}>
@@ -22,7 +32,7 @@ export function PeopleTab({
             className="wf-card__eyebrow"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
           >
-            Five people
+            {COUNT_WORD[members.length] ?? `${members.length} people`}
           </span>
           <span
             className="people__note"
@@ -31,7 +41,7 @@ export function PeopleTab({
             {role === "Organiser" ? "You set roles" : "Organiser sets roles"}
           </span>
         </div>
-        {PEOPLE.map((person) => (
+        {members.map((person) => (
           <div key={person.initials} className="people__row">
             <div
               className="people__avatar"
@@ -61,16 +71,17 @@ export function PeopleTab({
         ))}
       </div>
 
+      {inbox.length > 0 && (
       <div className="inbox">
         <div className="inbox__head">
           <span className="inbox__eyebrow" style={{ fontFamily: theme.fontMono }}>
             Suggestions waiting
           </span>
           <span className="inbox__count" style={{ fontFamily: theme.fontMono }}>
-            {INBOX.length}
+            {inbox.length}
           </span>
         </div>
-        {INBOX.map((suggestion) => (
+        {inbox.map((suggestion) => (
           <button
             key={suggestion.title}
             type="button"
@@ -93,6 +104,7 @@ export function PeopleTab({
           </button>
         ))}
       </div>
+      )}
 
       <div
         className="wf-card wf-card--pad roles"
