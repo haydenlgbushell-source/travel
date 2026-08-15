@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type HTMLAttributes } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import type { TripItem } from "./trip-data";
 
 export type Verdict = "approved" | "declined";
+export type DragHandleProps = HTMLAttributes<HTMLButtonElement>;
 
 const PENDING_BG = "#F7F7F3";
 const WARN_INK = "oklch(0.52 0.13 60)";
@@ -18,6 +19,8 @@ export function ItemCard({
   onResolve,
   onEdit,
   highlighted,
+  dragHandleProps,
+  dragging,
   theme,
 }: {
   item: TripItem;
@@ -27,6 +30,8 @@ export function ItemCard({
   onResolve: (verdict: Verdict | undefined) => void;
   onEdit?: () => void;
   highlighted?: boolean;
+  dragHandleProps?: DragHandleProps;
+  dragging?: boolean;
   theme: Theme;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -76,6 +81,7 @@ export function ItemCard({
           background: unresolved ? PENDING_BG : theme.card,
           borderStyle: unresolved ? "dashed" : "solid",
           borderColor: unresolved ? "var(--wf-accent-edge)" : theme.line,
+          opacity: dragging ? 0.5 : 1,
         }}
       >
         {(item.photo || item.photoUrl) && (
@@ -89,6 +95,24 @@ export function ItemCard({
 
         <div className="item__body">
           <div className="item__title-row">
+            {dragHandleProps && (
+              <button
+                type="button"
+                className="trip-page__reset item__drag-handle"
+                aria-label={`Reorder ${item.title}`}
+                style={{ color: theme.meta }}
+                {...dragHandleProps}
+              >
+                <svg width="12" height="18" viewBox="0 0 12 18" fill="none" aria-hidden="true">
+                  <circle cx="3" cy="3" r="1.5" fill="currentColor" />
+                  <circle cx="9" cy="3" r="1.5" fill="currentColor" />
+                  <circle cx="3" cy="9" r="1.5" fill="currentColor" />
+                  <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+                  <circle cx="3" cy="15" r="1.5" fill="currentColor" />
+                  <circle cx="9" cy="15" r="1.5" fill="currentColor" />
+                </svg>
+              </button>
+            )}
             <span className="item__time" style={{ fontFamily: theme.fontMono }}>
               {item.time}
             </span>

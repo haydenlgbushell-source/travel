@@ -10,12 +10,26 @@ const ENTRIES = [
 export function MoreSheet({
   onOpen,
   onClose,
+  notifyEnabled,
+  notifySupported,
+  notifyBlocked,
+  onToggleNotify,
   theme,
 }: {
   onOpen: (label: string) => void;
   onClose: () => void;
+  notifyEnabled: boolean;
+  notifySupported: boolean;
+  notifyBlocked: boolean;
+  onToggleNotify: () => void;
   theme: Theme;
 }) {
+  const notifyNote = !notifySupported
+    ? "Not supported in this browser."
+    : notifyBlocked
+      ? "Blocked — allow notifications for this site in your browser settings."
+      : "Reminders 30 minutes before each item — only while this tab stays open, since there's no server to deliver them once it's closed.";
+
   return (
     <Sheet title="More" onClose={onClose} theme={theme}>
       {ENTRIES.map((entry) => (
@@ -44,6 +58,34 @@ export function MoreSheet({
           </span>
         </button>
       ))}
+
+      <button
+        type="button"
+        className="trip-page__reset more-sheet__item"
+        onClick={onToggleNotify}
+        disabled={!notifySupported || notifyBlocked}
+        style={{ background: theme.card, borderColor: theme.line }}
+      >
+        <span className="more-sheet__row">
+          <span className="more-sheet__label" style={{ color: theme.ink }}>
+            Notifications
+          </span>
+          <span
+            className="more-sheet__toggle"
+            style={{
+              background: notifyEnabled ? theme.accent : theme.line,
+            }}
+          >
+            <span
+              className="more-sheet__toggle-knob"
+              style={{ transform: notifyEnabled ? "translateX(16px)" : "translateX(0)" }}
+            />
+          </span>
+        </span>
+        <span className="more-sheet__note" style={{ color: theme.body }}>
+          {notifyNote}
+        </span>
+      </button>
     </Sheet>
   );
 }

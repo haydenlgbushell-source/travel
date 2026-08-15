@@ -1,15 +1,23 @@
 import type { Theme } from "../../theme";
-import { INFO } from "./trip-data";
+import type { Verdict } from "./ItemCard";
+import { downloadICS } from "./calendar-export";
+import { INFO, type Day } from "./trip-data";
 
 export function InfoTab({
   savedCount,
   onSaveTrip,
   onOpenPast,
+  eventName,
+  days,
+  resolved,
   theme,
 }: {
   savedCount: number;
   onSaveTrip: () => void;
   onOpenPast: () => void;
+  eventName: string;
+  days: Day[];
+  resolved: Record<string, Verdict>;
   theme: Theme;
 }) {
   return (
@@ -37,6 +45,38 @@ export function InfoTab({
           </div>
         </div>
       ))}
+
+      <div
+        className="info-card"
+        style={{ background: theme.card, borderColor: theme.line }}
+      >
+        <div
+          className="wf-card__eyebrow"
+          style={{ fontFamily: theme.fontMono, color: theme.meta }}
+        >
+          Keep it with you
+        </div>
+        <div
+          className="info-card__value"
+          style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+        >
+          Add to your calendar
+        </div>
+        <div className="info-card__note" style={{ color: theme.body }}>
+          Every approved item, as its own event with the time and place —
+          import the file into whichever calendar app you actually use.
+        </div>
+        <div className="info-card__actions">
+          <button
+            type="button"
+            className="trip-page__reset info-card__btn"
+            onClick={() => downloadICS(eventName, days, resolved)}
+            style={{ color: theme.bg, background: theme.ink }}
+          >
+            Download .ics
+          </button>
+        </div>
+      </div>
 
       {/* When the trip is over, what is worth keeping is where you went. */}
       <div

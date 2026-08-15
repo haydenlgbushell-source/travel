@@ -476,6 +476,21 @@
   justify-content: center;
 }
 
+.item__drag-handle {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: -4px 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.item__drag-handle:active {
+  cursor: grabbing;
+}
+
 .item__rating-row {
   display: flex;
   align-items: center;
@@ -2024,6 +2039,7 @@
 .more-sheet__row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -2036,4 +2052,28 @@
   font-size: 12.5px;
   line-height: 1.45;
   text-wrap: pretty;
+}
+
+.more-sheet__item:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.more-sheet__toggle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 2px;
+  transition: background 0.16s ease;
+}
+
+.more-sheet__toggle-knob {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fdfdfc;
+  box-shadow: 0 1px 3px rgba(20, 23, 26, 0.3);
+  transition: transform 0.16s ease;
 }

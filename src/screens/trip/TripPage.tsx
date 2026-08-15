@@ -30,6 +30,14 @@ import {
   type PastTrip,
   type Role,
 } from "./trip-data";
+import { fetchWeather } from "./weather";
+import {
+  loadNotifyEnabled,
+  notifyPermission,
+  requestNotifyPermission,
+  saveNotifyEnabled,
+  scheduleNotifications,
+} from "./notifications";
 import "./trip-page.css";
 
 /** Strip rules (day selector, tabs, bottom bar) sit a shade darker than card
@@ -94,6 +102,8 @@ export function TripPage({
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
+  const [weather, setWeather] = useState<Record<string, string>>({});
+  const [notifyEnabled, setNotifyEnabled] = useState(loadNotifyEnabled);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -148,6 +158,48 @@ export function TripPage({
       cancelled = true;
     };
   }, [days]);
+
+  /* A live forecast for whichever of the trip's dates fall in Open-Meteo's
+     window — the itinerary's day count never changes, so this only needs
+     to run once, not every time an item is added or edited. */
+  useEffect(() => {
+    let cancelled = false;
+    // The day list's dates never change regardless of what's saved, so the
+    // fixed seed is enough here — no need to depend on the live `days` state.
+    fetchWeather(DAYS)
+      .then((byDayNum) => {
+        if (!cancelled) setWeather(byDayNum);
+      })
+      .catch(() => {
+        /* offline, or the trip's dates are outside the forecast window —
+           the day-head just keeps showing the seed weather text. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* Re-schedules from scratch whenever the plan changes (an item's added,
+     approved or declined) or the toggle flips — only fires anything while
+     permission is already granted and the toggle is on, and only while
+     this tab stays open. */
+  useEffect(() => {
+    if (!notifyEnabled) return;
+    return scheduleNotifications(days, resolved);
+  }, [notifyEnabled, days, resolved]);
+
+  async function toggleNotify() {
+    if (notifyEnabled) {
+      setNotifyEnabled(false);
+      saveNotifyEnabled(false);
+      return;
+    }
+    const permission =
+      notifyPermission() === "granted" ? "granted" : await requestNotifyPermission();
+    if (permission !== "granted") return;
+    setNotifyEnabled(true);
+    saveNotifyEnabled(true);
+  }
 
   /* The undo strip and the ring on the new card clear themselves, so the plan
      goes back to being just the plan. */
@@ -239,6 +291,13 @@ export function TripPage({
     updateDay((d) => ({ ...d, items: d.items.filter((i) => i.id !== id) }));
     setEditingId(undefined);
     setAdded(undefined);
+  }
+
+  function reorderItem(id: string, newTime: string) {
+    updateDay((d) => ({
+      ...d,
+      items: d.items.map((i) => (i.id === id ? { ...i, time: newTime } : i)).sort(byTime),
+    }));
   }
 
   function resolve(id: string, verdict: Verdict | undefined) {
@@ -428,7 +487,7 @@ export function TripPage({
           <>
             {tab === 0 && (
               <PlanTab
-                day={day}
+                day={weather[day.num] ? { ...day, weather: weather[day.num] } : day}
                 highlightId={added?.id}
                 loading={loading}
                 resolved={resolved}
@@ -437,6 +496,7 @@ export function TripPage({
                 onEdit={setEditingId}
                 onAdd={() => setAddOpen(true)}
                 onOpenMap={setMapOpenTab}
+                onReorder={reorderItem}
                 currency={currency}
                 theme={theme}
               />
@@ -459,6 +519,9 @@ export function TripPage({
                 savedCount={savedCount}
                 onSaveTrip={() => onSaveTrip(archive(eventName, eventDates, days, resolved))}
                 onOpenPast={onOpenPast}
+                eventName={eventName}
+                days={days}
+                resolved={resolved}
                 theme={theme}
               />
             )}
@@ -567,7 +630,15 @@ export function TripPage({
       )}
 
       {moreOpen && (
-        <MoreSheet onOpen={openFromMore} onClose={() => setMoreOpen(false)} theme={theme} />
+        <MoreSheet
+          onOpen={openFromMore}
+          onClose={() => setMoreOpen(false)}
+          notifyEnabled={notifyEnabled}
+          notifySupported={notifyPermission() !== "unsupported"}
+          notifyBlocked={notifyPermission() === "denied"}
+          onToggleNotify={toggleNotify}
+          theme={theme}
+        />
       )}
     </ThemeProvider>
   );

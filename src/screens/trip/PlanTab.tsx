@@ -1,12 +1,76 @@
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, money, type Day } from "./trip-data";
+import { dayTotal, money, timeForPosition, type Day, type TripItem } from "./trip-data";
 import { TripMap } from "./TripMap";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
 const CONFLICT_BORDER = "oklch(0.88 0.07 60)";
 const CONFLICT_INK = "oklch(0.45 0.12 60)";
+
+/** Wraps ItemCard with dnd-kit's sortable machinery so the card itself
+ *  doesn't need to know anything about drag-and-drop — it just gets a
+ *  handle to render and an `isDragging` flag to fade with. */
+function SortableItemCard({
+  item,
+  index,
+  verdict,
+  canApprove,
+  onResolve,
+  onEdit,
+  highlighted,
+  draggable,
+  theme,
+}: {
+  item: TripItem;
+  index: number;
+  verdict?: Verdict;
+  canApprove: boolean;
+  onResolve: (verdict: Verdict | undefined) => void;
+  onEdit?: () => void;
+  highlighted?: boolean;
+  draggable: boolean;
+  theme: Theme;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    disabled: !draggable,
+  });
+
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
+      <ItemCard
+        item={item}
+        index={index}
+        verdict={verdict}
+        canApprove={canApprove}
+        onResolve={onResolve}
+        onEdit={onEdit}
+        highlighted={highlighted}
+        dragHandleProps={draggable ? { ...attributes, ...listeners } : undefined}
+        dragging={isDragging}
+        theme={theme}
+      />
+    </div>
+  );
+}
 
 export function PlanTab({
   day,
@@ -17,6 +81,7 @@ export function PlanTab({
   onEdit,
   onAdd,
   onOpenMap,
+  onReorder,
   highlightId,
   currency,
   theme,
@@ -29,10 +94,26 @@ export function PlanTab({
   onEdit: (id: string) => void;
   onAdd: () => void;
   onOpenMap: () => void;
+  onReorder: (itemId: string, newTime: string) => void;
   highlightId?: string;
   currency: string;
   theme: Theme;
 }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = day.items.findIndex((i) => i.id === active.id);
+    const newIndex = day.items.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(day.items, oldIndex, newIndex);
+    onReorder(String(active.id), timeForPosition(reordered, newIndex));
+  }
+
   const live = day.items.filter((item) => resolved[item.id] !== "declined");
   /* Card numbers and map pins both count live items, so a declined item in
      the middle of the day does not leave a gap in the numbering. */
@@ -133,21 +214,26 @@ export function PlanTab({
           </button>
         </div>
       ) : (
-        <div className="items">
-          {day.items.map((item) => (
-            <ItemCard
-              key={item.id}
-              item={item}
-              index={pinOf.get(item.id) ?? 0}
-              verdict={resolved[item.id]}
-              canApprove={canApprove}
-              onResolve={(verdict) => onResolve(item.id, verdict)}
-              onEdit={canApprove ? () => onEdit(item.id) : undefined}
-              highlighted={item.id === highlightId}
-              theme={theme}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            <div className="items">
+              {day.items.map((item) => (
+                <SortableItemCard
+                  key={item.id}
+                  item={item}
+                  index={pinOf.get(item.id) ?? 0}
+                  verdict={resolved[item.id]}
+                  canApprove={canApprove}
+                  onResolve={(verdict) => onResolve(item.id, verdict)}
+                  onEdit={canApprove ? () => onEdit(item.id) : undefined}
+                  highlighted={item.id === highlightId}
+                  draggable={canApprove && resolved[item.id] !== "declined"}
+                  theme={theme}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {live.length > 0 && (

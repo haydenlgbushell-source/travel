@@ -918,6 +918,24 @@ export function byTime(a: TripItem, b: TripItem): number {
 
 const END_OF_DAY = 23 * 60 + 59;
 
+/** Display order is always time order (`byTime`), so dragging a card to a
+ *  new spot has to fit it with a matching new time rather than fight the
+ *  sort — this picks one that lands strictly between its new neighbours. */
+export function timeForPosition(items: TripItem[], index: number): string {
+  const before = items[index - 1];
+  const after = items[index + 1];
+  const beforeMin = before ? toMinutes(before.time) : undefined;
+  const afterMin = after ? toMinutes(after.time) : undefined;
+
+  if (beforeMin !== undefined && afterMin !== undefined) {
+    const mid = Math.round((beforeMin + afterMin) / 2);
+    return toTime(Math.min(Math.max(mid, beforeMin), afterMin));
+  }
+  if (beforeMin !== undefined) return toTime(Math.min(beforeMin + 15, END_OF_DAY));
+  if (afterMin !== undefined) return toTime(Math.max(afterMin - 15, 0));
+  return "09:00";
+}
+
 export interface Slot {
   time: string;
   caption: string;
