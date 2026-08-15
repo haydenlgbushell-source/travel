@@ -137,7 +137,7 @@ export function ShareSheet({
           await copy(url, "Link copied");
         }}
         style={{
-          color: chosen.length ? theme.btnInk : theme.meta,
+          color: chosen.length ? theme.bg : theme.meta,
           background: chosen.length ? theme.ink : theme.line,
           cursor: chosen.length ? "pointer" : "not-allowed",
         }}

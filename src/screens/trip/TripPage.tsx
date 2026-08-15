@@ -389,7 +389,7 @@ export function TripPage({
           className="trip-page__reset trip-page__add"
           onClick={() => setAddOpen(true)}
           style={{
-            color: canApprove ? theme.btnInk : theme.accentInk,
+            color: canApprove ? theme.bg : theme.accentInk,
             background: canApprove ? theme.ink : "var(--wf-accent-tint)",
             borderColor: canApprove ? theme.ink : "var(--wf-accent-edge)",
           }}
@@ -527,7 +527,7 @@ export function TripPage({
       </div>
 
       {added && !sheetItemOpen && (
-        <div className="undo" role="status" style={{ background: theme.ink, color: theme.btnInk }}>
+        <div className="undo" role="status" style={{ background: theme.ink, color: theme.bg }}>
           <span className="undo__text">
             {canApprove ? "Added" : "Sent to editors"} · {added.title}
           </span>

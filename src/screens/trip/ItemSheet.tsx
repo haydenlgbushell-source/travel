@@ -345,7 +345,7 @@ export function ItemSheet({
         disabled={!ready}
         onClick={() => onSave(draft)}
         style={{
-          color: ready ? theme.btnInk : theme.meta,
+          color: ready ? (canApprove ? theme.bg : theme.btnInk) : theme.meta,
           background: ready ? (canApprove ? theme.ink : theme.accent) : theme.line,
           cursor: ready ? "pointer" : "not-allowed",
         }}

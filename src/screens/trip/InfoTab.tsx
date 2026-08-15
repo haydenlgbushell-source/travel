@@ -64,7 +64,7 @@ export function InfoTab({
             type="button"
             className="trip-page__reset info-card__btn"
             onClick={onSaveTrip}
-            style={{ color: theme.btnInk, background: theme.ink }}
+            style={{ color: theme.bg, background: theme.ink }}
           >
             Save this trip
           </button>

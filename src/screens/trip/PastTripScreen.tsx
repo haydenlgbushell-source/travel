@@ -83,7 +83,7 @@ export function PastTripScreen({
           type="button"
           className="trip-page__reset trip-page__add"
           onClick={() => setShareOpen(true)}
-          style={{ color: theme.btnInk, background: theme.ink, borderColor: theme.ink }}
+          style={{ color: theme.bg, background: theme.ink, borderColor: theme.ink }}
         >
           Share these places
         </button>

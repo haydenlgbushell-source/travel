@@ -68,7 +68,7 @@ export function SharedListScreen({
           type="button"
           className="trip-page__reset trip-page__add"
           onClick={onDismiss}
-          style={{ color: theme.btnInk, background: theme.ink, borderColor: theme.ink }}
+          style={{ color: theme.bg, background: theme.ink, borderColor: theme.ink }}
         >
           Plan your own trip
         </button>
