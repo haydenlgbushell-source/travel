@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_THEME_KEY, getTheme } from "./theme";
-import { TripSetupPage, type EventDetails } from "./screens/trip-setup/TripSetupPage";
+import { TripSetupPage } from "./screens/trip-setup/TripSetupPage";
+import { loadEventDetails, saveEventDetails, type EventDetails } from "./screens/trip-setup/event-data";
 import { TripPage } from "./screens/trip/TripPage";
 import { PastTripScreen } from "./screens/trip/PastTripScreen";
 import { PastTripsScreen } from "./screens/trip/PastTripsScreen";
@@ -25,17 +26,17 @@ function readShareLink(): SharedList | undefined {
   return match ? decodeShare(match[1]) : undefined;
 }
 
-function initialScreen(account: Account | undefined): Screen {
+function initialScreen(account: Account | undefined, event: EventDetails | undefined): Screen {
   if (!account) return "auth";
   if (!account.name) return "name";
-  return "setup";
+  return event ? "trip" : "setup";
 }
 
 function App() {
   const [themeKey, setThemeKey] = useState(DEFAULT_THEME_KEY);
   const [account, setAccount] = useState<Account | undefined>(currentAccount);
-  const [screen, setScreen] = useState<Screen>(() => initialScreen(currentAccount()));
-  const [eventDetails, setEventDetails] = useState<EventDetails | undefined>();
+  const [eventDetails, setEventDetails] = useState<EventDetails | undefined>(loadEventDetails);
+  const [screen, setScreen] = useState<Screen>(() => initialScreen(currentAccount(), loadEventDetails()));
   const [pastTrips, setPastTrips] = useState<PastTrip[]>(loadPastTrips);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
@@ -149,6 +150,7 @@ function App() {
       onThemeKeyChange={setThemeKey}
       onCreate={(event) => {
         setEventDetails(event);
+        saveEventDetails(event);
         setScreen("trip");
       }}
     />

@@ -3,11 +3,7 @@ import { THEMES, getTheme } from "../../theme";
 import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
-
-export interface EventDetails {
-  name: string;
-  dates: string;
-}
+import type { EventDetails } from "./event-data";
 
 /** "14 – 19 August 2026" — spans a month name only once when both ends
  *  fall in the same month, the way the rest of the app already writes it. */
