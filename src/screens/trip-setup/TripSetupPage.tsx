@@ -4,6 +4,28 @@ import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
 
+export interface EventDetails {
+  name: string;
+  dates: string;
+}
+
+/** "14 – 19 August 2026" — spans a month name only once when both ends
+ *  fall in the same month, the way the rest of the app already writes it. */
+function formatDateRange(startISO: string, endISO: string): string {
+  if (!startISO || !endISO) return "";
+  const start = new Date(`${startISO}T00:00:00`);
+  const end = new Date(`${endISO}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+
+  const endMonth = end.toLocaleDateString("en-US", { month: "long" });
+  const year = end.getFullYear();
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.getDate()} – ${end.getDate()} ${endMonth} ${year}`;
+  }
+  const startMonth = start.toLocaleDateString("en-US", { month: "long" });
+  return `${start.getDate()} ${startMonth} – ${end.getDate()} ${endMonth} ${year}`;
+}
+
 const SCOPE_RULES = [
   {
     label: "Changes",
@@ -29,10 +51,18 @@ export function TripSetupPage({
 }: {
   themeKey: string;
   onThemeKeyChange: (key: string) => void;
-  onCreate: () => void;
+  onCreate: (event: EventDetails) => void;
 }) {
   const [editorsCanStyle, setEditorsCanStyle] = useState(false);
+  const [eventName, setEventName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const selected = getTheme(themeKey);
+
+  const dates = formatDateRange(startDate, endDate);
+  const canCreate = eventName.trim().length > 0 && dates.length > 0;
+  const previewName = eventName.trim() || "Your event";
+  const previewDates = dates || "Pick your dates";
 
   return (
     <div className="trip-setup">
@@ -40,7 +70,7 @@ export function TripSetupPage({
         <header className="trip-setup__header">
           <div className="trip-setup__header-left">
             <span className="trip-setup__brand">Meridian</span>
-            <span className="wf-mono trip-setup__step">New trip · step 3 of 3</span>
+            <span className="wf-mono trip-setup__step">New event</span>
           </div>
           <div className="trip-setup__header-right">
             <span className="wf-mono trip-setup__organiser">Organiser only</span>
@@ -50,13 +80,48 @@ export function TripSetupPage({
 
         <div className="trip-setup__content">
           <div className="trip-setup__intro">
-            <h1 className="trip-setup__title">Pick a style for Chicago</h1>
+            <h1 className="trip-setup__title">Set up your event</h1>
             <p className="trip-setup__lede">
-              Style changes the palette, the type and the tone of labels across every
-              screen the group sees. Nothing about the plan, the bookings or the money
-              changes. You can switch it later from trip settings.
+              Give it a name and its dates, then pick a style. The itinerary underneath is
+              still the Chicago example trip — this app doesn't build a new one for you yet,
+              it just wraps your event around it.
             </p>
           </div>
+
+          <section className="trip-setup__section">
+            <span className="wf-mono trip-setup__eyebrow">Event details</span>
+            <div className="event-fields">
+              <label className="event-field event-field--wide">
+                <span className="wf-mono event-field__label">Event name</span>
+                <input
+                  className="event-field__input"
+                  type="text"
+                  placeholder="Chicago"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                />
+              </label>
+              <label className="event-field">
+                <span className="wf-mono event-field__label">Starts</span>
+                <input
+                  className="event-field__input"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </label>
+              <label className="event-field">
+                <span className="wf-mono event-field__label">Ends</span>
+                <input
+                  className="event-field__input"
+                  type="date"
+                  min={startDate || undefined}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </label>
+            </div>
+          </section>
 
           <section className="trip-setup__section">
             <div className="trip-setup__section-head">
@@ -73,6 +138,7 @@ export function TripSetupPage({
                   theme={t}
                   selected={t.key === themeKey}
                   onSelect={() => onThemeKeyChange(t.key)}
+                  eventName={previewName}
                 />
               ))}
             </div>
@@ -108,15 +174,13 @@ export function TripSetupPage({
             <button
               type="button"
               className="trip-setup__btn trip-setup__btn--primary"
-              onClick={onCreate}
+              disabled={!canCreate}
+              onClick={() => canCreate && onCreate({ name: eventName.trim(), dates })}
             >
               Create trip and invite
             </button>
-            <button type="button" className="trip-setup__btn trip-setup__btn--secondary">
-              Back to dates
-            </button>
             <span className="wf-mono trip-setup__actions-note">
-              Everyone joins as a contributor
+              {canCreate ? "Everyone joins as a contributor" : "Add a name and both dates first"}
             </span>
           </div>
         </div>
@@ -127,7 +191,7 @@ export function TripSetupPage({
           <span className="wf-mono trip-setup__preview-label">Live preview</span>
           <span className="wf-mono trip-setup__preview-label">What the group sees</span>
         </div>
-        <PhonePreview theme={selected} />
+        <PhonePreview theme={selected} eventName={previewName} eventDates={previewDates} />
       </aside>
     </div>
   );

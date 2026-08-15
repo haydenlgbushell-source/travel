@@ -65,12 +65,16 @@ export function TripPage({
   onSaveTrip,
   onOpenPast,
   onBack,
+  eventName = TRIP.name,
+  eventDates = TRIP.dates,
 }: {
   theme: Theme;
   savedCount: number;
   onSaveTrip: (trip: PastTrip) => void;
   onOpenPast: () => void;
   onBack?: () => void;
+  eventName?: string;
+  eventDates?: string;
 }) {
   const saved = useRef(loadSaved()).current;
   const [days, setDays] = useState<Day[]>(saved?.days ?? DAYS);
@@ -312,10 +316,10 @@ export function TripPage({
               className="trip-page__dates"
               style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
             >
-              {TRIP.dates}
+              {eventDates}
             </div>
             <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
-              {TRIP.name}
+              {eventName}
             </div>
           </div>
           <div className="trip-page__avatars">
@@ -453,7 +457,7 @@ export function TripPage({
             {tab === 3 && (
               <InfoTab
                 savedCount={savedCount}
-                onSaveTrip={() => onSaveTrip(archive(TRIP.name, TRIP.dates, days, resolved))}
+                onSaveTrip={() => onSaveTrip(archive(eventName, eventDates, days, resolved))}
                 onOpenPast={onOpenPast}
                 theme={theme}
               />

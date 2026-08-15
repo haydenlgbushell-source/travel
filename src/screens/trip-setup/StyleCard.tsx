@@ -4,10 +4,12 @@ export function StyleCard({
   theme,
   selected,
   onSelect,
+  eventName,
 }: {
   theme: Theme;
   selected: boolean;
   onSelect: () => void;
+  eventName: string;
 }) {
   return (
     <button
@@ -48,7 +50,7 @@ export function StyleCard({
               className="style-card__mini-city"
               style={{ fontFamily: theme.fontDisplay, color: theme.headInk }}
             >
-              Chicago
+              {eventName}
             </div>
           </div>
           <span

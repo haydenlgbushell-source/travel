@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_THEME_KEY, getTheme } from "./theme";
-import { TripSetupPage } from "./screens/trip-setup/TripSetupPage";
+import { TripSetupPage, type EventDetails } from "./screens/trip-setup/TripSetupPage";
 import { TripPage } from "./screens/trip/TripPage";
 import { PastTripScreen } from "./screens/trip/PastTripScreen";
 import { PastTripsScreen } from "./screens/trip/PastTripsScreen";
 import { SharedListScreen } from "./screens/trip/SharedListScreen";
+import { AuthPage } from "./screens/auth/AuthPage";
+import { NamePage } from "./screens/auth/NamePage";
+import { currentAccount, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
   decodeShare,
   loadPastTrips,
@@ -13,7 +16,7 @@ import {
   type SharedList,
 } from "./screens/trip/trip-data";
 
-type Screen = "setup" | "trip" | "past" | "pastTrip";
+type Screen = "auth" | "name" | "setup" | "trip" | "past" | "pastTrip";
 
 /** A shared list arrives in the fragment, so it needs no server route and
  *  survives being pasted anywhere. */
@@ -22,9 +25,17 @@ function readShareLink(): SharedList | undefined {
   return match ? decodeShare(match[1]) : undefined;
 }
 
+function initialScreen(account: Account | undefined): Screen {
+  if (!account) return "auth";
+  if (!account.name) return "name";
+  return "setup";
+}
+
 function App() {
   const [themeKey, setThemeKey] = useState(DEFAULT_THEME_KEY);
-  const [screen, setScreen] = useState<Screen>("setup");
+  const [account, setAccount] = useState<Account | undefined>(currentAccount);
+  const [screen, setScreen] = useState<Screen>(() => initialScreen(currentAccount()));
+  const [eventDetails, setEventDetails] = useState<EventDetails | undefined>();
   const [pastTrips, setPastTrips] = useState<PastTrip[]>(loadPastTrips);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
@@ -66,6 +77,30 @@ function App() {
     );
   }
 
+  if (screen === "auth") {
+    return (
+      <AuthPage
+        onAuthenticated={(acc) => {
+          setAccount(acc);
+          setScreen(acc.name ? "setup" : "name");
+        }}
+      />
+    );
+  }
+
+  if (screen === "name") {
+    return (
+      <NamePage
+        onSubmit={(name) => {
+          if (!account) return;
+          const updated = setAccountName(account.id, name);
+          setAccount(updated ?? { ...account, name });
+          setScreen("setup");
+        }}
+      />
+    );
+  }
+
   if (screen === "pastTrip") {
     const trip = pastTrips.find((t) => t.id === openTripId);
     if (trip) {
@@ -102,6 +137,8 @@ function App() {
         onSaveTrip={keepTrip}
         onOpenPast={() => setScreen("past")}
         onBack={() => setScreen("setup")}
+        eventName={eventDetails?.name}
+        eventDates={eventDetails?.dates}
       />
     );
   }
@@ -110,7 +147,10 @@ function App() {
     <TripSetupPage
       themeKey={themeKey}
       onThemeKeyChange={setThemeKey}
-      onCreate={() => setScreen("trip")}
+      onCreate={(event) => {
+        setEventDetails(event);
+        setScreen("trip");
+      }}
     />
   );
 }

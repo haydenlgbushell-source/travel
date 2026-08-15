@@ -1,0 +1,133 @@
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: #f2f1ec;
+  color: #14171a;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fdfdfc;
+  border: 1px solid #e4e4dd;
+  border-radius: 18px;
+  padding: 30px 26px 26px;
+  box-shadow: 0 26px 60px -34px rgba(20, 23, 26, 0.35);
+}
+
+.auth-wordmark {
+  font-family: "Instrument Serif", serif;
+  font-size: 18px;
+  color: #6e736d;
+}
+
+.auth-title {
+  font-family: "Instrument Serif", serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 6px 0 0;
+}
+
+.auth-lede {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #5e635d;
+  margin: 4px 0 18px;
+  text-wrap: pretty;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-field__label {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6e736d;
+}
+
+.auth-field__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  color: #14171a;
+  background: #fdfdfc;
+  border: 1px solid #d6d7d0;
+  border-radius: 11px;
+}
+
+.auth-field__input:focus-visible {
+  outline: 2px solid oklch(0.52 0.13 285);
+  outline-offset: 1px;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: oklch(0.5 0.16 25);
+  background: oklch(0.96 0.03 25);
+  border: 1px solid oklch(0.88 0.06 25);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.auth-submit {
+  cursor: pointer;
+  min-height: 46px;
+  border: none;
+  border-radius: 11px;
+  background: #14171a;
+  color: #fdfdfc;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-submit:focus-visible,
+.auth-switch:focus-visible {
+  outline: 2px solid oklch(0.52 0.13 285);
+  outline-offset: 2px;
+}
+
+.auth-switch {
+  all: unset;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  color: #14171a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-top: 16px;
+}
+
+.auth-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #8a8f88;
+  margin: 14px 0 0;
+  text-wrap: pretty;
+}

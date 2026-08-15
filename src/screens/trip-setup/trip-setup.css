@@ -164,6 +164,11 @@
   background: #14171a;
 }
 
+.trip-setup__btn--primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .trip-setup__btn--secondary {
   padding: 0 18px;
   color: #14171a;
@@ -174,6 +179,49 @@
 .trip-setup__actions-note {
   font-size: 11px;
   color: #6e736d;
+}
+
+/* ---------- event details ---------- */
+
+.event-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.event-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-field--wide {
+  grid-column: 1 / -1;
+}
+
+.event-field__label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6e736d;
+}
+
+.event-field__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 13px;
+  font-size: 14.5px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  color: #14171a;
+  background: #fdfdfc;
+  border: 1px solid #d6d7d0;
+  border-radius: 10px;
+}
+
+.event-field__input:focus-visible {
+  outline: 2px solid oklch(0.52 0.13 285);
+  outline-offset: 1px;
 }
 
 /* ---------- style picker grid ---------- */

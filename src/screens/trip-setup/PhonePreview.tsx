@@ -10,7 +10,15 @@ const DAYS: Array<[dow: string, num: string]> = [
 const ACTIVE_DAY_INDEX = 0; // Friday
 const MEMBER_INITIALS = ["AN", "TM", "JR", "SB", "KE"];
 
-export function PhonePreview({ theme }: { theme: Theme }) {
+export function PhonePreview({
+  theme,
+  eventName,
+  eventDates,
+}: {
+  theme: Theme;
+  eventName: string;
+  eventDates: string;
+}) {
   return (
     <div
       className="wf-phone"
@@ -45,13 +53,13 @@ export function PhonePreview({ theme }: { theme: Theme }) {
               className="wf-mono wf-label"
               style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
             >
-              14 – 19 August 2026
+              {eventDates}
             </div>
             <div
               className="wf-phone__city"
               style={{ fontFamily: theme.fontDisplay, color: theme.headInk }}
             >
-              Chicago
+              {eventName}
             </div>
             <div
               className="wf-phone__strapline"
