@@ -1,5 +1,5 @@
 import type { Theme } from "../../theme";
-import { BUDGET, CURRENCIES, dayTotal, money, type Day } from "./trip-data";
+import { CURRENCIES, dayTotal, liveBudget, money, type Day } from "./trip-data";
 
 export function MoneyTab({
   days,
@@ -16,6 +16,7 @@ export function MoneyTab({
 }) {
   const totals = days.map((day) => dayTotal(day, resolved));
   const maxCost = Math.max(...totals, 1);
+  const budget = liveBudget(days, resolved);
 
   return (
     <div className="trip-page__stack trip-page__tab-panel">
@@ -57,7 +58,7 @@ export function MoneyTab({
         </div>
 
         <div className="money__rows">
-          {BUDGET.rows.map((row) => (
+          {budget.rows.map((row) => (
             <div key={row.label} className="money__row">
               <span className="money__label" style={{ color: theme.ink }}>
                 {row.label}
@@ -89,7 +90,7 @@ export function MoneyTab({
             className="money__sum-value"
             style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
           >
-            {money(BUDGET.total, currency)} · {money(BUDGET.each, currency)}
+            {money(budget.total, currency)} · {money(budget.each, currency)}
           </span>
         </div>
       </div>
@@ -138,7 +139,7 @@ export function MoneyTab({
         >
           Who owes who
         </div>
-        {BUDGET.owes.map((owe) => (
+        {budget.owes.map((owe) => (
           <div key={owe.who} className="owes__row">
             <span className="owes__who" style={{ color: theme.body }}>
               {owe.who}

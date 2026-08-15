@@ -22,9 +22,15 @@ export function TravelTab({ theme }: { theme: Theme }) {
             >
               {STAY.name}
             </div>
-            <div className="stay__address" style={{ color: theme.body }}>
+            <a
+              className="stay__address"
+              style={{ color: theme.body }}
+              href={`https://maps.google.com/?q=${encodeURIComponent(`${STAY.name} ${STAY.address}`)}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
               {STAY.address}
-            </div>
+            </a>
           </div>
           <span
             className="stay__status"

@@ -625,19 +625,6 @@
   position: relative;
 }
 
-.day-map__pin {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(20, 23, 26, 0.3);
-  animation: wf-rise 0.3s ease both;
-}
-
 .day-map__foot {
   padding: 11px 14px 12px;
   display: flex;
@@ -697,6 +684,7 @@
 }
 
 .stay__address {
+  display: block;
   font-size: 12.5px;
   margin-top: 3px;
 }
@@ -1220,6 +1208,7 @@
 .sheet__scrim {
   position: absolute;
   inset: 0;
+  z-index: 1100;
   background: rgba(20, 23, 26, 0.4);
   animation: wf-fade 0.2s ease both;
 }
@@ -1229,6 +1218,7 @@
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 1101;
   border-radius: 18px 18px 0 0;
   padding: 14px 18px 22px;
   display: flex;

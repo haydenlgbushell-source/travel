@@ -46,10 +46,12 @@ export function AirportPanel({ day, theme }: { day: Day; theme: Theme }) {
       </div>
 
       <div className="airport__contacts" style={{ fontFamily: theme.fontMono }}>
-        <span>Emergency {EMERGENCY_NUMBER}</span>
-        <span>
+        <a href={`tel:${EMERGENCY_NUMBER}`} className="airport__contact-link">
+          Emergency {EMERGENCY_NUMBER}
+        </a>
+        <a href={`tel:${STAY.phone.replace(/[^+\d]/g, "")}`} className="airport__contact-link">
           {STAY.name.split(",")[0]} {STAY.phone}
-        </span>
+        </a>
       </div>
     </div>
   );

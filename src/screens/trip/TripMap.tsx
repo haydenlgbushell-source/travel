@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import type { TripItem } from "./trip-data";
 
 export interface MapPin {
@@ -10,8 +13,10 @@ export interface MapPin {
 
 /** A real, pannable map with CARTO's Voyager tiles — a clean, labelled
  *  style close to Google Maps' look, free and keyless — and a numbered pin
- *  per located item. Replaces the old abstract dot-spiral visualisation
- *  with actual roads and geography. */
+ *  per located item. Nearby pins (several West Loop venues sit metres
+ *  apart) cluster into a single marker until zoomed in, so one never sits
+ *  invisibly under another. Replaces the old abstract dot-spiral
+ *  visualisation with actual roads and geography. */
 export function TripMap({
   pins,
   height = 220,
@@ -21,7 +26,7 @@ export function TripMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const layerRef = useRef<L.LayerGroup | null>(null);
+  const layerRef = useRef<L.MarkerClusterGroup | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -37,7 +42,11 @@ export function TripMap({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
     mapRef.current = map;
-    layerRef.current = L.layerGroup().addTo(map);
+    layerRef.current = L.markerClusterGroup({
+      maxClusterRadius: 44,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+    }).addTo(map);
 
     return () => {
       map.remove();
@@ -78,5 +87,13 @@ export function TripMap({
     requestAnimationFrame(() => map.invalidateSize());
   }, [pins]);
 
-  return <div ref={containerRef} className="trip-map" style={{ height }} />;
+  return (
+    <div
+      ref={containerRef}
+      className="trip-map"
+      role="region"
+      aria-label="Map of trip locations"
+      style={{ height }}
+    />
+  );
 }

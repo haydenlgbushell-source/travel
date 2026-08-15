@@ -663,17 +663,6 @@ export const TABS = [
   { label: "People", short: "People" },
 ];
 
-/** Pins are laid out on a fixed spiral, capped so a long list still lands
- *  inside the canvas rather than drifting past its edge. */
-export function pinPosition(i: number): { left: string; top: string } {
-  const golden = 137.508 * i * (Math.PI / 180);
-  const radius = Math.min(0.11 + 0.34 * Math.sqrt(i / 8), 0.42);
-  return {
-    left: `${(0.5 + radius * Math.cos(golden)) * 100}%`,
-    top: `${(0.5 + radius * 0.82 * Math.sin(golden)) * 100}%`,
-  };
-}
-
 export interface LocatedItem {
   item: TripItem;
   day: Day;
@@ -777,23 +766,66 @@ export const FLIGHTS: Flight[] = [
   },
 ];
 
-/** Trip-level bookings, held in the app's base unit like everything else. */
-export const BUDGET = {
-  rows: [
-    { label: "Flights", each: 560, total: 2800 },
-    { label: "Hotel, five nights", each: 612, total: 3060 },
-    { label: "Tickets and entries", each: 220, total: 1100 },
-    { label: "Transport and transfers", each: 60, total: 300 },
-    { label: "Food, so far", each: 208, total: 1040 },
-  ],
-  total: 8300,
-  each: 1660,
-  owes: [
-    { who: "Tom owes Ana", amount: 280 },
-    { who: "Kit owes Ana", amount: 190 },
-    { who: "Sam owes Jo", amount: 65 },
-  ],
+/** Booked up front, outside the day-by-day plan — a skipped activity doesn't
+ *  refund the room, so these stay fixed rather than following item edits. */
+const FIXED_COSTS = [
+  { label: "Flights", each: 560, total: 2800 },
+  { label: "Hotel, five nights", each: 612, total: 3060 },
+];
+
+/** Who's already settled up outside the app — a running ledger, not
+ *  something the itinerary's item costs can derive on their own. */
+export const OWES = [
+  { who: "Tom owes Ana", amount: 280 },
+  { who: "Kit owes Ana", amount: 190 },
+  { who: "Sam owes Jo", amount: 65 },
+];
+
+const BUDGET_KIND_LABEL: Partial<Record<ItemKind, string>> = {
+  Do: "Tickets and entries",
+  Travel: "Transport and transfers",
+  Eat: "Food, so far",
 };
+
+export interface BudgetRow {
+  label: string;
+  each: number;
+  total: number;
+}
+
+export interface Budget {
+  rows: BudgetRow[];
+  total: number;
+  each: number;
+  owes: typeof OWES;
+}
+
+/** Spend, recomputed from the live itinerary every time it's asked for — an
+ *  item added, declined or re-priced shows up here immediately instead of
+ *  leaving the money tab quoting the trip's original seed numbers. */
+export function liveBudget(days: Day[], resolved: Record<string, string>): Budget {
+  const people = PEOPLE.length;
+  const byKind = new Map<ItemKind, number>();
+  for (const day of days) {
+    for (const item of day.items) {
+      const verdict = resolved[item.id];
+      if (verdict === "declined") continue;
+      if (item.suggested && verdict !== "approved") continue;
+      if (!item.costEach) continue;
+      byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + item.costEach);
+    }
+  }
+
+  const rows: BudgetRow[] = [
+    ...FIXED_COSTS,
+    ...ITEM_KINDS.filter((kind) => BUDGET_KIND_LABEL[kind]).map((kind) => {
+      const each = byKind.get(kind) ?? 0;
+      return { label: BUDGET_KIND_LABEL[kind] as string, each, total: each * people };
+    }),
+  ];
+  const each = rows.reduce((sum, row) => sum + row.each, 0);
+  return { rows, total: each * people, each, owes: OWES };
+}
 
 export const INFO = [
   {
@@ -841,7 +873,7 @@ export const DECISIONS = [
   { text: "Hotel deposit, $180 from Tom", due: "Due 20 August", dueColor: "oklch(0.5 0.13 60)" },
 ];
 
-export const DECISION_COUNT = 3;
+export const DECISION_COUNT = DECISIONS.length;
 
 /** Suggestions waiting on an editor, shown on the People tab. */
 export const INBOX = [
@@ -946,7 +978,9 @@ export function clashAt(
  *  stays out of the total until an editor takes it. */
 export function dayTotal(day: Day, resolved: Record<string, string>): number {
   return day.items.reduce((sum, item) => {
-    const counts = !item.suggested || resolved[item.id] === "approved";
+    const verdict = resolved[item.id];
+    if (verdict === "declined") return sum;
+    const counts = !item.suggested || verdict === "approved";
     return counts ? sum + (item.costEach ?? 0) : sum;
   }, 0);
 }
