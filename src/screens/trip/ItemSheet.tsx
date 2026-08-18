@@ -12,6 +12,7 @@ import {
   type DraftItem,
   type TripItem,
 } from "./trip-data";
+import { geocodePlace } from "../trip-setup/event-data";
 
 const WARN_INK = "oklch(0.52 0.13 60)";
 const WARN_BG = "oklch(0.96 0.04 60)";
@@ -36,6 +37,7 @@ export function ItemSheet({
   day,
   editing,
   canApprove,
+  currency,
   onSave,
   onDelete,
   onClose,
@@ -44,14 +46,16 @@ export function ItemSheet({
   day: Day;
   editing?: TripItem;
   canApprove: boolean;
+  currency: string;
   onSave: (draft: DraftItem) => void;
   onDelete?: () => void;
   onClose: () => void;
   theme: Theme;
 }) {
-  const [draft, setDraft] = useState<DraftItem>(editing ? draftFrom(editing) : EMPTY);
+  const [draft, setDraft] = useState<DraftItem>(editing ? draftFrom(editing, currency) : EMPTY);
   const [detailOpen, setDetailOpen] = useState(editing !== undefined);
   const [photoStatus, setPhotoStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
+  const [placeStatus, setPlaceStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const ids = {
     title: useId(),
     time: useId(),
@@ -97,6 +101,45 @@ export function ItemSheet({
       clearTimeout(timer);
     };
   }, [draft.photoUrl]);
+
+  /* People type a name — "Sydney Opera House" — far more often than a street
+     address, so look it up and keep both: the full address to show, and the
+     coordinates that put the item on the map. Without this an added item is
+     invisible on every map in the app. */
+  useEffect(() => {
+    const query = draft.place.trim();
+    if (query.length < 3 || draft.placeAddress !== undefined) {
+      if (query === "") setPlaceStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setPlaceStatus("looking");
+    const timer = setTimeout(async () => {
+      try {
+        const found = await geocodePlace(query);
+        if (cancelled) return;
+        if (found) {
+          setDraft((d) => ({
+            ...d,
+            placeAddress: found.label,
+            lat: found.lat,
+            lng: found.lng,
+          }));
+          setPlaceStatus("found");
+        } else {
+          setPlaceStatus("none");
+        }
+      } catch {
+        if (!cancelled) setPlaceStatus("none");
+      }
+    }, 700);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [draft.place, draft.placeAddress]);
 
   const slots = suggestSlots(day.items.filter((i) => i.id !== editing?.id));
   const clash = draft.time ? clashAt(draft.time, day.items, editing?.id) : undefined;
@@ -236,15 +279,41 @@ export function ItemSheet({
               id={ids.place}
               className="add-sheet__input"
               value={draft.place}
-              onChange={(e) => set("place", e.target.value)}
-              placeholder="Optional"
+              onChange={(e) =>
+                /* Retyping invalidates whatever the old name resolved to —
+                   keeping the previous address would pin the item to the
+                   wrong spot on the map. */
+                setDraft((d) => ({
+                  ...d,
+                  place: e.target.value,
+                  placeAddress: undefined,
+                  lat: undefined,
+                  lng: undefined,
+                }))
+              }
+              placeholder="Name or address (optional)"
               style={fieldStyle}
             />
+            {placeStatus !== "idle" && (
+              <span
+                className="add-sheet__hint"
+                style={{
+                  fontFamily: theme.fontMono,
+                  color: placeStatus === "none" ? WARN_INK : theme.meta,
+                }}
+              >
+                {placeStatus === "looking"
+                  ? "Looking that place up…"
+                  : placeStatus === "found"
+                    ? draft.placeAddress
+                    : "Couldn't find that one — it still works, it just won't sit on the map"}
+              </span>
+            )}
           </div>
 
           <div className="add-sheet__field">
             <label htmlFor={ids.cost} className="wf-card__eyebrow" style={labelStyle}>
-              Cost each, in euros
+              Cost each, in {currency}
             </label>
             <input
               id={ids.cost}
@@ -262,7 +331,7 @@ export function ItemSheet({
 
           <div className="add-sheet__field">
             <label htmlFor={ids.photo} className="wf-card__eyebrow" style={labelStyle}>
-              Photo link
+              Website
             </label>
             <input
               id={ids.photo}
@@ -271,7 +340,7 @@ export function ItemSheet({
               inputMode="url"
               value={draft.photoUrl}
               onChange={(e) => set("photoUrl", e.target.value)}
-              placeholder="Picture, or the place's website (optional)"
+              placeholder="Paste the place's website (optional)"
               style={fieldStyle}
             />
             {photoStatus !== "idle" && (

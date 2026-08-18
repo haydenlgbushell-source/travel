@@ -1141,38 +1141,74 @@ export interface DraftItem {
   title: string;
   photoUrl: string;
   time: string;
+  /** What was typed — a place name like "Sydney Opera House" as often as a
+   *  street address. */
   place: string;
+  /** Where that name resolved to, once geocoded: the full address, and the
+   *  coordinates that put the item on the map. */
+  placeAddress?: string;
+  lat?: number;
+  lng?: number;
   note: string;
   booked: boolean;
+  /** Typed in whichever currency is on display, not the euros everything is
+   *  stored in — asking someone to convert in their head would be absurd. */
   costEach: string;
 }
 
-export function draftFrom(item: TripItem): DraftItem {
+/** "You" alone, "All five" for the whole group — the item cards say who
+ *  something is for, and that has to follow the real member count rather
+ *  than the example trip's cast of five. */
+export function whoLabel(people: number): string {
+  const words = ["Nobody", "You", "Both of you", "All three", "All four", "All five", "All six"];
+  return words[people] ?? `All ${people}`;
+}
+
+/** Amounts live in euros; what someone types is in the currency they're
+ *  looking at, so the two are converted at the edges rather than anywhere
+ *  in between. */
+export function toBaseAmount(input: string, code: string): number | undefined {
+  const value = Number.parseFloat(input);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value / getCurrency(code).perEuro;
+}
+
+export function fromBaseAmount(amountInEuros: number | undefined, code: string): string {
+  if (amountInEuros === undefined) return "";
+  const converted = amountInEuros * getCurrency(code).perEuro;
+  return String(Math.round(converted * 100) / 100);
+}
+
+export function draftFrom(item: TripItem, currency: string): DraftItem {
   return {
     kind: item.kind,
     title: item.title,
     photoUrl: item.photoUrl ?? "",
     time: item.time,
     place: item.place === "Not set" ? "" : item.place,
+    lat: item.lat,
+    lng: item.lng,
     note: item.note,
     booked: item.booking !== undefined,
-    costEach: item.costEach === undefined ? "" : String(item.costEach),
+    costEach: fromBaseAmount(item.costEach, currency),
   };
 }
 
 let addedCount = 0;
 
-function fields(draft: DraftItem) {
-  const cost = Number.parseFloat(draft.costEach);
-  const costEach = Number.isFinite(cost) && cost >= 0 ? cost : undefined;
+function fields(draft: DraftItem, currency: string) {
   return {
     kind: draft.kind,
     time: draft.time,
     title: draft.title.trim(),
     photoUrl: draft.photoUrl.trim() || undefined,
     note: draft.note.trim(),
-    place: draft.place.trim() || "Not set",
-    costEach,
+    /* The resolved address wins when there is one, so the card and the maps
+       link show a real location rather than the shorthand someone typed. */
+    place: draft.placeAddress?.trim() || draft.place.trim() || "Not set",
+    lat: draft.lat,
+    lng: draft.lng,
+    costEach: toBaseAmount(draft.costEach, currency),
     meta: draft.booked ? "Booked" : "Nothing booked yet",
     accent: draft.booked ? GREEN : AMBER,
     bookingKind: draft.booked ? "Confirmed" : undefined,
@@ -1182,21 +1218,25 @@ function fields(draft: DraftItem) {
 
 /** Turn what the sheet collected into a full item, inferring the rest: an
  *  unbooked plan reads as unsettled, a booked one as confirmed. */
-export function buildItem(draft: DraftItem, suggested: boolean): TripItem {
+export function buildItem(
+  draft: DraftItem,
+  suggested: boolean,
+  options: { currency: string; people: number },
+): TripItem {
   addedCount += 1;
   return {
     id: `added-${addedCount}-${Date.now()}`,
-    who: suggested ? "Suggested" : "All five",
+    who: suggested ? "Suggested" : whoLabel(options.people),
     suggested: suggested || undefined,
     suggestedBy: suggested ? "you" : undefined,
-    ...fields(draft),
+    ...fields(draft, options.currency),
   };
 }
 
 /** Editing keeps everything the sheet does not ask about — rating, photo,
  *  transit leg, booking ref — so an authored item survives a small change. */
-export function applyDraft(item: TripItem, draft: DraftItem): TripItem {
-  const next = fields(draft);
+export function applyDraft(item: TripItem, draft: DraftItem, currency: string): TripItem {
+  const next = fields(draft, currency);
   return {
     ...item,
     ...next,

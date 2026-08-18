@@ -301,7 +301,10 @@ export function TripPage({
      the plan still reads as a sequence. A clash the group creates is kept on
      the day, not just flashed in the sheet. */
   function addItem(draft: DraftItem) {
-    const item = buildItem(draft, !canApprove);
+    const item = buildItem(draft, !canApprove, {
+      currency,
+      people: Math.max(members.length, 1),
+    });
     const clash = clashAt(item.time, day.items);
     const flag = clash
       ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
@@ -319,7 +322,7 @@ export function TripPage({
 
   function saveEdit(draft: DraftItem) {
     if (!editing) return;
-    const next = applyDraft(editing, draft);
+    const next = applyDraft(editing, draft, currency);
     updateDay((d) => ({
       ...d,
       items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
@@ -659,6 +662,7 @@ export function TripPage({
           day={day}
           editing={editing}
           canApprove={canApprove}
+          currency={currency}
           onSave={editing ? saveEdit : addItem}
           onDelete={editing ? () => removeItem(editing.id) : undefined}
           onClose={() => {
