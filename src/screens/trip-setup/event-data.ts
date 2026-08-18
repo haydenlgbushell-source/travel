@@ -18,40 +18,59 @@ export interface EventDetails {
   fromExample?: boolean;
 }
 
-const EVENT_KEY = "wayfare.event.v1";
+/** Everything is keyed to the account that made it. One device can be shared
+ *  — signing out and in as someone else must not hand them the previous
+ *  person's trips. */
+function eventsKey(accountId: string): string {
+  return `wayfare.events.v1.${accountId}`;
+}
 
-/** Once an event's been created, a reload — including one with no signal,
- *  now that the app shell and map tiles are cached offline — should land
- *  back on it rather than an empty "set up your event" form that doesn't
- *  even remember what was typed in. */
-export function loadEventDetails(): EventDetails | undefined {
+function currentKey(accountId: string): string {
+  return `wayfare.current-event.v1.${accountId}`;
+}
+
+/** A trip saved before it carried a real date range has nothing to rebuild
+ *  its day strip from, so it's dropped rather than shown with the wrong
+ *  days under its dates. */
+function isUsable(event: Partial<EventDetails>): event is EventDetails {
+  return Boolean(event.id && event.name && event.startDate && event.endDate);
+}
+
+export function loadEvents(accountId: string): EventDetails[] {
   try {
-    const raw = localStorage.getItem(EVENT_KEY);
-    if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as Partial<EventDetails>;
-    /* Events saved before the day strip was driven by real dates have no
-       range to rebuild days from — there's nothing to restore, so send
-       them back to setup rather than showing August under their dates. */
-    if (!parsed.id || !parsed.startDate || !parsed.endDate) return undefined;
-    return parsed as EventDetails;
+    const raw = localStorage.getItem(eventsKey(accountId));
+    const parsed = raw ? (JSON.parse(raw) as Partial<EventDetails>[]) : [];
+    return Array.isArray(parsed) ? parsed.filter(isUsable) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveEvents(accountId: string, events: EventDetails[]): void {
+  try {
+    localStorage.setItem(eventsKey(accountId), JSON.stringify(events));
+  } catch {
+    /* private mode or a full quota — the trip just won't be remembered. */
+  }
+}
+
+/** Which trip to reopen on the next visit, so a reload — including one with
+ *  no signal, now the shell is cached offline — lands back where you were
+ *  rather than on an empty setup form. */
+export function loadCurrentEventId(accountId: string): string | undefined {
+  try {
+    return localStorage.getItem(currentKey(accountId)) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-export function saveEventDetails(event: EventDetails): void {
+export function saveCurrentEventId(accountId: string, eventId: string | undefined): void {
   try {
-    localStorage.setItem(EVENT_KEY, JSON.stringify(event));
+    if (eventId === undefined) localStorage.removeItem(currentKey(accountId));
+    else localStorage.setItem(currentKey(accountId), eventId);
   } catch {
-    /* private mode or a full quota — the event just won't be remembered. */
-  }
-}
-
-export function clearEventDetails(): void {
-  try {
-    localStorage.removeItem(EVENT_KEY);
-  } catch {
-    /* nothing to clear if storage never worked in the first place. */
+    /* nothing to do — the next visit just starts from the trip list. */
   }
 }
 

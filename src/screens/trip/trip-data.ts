@@ -718,6 +718,15 @@ export function daysForRange(startISO: string, endISO: string): Day[] {
   return days;
 }
 
+/** Fits a saved plan to a (possibly changed) date range. Days that still
+ *  exist keep everything planned on them; new dates arrive blank; dates no
+ *  longer in the range fall away with whatever was on them — which is why
+ *  the edit screen says so before you save. */
+export function reconcileDays(saved: Day[], range: Day[]): Day[] {
+  const byDate = new Map(saved.map((d) => [d.date, d]));
+  return range.map((blank) => byDate.get(blank.date) ?? blank);
+}
+
 /** The example itinerary's real dates, so the sample trip behaves like any
  *  other event rather than being a special case downstream. */
 export const EXAMPLE_START = "2026-08-14";

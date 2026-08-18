@@ -2077,3 +2077,59 @@
   box-shadow: 0 1px 3px rgba(20, 23, 26, 0.3);
   transition: transform 0.16s ease;
 }
+
+/* ---------- trips list ---------- */
+
+.trip-card {
+  display: flex;
+  flex-direction: column;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.trip-card__open {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 14px 15px 12px;
+}
+
+.trip-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 15px 11px;
+  border-top: 1px solid #edede6;
+}
+
+.trip-card__action {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trip-card__warn {
+  flex: 1;
+  font-size: 12.5px;
+}
+
+.trips__new {
+  margin-top: 4px;
+}
+
+.more-sheet__account {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px 0;
+}
+
+.more-sheet__signout {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

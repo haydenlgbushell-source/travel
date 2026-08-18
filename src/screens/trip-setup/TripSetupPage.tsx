@@ -44,20 +44,26 @@ const SCOPE_RULES = [
 export function TripSetupPage({
   themeKey,
   onThemeKeyChange,
+  editing,
   onCreate,
+  onCancel,
 }: {
   themeKey: string;
   onThemeKeyChange: (key: string) => void;
+  /** Set when changing an existing trip rather than starting one. */
+  editing?: EventDetails;
   onCreate: (event: EventDetails) => void;
+  onCancel?: () => void;
 }) {
   const [editorsCanStyle, setEditorsCanStyle] = useState(false);
-  const [eventName, setEventName] = useState("");
-  const [destination, setDestination] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [useExample, setUseExample] = useState(false);
+  const [eventName, setEventName] = useState(editing?.name ?? "");
+  const [destination, setDestination] = useState(editing?.destination ?? "");
+  const [startDate, setStartDate] = useState(editing?.startDate ?? "");
+  const [endDate, setEndDate] = useState(editing?.endDate ?? "");
+  const [useExample, setUseExample] = useState(editing?.fromExample ?? false);
   const [creating, setCreating] = useState(false);
   const selected = getTheme(themeKey);
+  const isEditing = editing !== undefined;
 
   /* The example is a real, authored six-day Chicago trip — its dates come
      with it rather than being whatever was typed above. */
@@ -85,7 +91,8 @@ export function TripSetupPage({
       }
 
       onCreate({
-        id: crypto.randomUUID(),
+        /* Editing keeps the id, so the trip's saved plan stays attached. */
+        id: editing?.id ?? crypto.randomUUID(),
         name: eventName.trim(),
         dates,
         startDate: useExample ? EXAMPLE_START : startDate,
@@ -106,7 +113,7 @@ export function TripSetupPage({
         <header className="trip-setup__header">
           <div className="trip-setup__header-left">
             <span className="trip-setup__brand">Meridian</span>
-            <span className="wf-mono trip-setup__step">New event</span>
+            <span className="wf-mono trip-setup__step">{isEditing ? "Edit trip" : "New event"}</span>
           </div>
           <div className="trip-setup__header-right">
             <span className="wf-mono trip-setup__organiser">Organiser only</span>
@@ -116,10 +123,13 @@ export function TripSetupPage({
 
         <div className="trip-setup__content">
           <div className="trip-setup__intro">
-            <h1 className="trip-setup__title">Set up your event</h1>
+            <h1 className="trip-setup__title">
+              {isEditing ? "Edit your trip" : "Set up your event"}
+            </h1>
             <p className="trip-setup__lede">
-              Name it, say where and when, then pick a style. You'll get a day for every
-              date in the range, empty and ready to fill in.
+              {isEditing
+                ? "Change the name, the dates or where it is. Widening the range adds the new days; narrowing it drops the days that fall outside, along with anything planned on them."
+                : "Name it, say where and when, then pick a style. You'll get a day for every date in the range, empty and ready to fill in."}
             </p>
           </div>
 
@@ -173,6 +183,7 @@ export function TripSetupPage({
               </label>
             </div>
 
+            {!isEditing && (
             <label className="event-example" onClick={() => setUseExample((v) => !v)}>
               <span
                 className="scope-panel__checkbox"
@@ -191,6 +202,7 @@ export function TripSetupPage({
                 </span>
               </span>
             </label>
+            )}
           </section>
 
           <section className="trip-setup__section">
@@ -247,8 +259,17 @@ export function TripSetupPage({
               disabled={!canCreate}
               onClick={create}
             >
-              {creating ? "Creating…" : "Create trip and invite"}
+              {creating ? "Saving…" : isEditing ? "Save changes" : "Create trip and invite"}
             </button>
+            {onCancel && (
+              <button
+                type="button"
+                className="trip-setup__btn trip-setup__btn--secondary"
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+            )}
             <span className="wf-mono trip-setup__actions-note">
               {canCreate ? "Everyone joins as a contributor" : "Add a name and both dates first"}
             </span>

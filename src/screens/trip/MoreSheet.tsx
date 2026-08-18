@@ -14,6 +14,9 @@ export function MoreSheet({
   notifySupported,
   notifyBlocked,
   onToggleNotify,
+  userName,
+  onOpenTrips,
+  onSignOut,
   theme,
 }: {
   onOpen: (label: string) => void;
@@ -22,6 +25,9 @@ export function MoreSheet({
   notifySupported: boolean;
   notifyBlocked: boolean;
   onToggleNotify: () => void;
+  userName?: string;
+  onOpenTrips: () => void;
+  onSignOut: () => void;
   theme: Theme;
 }) {
   const notifyNote = !notifySupported
@@ -86,6 +92,36 @@ export function MoreSheet({
           {notifyNote}
         </span>
       </button>
+
+      <button
+        type="button"
+        className="trip-page__reset more-sheet__item"
+        onClick={onOpenTrips}
+        style={{ background: theme.card, borderColor: theme.line }}
+      >
+        <span className="more-sheet__row">
+          <span className="more-sheet__label" style={{ color: theme.ink }}>
+            Your trips
+          </span>
+        </span>
+        <span className="more-sheet__note" style={{ color: theme.body }}>
+          Switch between trips, start another, or edit this one's dates
+        </span>
+      </button>
+
+      <div className="more-sheet__account">
+        <span className="more-sheet__note" style={{ color: theme.body }}>
+          {userName ? `Signed in as ${userName}` : "Signed in"}
+        </span>
+        <button
+          type="button"
+          className="trip-page__reset more-sheet__signout"
+          onClick={onSignOut}
+          style={{ fontFamily: theme.fontMono, color: theme.accent }}
+        >
+          Sign out
+        </button>
+      </div>
     </Sheet>
   );
 }

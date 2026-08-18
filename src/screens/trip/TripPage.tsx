@@ -24,6 +24,7 @@ import {
   daysForRange,
   isoDate,
   membersFor,
+  reconcileDays,
   loadCurrency,
   loadSaved,
   save,
@@ -77,6 +78,8 @@ export function TripPage({
   savedCount,
   onSaveTrip,
   onOpenPast,
+  onOpenTrips,
+  onSignOut,
   onBack,
 }: {
   theme: Theme;
@@ -85,6 +88,8 @@ export function TripPage({
   savedCount: number;
   onSaveTrip: (trip: PastTrip) => void;
   onOpenPast: () => void;
+  onOpenTrips: () => void;
+  onSignOut: () => void;
   onBack?: () => void;
 }) {
   const eventName = event.name;
@@ -108,7 +113,11 @@ export function TripPage({
     event.fromExample ? DAYS : daysForRange(event.startDate, event.endDate),
   ).current;
   const saved = useRef(loadSaved(event.id)).current;
-  const [days, setDays] = useState<Day[]>(saved?.days ?? seed);
+  /* A saved plan is fitted to the event's current range, so editing the
+     dates keeps everything planned on days that still exist. */
+  const [days, setDays] = useState<Day[]>(
+    saved?.days ? reconcileDays(saved.days, seed) : seed,
+  );
   const [resolved, setResolved] = useState<Record<string, Verdict>>(
     (saved?.resolved as Record<string, Verdict>) ?? {},
   );
@@ -117,7 +126,7 @@ export function TripPage({
   const [dayIndex, setDayIndex] = useState(() => {
     if (event.fromExample) return 1;
     const today = isoDate(new Date());
-    const i = (saved?.days ?? seed).findIndex((d) => d.date === today);
+    const i = seed.findIndex((d) => d.date === today);
     return i === -1 ? 0 : i;
   });
   const [tab, setTab] = useState(0);
@@ -677,6 +686,12 @@ export function TripPage({
           notifySupported={notifyPermission() !== "unsupported"}
           notifyBlocked={notifyPermission() === "denied"}
           onToggleNotify={toggleNotify}
+          userName={userName}
+          onOpenTrips={() => {
+            setMoreOpen(false);
+            onOpenTrips();
+          }}
+          onSignOut={onSignOut}
           theme={theme}
         />
       )}
