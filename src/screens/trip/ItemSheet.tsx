@@ -4,6 +4,8 @@ import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
 import {
   ITEM_KINDS,
+  TRAVEL_MODES,
+  airlineFor,
   clashAt,
   draftFrom,
   looksLikeImage,
@@ -28,6 +30,7 @@ const EMPTY: DraftItem = {
   note: "",
   booked: false,
   costEach: "",
+  travel: { mode: "Flight" },
 };
 
 /** Two required answers — what and when — and everything else optional. A
@@ -63,7 +66,14 @@ export function ItemSheet({
     note: useId(),
     cost: useId(),
     photo: useId(),
+    flightNo: useId(),
+    from: useId(),
+    to: useId(),
+    arrive: useId(),
   };
+
+  const setTravel = (patch: Partial<DraftItem["travel"]>) =>
+    setDraft((d) => ({ ...d, travel: { ...d.travel, ...patch } }));
 
   const set = <K extends keyof DraftItem>(key: K, value: DraftItem[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -141,6 +151,44 @@ export function ItemSheet({
     };
   }, [draft.place, draft.placeAddress]);
 
+  /* Both ends of a journey get looked up too, so a flight or drive draws on
+     the map instead of being the one kind of item that never appears. */
+  useEffect(() => {
+    if (draft.kind !== "Travel") return;
+    const ends = [
+      { text: draft.travel.from, has: draft.travel.fromLat !== undefined, key: "from" as const },
+      { text: draft.travel.to, has: draft.travel.toLat !== undefined, key: "to" as const },
+    ].filter((e) => !e.has && (e.text?.trim().length ?? 0) >= 3);
+    if (ends.length === 0) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      for (const end of ends) {
+        try {
+          const found = await geocodePlace(end.text as string);
+          if (cancelled || !found) continue;
+          setTravel(
+            end.key === "from"
+              ? { fromLat: found.lat, fromLng: found.lng }
+              : { toLat: found.lat, toLng: found.lng },
+          );
+        } catch {
+          /* No coordinates just means this leg stays off the map. */
+        }
+      }
+    }, 800);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.kind, draft.travel.from, draft.travel.to, draft.travel.fromLat, draft.travel.toLat]);
+
+  /* Named offline from the number's prefix — see airlineFor. Looking up the
+     actual route and times needs a keyed flight API. */
+  const carrier = draft.travel.number ? airlineFor(draft.travel.number) : undefined;
+
   const slots = suggestSlots(day.items.filter((i) => i.id !== editing?.id));
   const clash = draft.time ? clashAt(draft.time, day.items, editing?.id) : undefined;
   const ready = draft.title.trim().length > 0 && draft.time.length > 0;
@@ -202,6 +250,93 @@ export function ItemSheet({
         </div>
       </div>
 
+      {draft.kind === "Travel" && (
+        <div className="add-sheet__section">
+          <span className="wf-card__eyebrow" style={labelStyle}>
+            How you're getting there
+          </span>
+          <div className="kind-picker">
+            {TRAVEL_MODES.map((mode) => {
+              const on = mode === draft.travel.mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={on}
+                  className="trip-page__reset kind-picker__option"
+                  onClick={() => setTravel({ mode })}
+                  style={{
+                    background: on ? theme.ink : theme.card,
+                    borderColor: on ? theme.ink : theme.line,
+                    color: on ? theme.bg : theme.body,
+                  }}
+                >
+                  {mode}
+                </button>
+              );
+            })}
+          </div>
+
+          {(draft.travel.mode === "Flight" || draft.travel.mode === "Train") && (
+            <div className="add-sheet__field">
+              <label htmlFor={ids.flightNo} className="wf-card__eyebrow" style={labelStyle}>
+                {draft.travel.mode === "Flight" ? "Flight number" : "Train number"}
+              </label>
+              <input
+                id={ids.flightNo}
+                className="add-sheet__input"
+                value={draft.travel.number ?? ""}
+                onChange={(e) => setTravel({ number: e.target.value })}
+                placeholder={draft.travel.mode === "Flight" ? "BA296" : "Optional"}
+                autoCapitalize="characters"
+                style={{ ...fieldStyle, fontFamily: theme.fontMono }}
+              />
+              {carrier && (
+                <span
+                  className="add-sheet__hint"
+                  style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                >
+                  {carrier} — add the route and times below
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="add-sheet__pair">
+            <div className="add-sheet__field">
+              <label htmlFor={ids.from} className="wf-card__eyebrow" style={labelStyle}>
+                From
+              </label>
+              <input
+                id={ids.from}
+                className="add-sheet__input"
+                value={draft.travel.from ?? ""}
+                onChange={(e) =>
+                  setTravel({ from: e.target.value, fromLat: undefined, fromLng: undefined })
+                }
+                placeholder={draft.travel.mode === "Flight" ? "Gatwick" : "Where from"}
+                style={fieldStyle}
+              />
+            </div>
+            <div className="add-sheet__field">
+              <label htmlFor={ids.to} className="wf-card__eyebrow" style={labelStyle}>
+                To
+              </label>
+              <input
+                id={ids.to}
+                className="add-sheet__input"
+                value={draft.travel.to ?? ""}
+                onChange={(e) =>
+                  setTravel({ to: e.target.value, toLat: undefined, toLng: undefined })
+                }
+                placeholder={draft.travel.mode === "Flight" ? "O'Hare" : "Where to"}
+                style={fieldStyle}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="add-sheet__section">
         <span className="wf-card__eyebrow" style={labelStyle}>
           When
@@ -252,6 +387,22 @@ export function ItemSheet({
             style={{ ...fieldStyle, fontFamily: theme.fontMono }}
           />
         </div>
+
+        {draft.kind === "Travel" && (
+          <div className="add-sheet__other">
+            <label htmlFor={ids.arrive} className="add-sheet__other-label" style={labelStyle}>
+              Arrives
+            </label>
+            <input
+              id={ids.arrive}
+              type="time"
+              className="add-sheet__time"
+              value={draft.travel.arrive ?? ""}
+              onChange={(e) => setTravel({ arrive: e.target.value })}
+              style={{ ...fieldStyle, fontFamily: theme.fontMono }}
+            />
+          </div>
+        )}
       </div>
 
       {clash && (

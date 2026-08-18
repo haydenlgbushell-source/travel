@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import type { TripItem } from "./trip-data";
+import { pinCoords, type TripItem } from "./trip-data";
 
 export interface MapPin {
   item: TripItem;
@@ -70,9 +70,9 @@ export function TripMap({
     if (!map || !layer) return;
     layer.clearLayers();
 
-    const located = pins.filter(
-      (p) => typeof p.item.lat === "number" && typeof p.item.lng === "number",
-    );
+    const located = pins
+      .map((p) => ({ ...p, at: pinCoords(p.item) }))
+      .filter((p): p is typeof p & { at: { lat: number; lng: number } } => p.at !== undefined);
 
     if (located.length === 0) {
       if (centerLat !== undefined && centerLng !== undefined) {
@@ -82,20 +82,20 @@ export function TripMap({
       return;
     }
 
-    located.forEach(({ item, number }) => {
+    located.forEach(({ item, number, at }) => {
       const icon = L.divIcon({
         className: "trip-map__marker",
         html: `<span style="background:${item.accent}">${number}</span>`,
         iconSize: [26, 26],
         iconAnchor: [13, 13],
       });
-      L.marker([item.lat as number, item.lng as number], { icon })
+      L.marker([at.lat, at.lng], { icon })
         .addTo(layer)
         .bindPopup(`<strong>${item.title}</strong><br>${item.place}`);
     });
 
     const bounds = L.latLngBounds(
-      located.map((p) => [p.item.lat as number, p.item.lng as number]),
+      located.map((p) => [p.at.lat, p.at.lng] as [number, number]),
     );
     if (located.length === 1) {
       map.setView(bounds.getCenter(), 14);

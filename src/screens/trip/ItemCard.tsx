@@ -131,6 +131,23 @@ export function ItemCard({
             </span>
           </div>
 
+          {item.travel && (item.travel.from || item.travel.to) && (
+            <div className="item__route" style={{ fontFamily: theme.fontMono }}>
+              <span className="item__route-end" style={{ color: theme.ink }}>
+                {item.travel.from || "—"}
+              </span>
+              <span className="item__route-line" style={{ background: theme.line }} />
+              <span className="item__route-end" style={{ color: theme.ink }}>
+                {item.travel.to || "—"}
+              </span>
+              {item.travel.arrive && (
+                <span className="item__route-time" style={{ color: theme.body }}>
+                  in at {item.travel.arrive}
+                </span>
+              )}
+            </div>
+          )}
+
           {item.rating && (
             <div className="item__rating-row">
               <span className="item__stars">

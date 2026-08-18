@@ -2133,3 +2133,31 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.add-sheet__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.item__route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+
+.item__route-end {
+  font-weight: 500;
+}
+
+.item__route-line {
+  flex: 1;
+  min-width: 20px;
+  height: 1px;
+}
+
+.item__route-time {
+  font-size: 11px;
+}

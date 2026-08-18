@@ -23,6 +23,54 @@ export interface BookingFact {
 
 export type ItemKind = "Eat" | "Stay" | "Do" | "Travel";
 
+export type TravelMode = "Flight" | "Drive" | "Train" | "Ferry" | "Other";
+
+export const TRAVEL_MODES: TravelMode[] = ["Flight", "Drive", "Train", "Ferry", "Other"];
+
+/** A journey is two places and two times, which the ordinary item fields
+ *  can't hold — "where" and "when" only describe one end of it. */
+export interface TravelLeg {
+  mode: TravelMode;
+  /** Flight or train number as typed, e.g. "BA296". */
+  number?: string;
+  /** Airline read off the number's prefix, when it's one we know. */
+  carrier?: string;
+  from?: string;
+  to?: string;
+  fromLat?: number;
+  fromLng?: number;
+  toLat?: number;
+  toLng?: number;
+  /** Arrival time. The item's own `time` is the departure. */
+  arrive?: string;
+}
+
+/** Enough of the IATA list to name the carriers people actually fly, looked
+ *  up offline. Deliberately partial — an unknown prefix simply shows the
+ *  number as typed rather than guessing at an airline. */
+const AIRLINES: Record<string, string> = {
+  QF: "Qantas", VA: "Virgin Australia", JQ: "Jetstar", ZL: "Rex", NZ: "Air New Zealand",
+  BA: "British Airways", VS: "Virgin Atlantic", U2: "easyJet", FR: "Ryanair", W6: "Wizz Air",
+  EK: "Emirates", QR: "Qatar Airways", EY: "Etihad", SQ: "Singapore Airlines", CX: "Cathay Pacific",
+  TG: "Thai Airways", MH: "Malaysia Airlines", GA: "Garuda Indonesia", VN: "Vietnam Airlines",
+  JL: "Japan Airlines", NH: "ANA", KE: "Korean Air", OZ: "Asiana", CI: "China Airlines",
+  BR: "EVA Air", CA: "Air China", CZ: "China Southern", MU: "China Eastern", AI: "Air India",
+  AA: "American Airlines", UA: "United", DL: "Delta", WN: "Southwest", B6: "JetBlue",
+  AS: "Alaska Airlines", NK: "Spirit", F9: "Frontier", HA: "Hawaiian", AC: "Air Canada",
+  WS: "WestJet", AF: "Air France", KL: "KLM", LH: "Lufthansa", LX: "Swiss", OS: "Austrian",
+  SN: "Brussels Airlines", IB: "Iberia", VY: "Vueling", TP: "TAP Portugal", AZ: "ITA Airways",
+  TK: "Turkish Airlines", A3: "Aegean", SK: "SAS", AY: "Finnair", DY: "Norwegian", LO: "LOT",
+  ET: "Ethiopian", MS: "EgyptAir", SV: "Saudia", GF: "Gulf Air", WY: "Oman Air",
+  LA: "LATAM", AV: "Avianca", CM: "Copa", AM: "Aeroméxico", SA: "South African Airways",
+};
+
+/** "ba296" → "British Airways". Unknown or malformed codes return nothing,
+ *  which leaves the number showing on its own. */
+export function airlineFor(flightNumber: string): string | undefined {
+  const match = /^([A-Z][A-Z0-9]|[0-9][A-Z])\s*(\d{1,4})$/i.exec(flightNumber.trim());
+  return match ? AIRLINES[match[1].toUpperCase()] : undefined;
+}
+
 export const ITEM_KINDS: ItemKind[] = ["Eat", "Stay", "Do", "Travel"];
 
 /** What the kinds are called when a saved trip is read back as somebody
@@ -73,6 +121,8 @@ export interface TripItem {
   booking?: BookingFact[];
   suggested?: boolean;
   suggestedBy?: string;
+  /** Set on Travel items — a journey has two ends, which `place` can't hold. */
+  travel?: TravelLeg;
 }
 
 export interface Day {
@@ -759,10 +809,27 @@ export function locatedItems(days: Day[]): LocatedItem[] {
   const out: LocatedItem[] = [];
   for (const day of days) {
     for (const item of day.items) {
-      if (item.place && item.place !== "Not set") out.push({ item, day });
+      const hasPlace = item.place && item.place !== "Not set";
+      /* A journey with a known departure point belongs on the map even when
+         it never got a "where" of its own. */
+      const hasLeg = item.travel?.from !== undefined || item.travel?.to !== undefined;
+      if (hasPlace || hasLeg) out.push({ item, day });
     }
   }
   return out;
+}
+
+/** Where a pin goes: the item's own spot, or the start of the journey. */
+export function pinCoords(item: TripItem): { lat: number; lng: number } | undefined {
+  if (item.lat !== undefined && item.lng !== undefined) return { lat: item.lat, lng: item.lng };
+  const leg = item.travel;
+  if (leg?.fromLat !== undefined && leg.fromLng !== undefined) {
+    return { lat: leg.fromLat, lng: leg.fromLng };
+  }
+  if (leg?.toLat !== undefined && leg.toLng !== undefined) {
+    return { lat: leg.toLat, lng: leg.toLng };
+  }
+  return undefined;
 }
 
 /** A real link to open, even for an item that never got one of its own. */
@@ -1154,6 +1221,8 @@ export interface DraftItem {
   /** Typed in whichever currency is on display, not the euros everything is
    *  stored in — asking someone to convert in their head would be absurd. */
   costEach: string;
+  /** Only filled in for Travel items. */
+  travel: TravelLeg;
 }
 
 /** "You" alone, "All five" for the whole group — the item cards say who
@@ -1191,10 +1260,29 @@ export function draftFrom(item: TripItem, currency: string): DraftItem {
     note: item.note,
     booked: item.booking !== undefined,
     costEach: fromBaseAmount(item.costEach, currency),
+    travel: item.travel ?? { mode: "Flight" },
   };
 }
 
 let addedCount = 0;
+
+/** Drops the empty strings a form leaves behind, so an untouched leg is
+ *  stored as nothing rather than a bag of blanks. */
+function cleanLeg(leg: TravelLeg): TravelLeg {
+  const text = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
+  return {
+    mode: leg.mode,
+    number: text(leg.number),
+    carrier: text(leg.number) ? airlineFor(leg.number as string) : undefined,
+    from: text(leg.from),
+    to: text(leg.to),
+    fromLat: leg.fromLat,
+    fromLng: leg.fromLng,
+    toLat: leg.toLat,
+    toLng: leg.toLng,
+    arrive: text(leg.arrive),
+  };
+}
 
 function fields(draft: DraftItem, currency: string) {
   return {
@@ -1209,6 +1297,7 @@ function fields(draft: DraftItem, currency: string) {
     lat: draft.lat,
     lng: draft.lng,
     costEach: toBaseAmount(draft.costEach, currency),
+    travel: draft.kind === "Travel" ? cleanLeg(draft.travel) : undefined,
     meta: draft.booked ? "Booked" : "Nothing booked yet",
     accent: draft.booked ? GREEN : AMBER,
     bookingKind: draft.booked ? "Confirmed" : undefined,

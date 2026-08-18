@@ -548,7 +548,7 @@ export function TripPage({
                 theme={theme}
               />
             )}
-            {tab === 1 && <TravelTab isExample={isExample} theme={theme} />}
+            {tab === 1 && <TravelTab isExample={isExample} days={days} theme={theme} />}
             {tab === 2 && (
               <MoneyTab
                 days={days}

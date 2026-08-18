@@ -1,25 +1,140 @@
 import type { Theme } from "../../theme";
-import { FLIGHTS, STAY } from "./trip-data";
+import { FLIGHTS, STAY, type Day } from "./trip-data";
 
-export function TravelTab({ isExample, theme }: { isExample: boolean; theme: Theme }) {
+export function TravelTab({
+  isExample,
+  days,
+  theme,
+}: {
+  isExample: boolean;
+  days: Day[];
+  theme: Theme;
+}) {
   /* The stay and the flights below are part of the authored example. A real
-     trip has none until someone adds them, and inventing a hotel nobody
-     booked is worse than an empty tab that says so. */
+     trip shows its own — every Stay and Travel item on the plan, gathered in
+     one place rather than inventing a hotel nobody booked. */
   if (!isExample) {
+    const legs = days.flatMap((day) =>
+      day.items
+        .filter((item) => item.kind === "Travel" || item.kind === "Stay")
+        .map((item) => ({ item, day })),
+    );
+
+    if (legs.length === 0) {
+      return (
+        <div className="trip-page__stack trip-page__tab-panel">
+          <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
+            <span
+              className="empty-day__title"
+              style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+            >
+              Nothing booked yet
+            </span>
+            <span className="empty-day__note">
+              Add a flight, a drive or where you're staying to the plan and it'll be
+              gathered here.
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="trip-page__stack trip-page__tab-panel">
-        <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
-          <span
-            className="empty-day__title"
-            style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+        {legs.map(({ item, day }) => (
+          <div
+            key={item.id}
+            className="wf-card wf-card--pad"
+            style={{ background: theme.card, borderColor: theme.line, gap: "8px" }}
           >
-            Nothing booked yet
-          </span>
-          <span className="empty-day__note">
-            Add your stay and travel to the plan as items and they'll show up on the day
-            they happen.
-          </span>
-        </div>
+            <div
+              className="wf-card__eyebrow"
+              style={{ fontFamily: theme.fontMono, color: theme.meta }}
+            >
+              {day.dow} {day.num} · {item.time}
+              {item.travel?.carrier ? ` · ${item.travel.carrier}` : ""}
+              {item.travel?.number ? ` ${item.travel.number}` : ""}
+            </div>
+            <div className="stay__name" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
+              {item.title}
+            </div>
+
+            {item.travel && (item.travel.from || item.travel.to) ? (
+              <div className="flight__route">
+                <span
+                  className="flight__code"
+                  style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+                >
+                  {item.travel.from || "—"}
+                </span>
+                <span className="flight__line" style={{ background: theme.line }}>
+                  <span className="flight__line-dot" style={{ background: theme.accent }} />
+                </span>
+                <span
+                  className="flight__code"
+                  style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+                >
+                  {item.travel.to || "—"}
+                </span>
+              </div>
+            ) : (
+              item.place !== "Not set" && (
+                <div className="stay__address" style={{ color: theme.body }}>
+                  {item.place}
+                </div>
+              )
+            )}
+
+            <div className="fact-grid">
+              <div>
+                <div
+                  className="fact__label"
+                  style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                >
+                  {item.travel ? "Leaves" : "From"}
+                </div>
+                <div
+                  className="fact__value"
+                  style={{ fontFamily: theme.fontMono, color: theme.ink }}
+                >
+                  {item.time}
+                </div>
+              </div>
+              {item.travel?.arrive && (
+                <div>
+                  <div
+                    className="fact__label"
+                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                  >
+                    Arrives
+                  </div>
+                  <div
+                    className="fact__value"
+                    style={{ fontFamily: theme.fontMono, color: theme.ink }}
+                  >
+                    {item.travel.arrive}
+                  </div>
+                </div>
+              )}
+              {item.travel?.mode && (
+                <div>
+                  <div
+                    className="fact__label"
+                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                  >
+                    Mode
+                  </div>
+                  <div
+                    className="fact__value"
+                    style={{ fontFamily: theme.fontMono, color: theme.ink }}
+                  >
+                    {item.travel.mode}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
