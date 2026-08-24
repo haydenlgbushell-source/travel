@@ -3,10 +3,11 @@ import { DEFAULT_THEME_KEY, getTheme } from "./theme";
 import { TripSetupPage } from "./screens/trip-setup/TripSetupPage";
 import { TripsScreen } from "./screens/trip-setup/TripsScreen";
 import {
+  deleteEventRow,
   loadCurrentEventId,
   loadEvents,
   saveCurrentEventId,
-  saveEvents,
+  upsertEvent as upsertEventRow,
   type EventDetails,
 } from "./screens/trip-setup/event-data";
 import { TripPage } from "./screens/trip/TripPage";
@@ -17,10 +18,10 @@ import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
 import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
-  clearSaved,
   decodeShare,
+  deletePastTrip,
+  insertPastTrip,
   loadPastTrips,
-  savePastTrips,
   type PastTrip,
   type SharedList,
 } from "./screens/trip/trip-data";
@@ -34,28 +35,38 @@ function readShareLink(): SharedList | undefined {
   return match ? decodeShare(match[1]) : undefined;
 }
 
-/** Everything an account owns, read together so the first render already
- *  knows whether to open a trip, the trip list, or setup. */
-function initialState(account: Account | undefined) {
-  if (!account) return { events: [], currentId: undefined, screen: "auth" as Screen };
-  if (!account.name) return { events: [], currentId: undefined, screen: "name" as Screen };
+/** Everything an account owns, read together so the screen only changes once
+ *  it's known whether to open a trip, the trip list, or setup. */
+async function initialState(account: Account | undefined) {
+  if (!account) {
+    return { events: [], currentId: undefined, screen: "auth" as Screen, pastTrips: [] as PastTrip[] };
+  }
+  if (!account.name) {
+    return { events: [], currentId: undefined, screen: "name" as Screen, pastTrips: [] as PastTrip[] };
+  }
 
-  const events = loadEvents(account.id);
-  const savedId = loadCurrentEventId(account.id);
+  const [events, savedId, pastTrips] = await Promise.all([
+    loadEvents(account.id),
+    loadCurrentEventId(account.id),
+    loadPastTrips(account.id),
+  ]);
   const currentId = events.some((e) => e.id === savedId) ? savedId : undefined;
   const screen: Screen = currentId ? "trip" : events.length > 0 ? "trips" : "setup";
-  return { events, currentId, screen };
+  return { events, currentId, screen, pastTrips };
 }
 
 function App() {
   const [themeKey, setThemeKey] = useState(DEFAULT_THEME_KEY);
   const [account, setAccount] = useState<Account | undefined>();
-  const [authLoading, setAuthLoading] = useState(true);
+  /* Covers both "is there a session" and, once there is one, "has that
+     account's trip list loaded" — one gate, since neither is meaningful
+     to show a screen for on its own. */
+  const [bootLoading, setBootLoading] = useState(true);
   const [events, setEvents] = useState<EventDetails[]>([]);
   const [currentId, setCurrentId] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | undefined>();
   const [screen, setScreen] = useState<Screen>("auth");
-  const [pastTrips, setPastTrips] = useState<PastTrip[]>(loadPastTrips);
+  const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
   /* Tracks whose data is currently loaded, so a token refresh or other
@@ -76,16 +87,29 @@ function App() {
     const unsubscribe = onAccountChange((acc) => {
       if (acc?.id === loadedAccountId.current) {
         setAccount(acc);
-        setAuthLoading(false);
+        setBootLoading(false);
         return;
       }
       loadedAccountId.current = acc?.id;
       setAccount(acc);
-      const next = initialState(acc);
-      setEvents(next.events);
-      setCurrentId(next.currentId);
-      setScreen(next.screen);
-      setAuthLoading(false);
+      setBootLoading(true);
+      initialState(acc)
+        .then((next) => {
+          setEvents(next.events);
+          setCurrentId(next.currentId);
+          setScreen(next.screen);
+          setPastTrips(next.pastTrips);
+          setBootLoading(false);
+        })
+        .catch(() => {
+          /* A network hiccup shouldn't strand the app on a blank loading
+             screen — land on an empty trip list rather than nothing. */
+          setEvents([]);
+          setCurrentId(undefined);
+          setScreen(acc ? "trips" : "auth");
+          setPastTrips([]);
+          setBootLoading(false);
+        });
     });
     return unsubscribe;
   }, []);
@@ -94,35 +118,40 @@ function App() {
   const event = events.find((e) => e.id === currentId);
   const editing = events.find((e) => e.id === editingId);
 
-  /** Everything an account owns is keyed to it, so writes always go through
-   *  here rather than assuming there's a signed-in account to write against. */
-  function persistEvents(next: EventDetails[]) {
-    setEvents(next);
-    if (account) saveEvents(account.id, next);
-  }
-
   function openEvent(id: string | undefined) {
     setCurrentId(id);
-    if (account) saveCurrentEventId(account.id, id);
+    /* Best-effort — if this doesn't save, the next visit just lands on the
+       trip list instead of straight back into this trip. */
+    if (account) void saveCurrentEventId(account.id, id).catch(() => {});
     setScreen(id ? "trip" : "trips");
   }
 
-  function upsertEvent(next: EventDetails) {
+  /** Updates local state immediately so the UI never waits on the network,
+   *  then persists in the background — a failed write just means the trip
+   *  isn't on another device yet, not that it's lost here. */
+  async function upsertEvent(next: EventDetails) {
     const exists = events.some((e) => e.id === next.id);
-    persistEvents(exists ? events.map((e) => (e.id === next.id ? next : e)) : [next, ...events]);
+    setEvents(exists ? events.map((e) => (e.id === next.id ? next : e)) : [next, ...events]);
     setEditingId(undefined);
+    if (account) {
+      try {
+        await upsertEventRow(account.id, next);
+      } catch {
+        /* still shows locally; it'll try again the next time it's edited. */
+      }
+    }
     openEvent(next.id);
   }
 
-  /** Deleting takes the trip's saved plan with it — leaving that behind
-   *  would quietly hold onto someone's data after they asked for it gone. */
+  /** Deleting the row cascades to its saved content on the backend — nothing
+   *  else needs cleaning up separately. */
   function deleteEvent(id: string) {
-    clearSaved(id);
     const next = events.filter((e) => e.id !== id);
-    persistEvents(next);
+    setEvents(next);
+    void deleteEventRow(id).catch(() => {});
     if (currentId === id) {
       setCurrentId(undefined);
-      if (account) saveCurrentEventId(account.id, undefined);
+      if (account) void saveCurrentEventId(account.id, undefined).catch(() => {});
     }
     setScreen(next.length > 0 ? "trips" : "setup");
   }
@@ -140,17 +169,15 @@ function App() {
   }
 
   function keepTrip(trip: PastTrip) {
-    const next = [trip, ...pastTrips];
-    setPastTrips(next);
-    savePastTrips(next);
+    setPastTrips([trip, ...pastTrips]);
+    if (account) void insertPastTrip(account.id, trip).catch(() => {});
     setOpenTripId(trip.id);
     setScreen("pastTrip");
   }
 
   function forgetTrip(id: string) {
-    const next = pastTrips.filter((t) => t.id !== id);
-    setPastTrips(next);
-    savePastTrips(next);
+    setPastTrips(pastTrips.filter((t) => t.id !== id));
+    void deletePastTrip(id).catch(() => {});
     setScreen("past");
   }
 
@@ -168,7 +195,7 @@ function App() {
     );
   }
 
-  if (authLoading) {
+  if (bootLoading) {
     return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
   }
 
@@ -178,10 +205,22 @@ function App() {
         onAuthenticated={(acc) => {
           loadedAccountId.current = acc.id;
           setAccount(acc);
-          const next = initialState(acc);
-          setEvents(next.events);
-          setCurrentId(next.currentId);
-          setScreen(next.screen);
+          setBootLoading(true);
+          initialState(acc)
+            .then((next) => {
+              setEvents(next.events);
+              setCurrentId(next.currentId);
+              setScreen(next.screen);
+              setPastTrips(next.pastTrips);
+              setBootLoading(false);
+            })
+            .catch(() => {
+              setEvents([]);
+              setCurrentId(undefined);
+              setScreen("trips");
+              setPastTrips([]);
+              setBootLoading(false);
+            });
         }}
       />
     );
@@ -249,7 +288,7 @@ function App() {
     );
   }
 
-  if (screen === "trip" && event) {
+  if (screen === "trip" && event && account) {
     return (
       <TripPage
         /* Rebuilds the day strip from scratch when the trip changes or its
@@ -258,7 +297,8 @@ function App() {
         key={`${event.id}:${event.startDate}:${event.endDate}:${event.fromExample}`}
         theme={theme}
         event={event}
-        userName={account?.name}
+        accountId={account.id}
+        userName={account.name}
         savedCount={pastTrips.length}
         onSaveTrip={keepTrip}
         onOpenPast={() => setScreen("past")}

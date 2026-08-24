@@ -2,23 +2,6 @@ import type { Verdict } from "./ItemCard";
 import type { Day } from "./trip-data";
 
 const LEAD_MINUTES = 30;
-const STORAGE_KEY = "wayfare.notify.v1";
-
-export function loadNotifyEnabled(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function saveNotifyEnabled(enabled: boolean): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, enabled ? "1" : "0");
-  } catch {
-    /* private mode or a full quota — the toggle just won't stick. */
-  }
-}
 
 export function notificationsSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;

@@ -1,3 +1,5 @@
+import { supabase } from "../../lib/supabase";
+
 export interface EventDetails {
   /** Trip state is saved against this, so changing events can't show the
    *  previous trip's plan under the new one's dates. */
@@ -18,60 +20,94 @@ export interface EventDetails {
   fromExample?: boolean;
 }
 
-/** Everything is keyed to the account that made it. One device can be shared
- *  — signing out and in as someone else must not hand them the previous
- *  person's trips. */
-function eventsKey(accountId: string): string {
-  return `wayfare.events.v1.${accountId}`;
+interface TripRow {
+  id: string;
+  name: string;
+  dates: string;
+  start_date: string;
+  end_date: string;
+  destination: string | null;
+  lat: number | null;
+  lng: number | null;
+  from_example: boolean;
 }
 
-function currentKey(accountId: string): string {
-  return `wayfare.current-event.v1.${accountId}`;
+function fromRow(row: TripRow): EventDetails {
+  return {
+    id: row.id,
+    name: row.name,
+    dates: row.dates,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    destination: row.destination ?? undefined,
+    lat: row.lat ?? undefined,
+    lng: row.lng ?? undefined,
+    fromExample: row.from_example,
+  };
 }
 
-/** A trip saved before it carried a real date range has nothing to rebuild
- *  its day strip from, so it's dropped rather than shown with the wrong
- *  days under its dates. */
-function isUsable(event: Partial<EventDetails>): event is EventDetails {
-  return Boolean(event.id && event.name && event.startDate && event.endDate);
+/** Everything is keyed to the account that made it — RLS enforces this too,
+ *  but filtering here keeps the query itself honest about what it's asking
+ *  for. One device can be shared; signing out and in as someone else must
+ *  not hand them the previous person's trips. */
+export async function loadEvents(accountId: string): Promise<EventDetails[]> {
+  const { data, error } = await supabase
+    .from("trips")
+    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example")
+    .eq("owner_id", accountId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as TripRow[]).map(fromRow);
 }
 
-export function loadEvents(accountId: string): EventDetails[] {
-  try {
-    const raw = localStorage.getItem(eventsKey(accountId));
-    const parsed = raw ? (JSON.parse(raw) as Partial<EventDetails>[]) : [];
-    return Array.isArray(parsed) ? parsed.filter(isUsable) : [];
-  } catch {
-    return [];
-  }
+/** Creates the trip if its id hasn't been seen, otherwise updates it in
+ *  place — covers both "new event" and "edit an existing one" without the
+ *  caller needing to know which. */
+export async function upsertEvent(accountId: string, event: EventDetails): Promise<void> {
+  const { error } = await supabase.from("trips").upsert({
+    id: event.id,
+    owner_id: accountId,
+    name: event.name,
+    dates: event.dates,
+    start_date: event.startDate,
+    end_date: event.endDate,
+    destination: event.destination ?? null,
+    lat: event.lat ?? null,
+    lng: event.lng ?? null,
+    from_example: event.fromExample ?? false,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
 }
 
-export function saveEvents(accountId: string, events: EventDetails[]): void {
-  try {
-    localStorage.setItem(eventsKey(accountId), JSON.stringify(events));
-  } catch {
-    /* private mode or a full quota — the trip just won't be remembered. */
-  }
+/** Deleting the trip row cascades to its saved content — nothing else needs
+ *  cleaning up separately. */
+export async function deleteEventRow(id: string): Promise<void> {
+  const { error } = await supabase.from("trips").delete().eq("id", id);
+  if (error) throw error;
 }
 
 /** Which trip to reopen on the next visit, so a reload — including one with
  *  no signal, now the shell is cached offline — lands back where you were
  *  rather than on an empty setup form. */
-export function loadCurrentEventId(accountId: string): string | undefined {
-  try {
-    return localStorage.getItem(currentKey(accountId)) ?? undefined;
-  } catch {
-    return undefined;
-  }
+export async function loadCurrentEventId(accountId: string): Promise<string | undefined> {
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("current_trip_id")
+    .eq("account_id", accountId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.current_trip_id ?? undefined;
 }
 
-export function saveCurrentEventId(accountId: string, eventId: string | undefined): void {
-  try {
-    if (eventId === undefined) localStorage.removeItem(currentKey(accountId));
-    else localStorage.setItem(currentKey(accountId), eventId);
-  } catch {
-    /* nothing to do — the next visit just starts from the trip list. */
-  }
+export async function saveCurrentEventId(
+  accountId: string,
+  eventId: string | undefined,
+): Promise<void> {
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert({ account_id: accountId, current_trip_id: eventId ?? null });
+  if (error) throw error;
 }
 
 export interface GeocodedPlace {

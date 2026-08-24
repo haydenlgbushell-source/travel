@@ -1,3 +1,5 @@
+import { supabase } from "../../lib/supabase";
+
 /** Trip content for the Chicago trip. Static for now — the screen reads it the
  *  way it will eventually read the API, so swapping the source is a one-file job. */
 
@@ -1337,13 +1339,6 @@ export function applyDraft(item: TripItem, draft: DraftItem, currency: string): 
 
 /* ---------- persistence ---------- */
 
-/** Keyed per event, so creating a second one can't surface the first one's
- *  plan under the new dates — the same class of bug as the old Lisbon days
- *  showing under a Chicago header, which a single shared key invited. */
-function storageKey(eventId: string): string {
-  return `wayfare.trip.v2.${eventId}`;
-}
-
 /** Bumped when the *shape* of a saved day or item changes, so a save
  *  written by an older build gets discarded rather than half-read. */
 const CONTENT_VERSION = "3";
@@ -1353,39 +1348,41 @@ export interface SavedState {
   resolved: Record<string, string>;
 }
 
-export function loadSaved(eventId: string): SavedState | undefined {
-  try {
-    const raw = localStorage.getItem(storageKey(eventId));
-    if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as SavedState & { version?: string };
-    if (parsed.version !== CONTENT_VERSION) return undefined;
-    if (!Array.isArray(parsed.days) || parsed.days.length === 0) return undefined;
-    /* Days written before each one carried its real date can't drive the
-       forecast or the calendar export, so they're treated as stale. */
-    if (parsed.days.some((d) => typeof d.date !== "string")) return undefined;
-    return parsed;
-  } catch {
-    return undefined;
-  }
+interface TripContentRow {
+  content_version: string;
+  days: Day[];
+  resolved: Record<string, string>;
 }
 
-export function save(eventId: string, state: SavedState): void {
-  try {
-    localStorage.setItem(
-      storageKey(eventId),
-      JSON.stringify({ ...state, version: CONTENT_VERSION }),
-    );
-  } catch {
-    /* private mode or a full quota — the trip still works, it just won't keep. */
-  }
+/** One row per trip holding the whole plan as a blob — the exact shape
+ *  `wayfare.trip.v2.{eventId}` used to hold, just in Postgres instead of
+ *  localStorage, so it follows the account across devices. */
+export async function loadTripContent(tripId: string): Promise<SavedState | undefined> {
+  const { data, error } = await supabase
+    .from("trip_content")
+    .select("content_version, days, resolved")
+    .eq("trip_id", tripId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return undefined;
+  const row = data as TripContentRow;
+  if (row.content_version !== CONTENT_VERSION) return undefined;
+  if (!Array.isArray(row.days) || row.days.length === 0) return undefined;
+  /* Days written before each one carried its real date can't drive the
+     forecast or the calendar export, so they're treated as stale. */
+  if (row.days.some((d) => typeof d.date !== "string")) return undefined;
+  return { days: row.days, resolved: row.resolved };
 }
 
-export function clearSaved(eventId: string): void {
-  try {
-    localStorage.removeItem(storageKey(eventId));
-  } catch {
-    /* nothing to do */
-  }
+export async function saveTripContent(tripId: string, state: SavedState): Promise<void> {
+  const { error } = await supabase.from("trip_content").upsert({
+    trip_id: tripId,
+    content_version: CONTENT_VERSION,
+    days: state.days,
+    resolved: state.resolved,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
 }
 
 /* ---------- saved trips ---------- */
@@ -1450,42 +1447,79 @@ export function archive(
   };
 }
 
-const PAST_KEY = "wayfare.past.v1";
-
-export function loadPastTrips(): PastTrip[] {
-  try {
-    const raw = localStorage.getItem(PAST_KEY);
-    const parsed = raw ? (JSON.parse(raw) as PastTrip[]) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+interface PastTripRow {
+  id: string;
+  name: string;
+  dates: string;
+  saved_at: string;
+  places: SavedPlace[];
 }
 
-export function savePastTrips(trips: PastTrip[]): void {
-  try {
-    localStorage.setItem(PAST_KEY, JSON.stringify(trips));
-  } catch {
-    /* private mode or a full quota */
-  }
+function pastTripFromRow(row: PastTripRow): PastTrip {
+  return { id: row.id, name: row.name, dates: row.dates, savedAt: row.saved_at, places: row.places };
 }
 
-const CURRENCY_KEY = "wayfare.currency.v1";
-
-export function loadCurrency(): string {
-  try {
-    return localStorage.getItem(CURRENCY_KEY) ?? DEFAULT_CURRENCY;
-  } catch {
-    return DEFAULT_CURRENCY;
-  }
+/** FIX: this used to be one global `wayfare.past.v1` key, shared by every
+ *  account on the same device — scoped to the signed-in account now. */
+export async function loadPastTrips(accountId: string): Promise<PastTrip[]> {
+  const { data, error } = await supabase
+    .from("past_trips")
+    .select("id, name, dates, saved_at, places")
+    .eq("account_id", accountId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as PastTripRow[]).map(pastTripFromRow);
 }
 
-export function saveCurrency(code: string): void {
-  try {
-    localStorage.setItem(CURRENCY_KEY, code);
-  } catch {
-    /* nothing to do */
-  }
+export async function insertPastTrip(accountId: string, trip: PastTrip): Promise<void> {
+  const { error } = await supabase.from("past_trips").insert({
+    id: trip.id,
+    account_id: accountId,
+    name: trip.name,
+    dates: trip.dates,
+    saved_at: trip.savedAt,
+    places: trip.places,
+  });
+  if (error) throw error;
+}
+
+export async function deletePastTrip(id: string): Promise<void> {
+  const { error } = await supabase.from("past_trips").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface UserSettingsRow {
+  currency: string;
+  notify_enabled: boolean;
+}
+
+/** FIX: `wayfare.currency.v1`/`wayfare.notify.v1` were also global, not
+ *  account-scoped, in localStorage — both live in one row per account now. */
+export async function loadUserSettings(
+  accountId: string,
+): Promise<{ currency: string; notifyEnabled: boolean }> {
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("currency, notify_enabled")
+    .eq("account_id", accountId)
+    .maybeSingle();
+  if (error) throw error;
+  const row = data as UserSettingsRow | null;
+  return { currency: row?.currency ?? DEFAULT_CURRENCY, notifyEnabled: row?.notify_enabled ?? false };
+}
+
+export async function saveCurrency(accountId: string, code: string): Promise<void> {
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert({ account_id: accountId, currency: code });
+  if (error) throw error;
+}
+
+export async function saveNotifyEnabled(accountId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert({ account_id: accountId, notify_enabled: enabled });
+  if (error) throw error;
 }
 
 /* ---------- sharing ---------- */

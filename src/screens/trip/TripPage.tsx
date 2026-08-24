@@ -16,6 +16,7 @@ import type { EventDetails } from "../trip-setup/event-data";
 import {
   DAYS,
   DECISION_COUNT,
+  DEFAULT_CURRENCY,
   applyDraft,
   buildItem,
   byTime,
@@ -23,12 +24,13 @@ import {
   archive,
   daysForRange,
   isoDate,
+  loadTripContent,
+  loadUserSettings,
   membersFor,
   reconcileDays,
-  loadCurrency,
-  loadSaved,
-  save,
   saveCurrency,
+  saveNotifyEnabled,
+  saveTripContent,
   type Day,
   type DraftItem,
   type PastTrip,
@@ -36,10 +38,8 @@ import {
 } from "./trip-data";
 import { fetchWeather } from "./weather";
 import {
-  loadNotifyEnabled,
   notifyPermission,
   requestNotifyPermission,
-  saveNotifyEnabled,
   scheduleNotifications,
 } from "./notifications";
 import "./trip-page.css";
@@ -74,6 +74,7 @@ const NAV_TABS: NavEntry[] = [
 export function TripPage({
   theme,
   event,
+  accountId,
   userName,
   savedCount,
   onSaveTrip,
@@ -84,6 +85,7 @@ export function TripPage({
 }: {
   theme: Theme;
   event: EventDetails;
+  accountId: string;
   userName?: string;
   savedCount: number;
   onSaveTrip: (trip: PastTrip) => void;
@@ -112,15 +114,12 @@ export function TripPage({
   const seed = useRef(
     event.fromExample ? DAYS : daysForRange(event.startDate, event.endDate),
   ).current;
-  const saved = useRef(loadSaved(event.id)).current;
-  /* A saved plan is fitted to the event's current range, so editing the
-     dates keeps everything planned on days that still exist. */
-  const [days, setDays] = useState<Day[]>(
-    saved?.days ? reconcileDays(saved.days, seed) : seed,
-  );
-  const [resolved, setResolved] = useState<Record<string, Verdict>>(
-    (saved?.resolved as Record<string, Verdict>) ?? {},
-  );
+  /* Starts on the blank/example seed and swaps in whatever's actually saved
+     once the fetch below resolves — contentLoading covers that gap so the
+     save-effect further down can't fire on the seed before then. */
+  const [days, setDays] = useState<Day[]>(seed);
+  const [resolved, setResolved] = useState<Record<string, Verdict>>({});
+  const [contentLoading, setContentLoading] = useState(true);
   /* The example opens on its second day, where the authored plan is richest.
      A real trip opens on today if the trip is running, otherwise day one. */
   const [dayIndex, setDayIndex] = useState(() => {
@@ -137,12 +136,12 @@ export function TripPage({
   const [voted, setVoted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [role, setRole] = useState<Role>("Editor");
-  const [currency, setCurrency] = useState(loadCurrency);
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
-  const [notifyEnabled, setNotifyEnabled] = useState(loadNotifyEnabled);
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -150,10 +149,56 @@ export function TripPage({
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  /* The plan survives a refresh. */
+  /* Loads whatever's actually saved for this trip, fitted to its current
+     date range so editing the dates keeps everything planned on days that
+     still exist. Runs once per trip (event.id is stable across re-renders —
+     App.tsx remounts this component via `key` when the range itself
+     changes), so a background refresh never stomps on someone mid-edit. */
   useEffect(() => {
-    save(event.id, { days, resolved });
-  }, [event.id, days, resolved]);
+    let cancelled = false;
+    setContentLoading(true);
+    loadTripContent(event.id)
+      .then((saved) => {
+        if (cancelled) return;
+        setDays(saved?.days ? reconcileDays(saved.days, seed) : seed);
+        setResolved((saved?.resolved as Record<string, Verdict>) ?? {});
+        setContentLoading(false);
+      })
+      .catch(() => {
+        /* offline or a network hiccup — the seed is already showing, so the
+           trip still works, it just starts blank until this succeeds. */
+        if (!cancelled) setContentLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id]);
+
+  /* Loads this account's currency and notification preference once — these
+     are per-account, not per-trip. */
+  useEffect(() => {
+    let cancelled = false;
+    loadUserSettings(accountId).then((settings) => {
+      if (cancelled) return;
+      setCurrency(settings.currency);
+      setNotifyEnabled(settings.notifyEnabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
+
+  /* The plan survives a refresh — but not before the load above has landed,
+     since firing on the very first render would save the blank/example seed
+     over whatever was already there. */
+  useEffect(() => {
+    if (contentLoading) return;
+    void saveTripContent(event.id, { days, resolved }).catch(() => {
+      /* the plan still works locally; it just won't be there on another
+         device until the next successful save. */
+    });
+  }, [event.id, days, resolved, contentLoading]);
 
   /* Items that name a Wikipedia article get their photo resolved once, in
      the background — a wrong or dead article just leaves the fill showing,
@@ -232,14 +277,14 @@ export function TripPage({
   async function toggleNotify() {
     if (notifyEnabled) {
       setNotifyEnabled(false);
-      saveNotifyEnabled(false);
+      void saveNotifyEnabled(accountId, false).catch(() => {});
       return;
     }
     const permission =
       notifyPermission() === "granted" ? "granted" : await requestNotifyPermission();
     if (permission !== "granted") return;
     setNotifyEnabled(true);
-    saveNotifyEnabled(true);
+    void saveNotifyEnabled(accountId, true).catch(() => {});
   }
 
   /* The undo strip and the ring on the new card clear themselves, so the plan
@@ -535,7 +580,7 @@ export function TripPage({
               <PlanTab
                 day={weather[day.num] ? { ...day, weather: weather[day.num] } : day}
                 highlightId={added?.id}
-                loading={loading}
+                loading={loading || contentLoading}
                 resolved={resolved}
                 canApprove={canApprove}
                 onResolve={resolve}
@@ -556,7 +601,7 @@ export function TripPage({
                 currency={currency}
                 onCurrencyChange={(code) => {
                   setCurrency(code);
-                  saveCurrency(code);
+                  void saveCurrency(accountId, code).catch(() => {});
                 }}
                 isExample={isExample}
                 people={Math.max(members.length, 1)}
