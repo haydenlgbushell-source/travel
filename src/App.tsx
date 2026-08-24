@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_THEME_KEY, getTheme } from "./theme";
 import { TripSetupPage } from "./screens/trip-setup/TripSetupPage";
 import { TripsScreen } from "./screens/trip-setup/TripsScreen";
@@ -15,7 +15,7 @@ import { PastTripsScreen } from "./screens/trip/PastTripsScreen";
 import { SharedListScreen } from "./screens/trip/SharedListScreen";
 import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
-import { clearSession, currentAccount, setAccountName, type Account } from "./screens/auth/auth-data";
+import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
   clearSaved,
   decodeShare,
@@ -49,20 +49,45 @@ function initialState(account: Account | undefined) {
 
 function App() {
   const [themeKey, setThemeKey] = useState(DEFAULT_THEME_KEY);
-  const [account, setAccount] = useState<Account | undefined>(currentAccount);
-  const initial = useState(() => initialState(currentAccount()))[0];
-  const [events, setEvents] = useState<EventDetails[]>(initial.events);
-  const [currentId, setCurrentId] = useState<string | undefined>(initial.currentId);
+  const [account, setAccount] = useState<Account | undefined>();
+  const [authLoading, setAuthLoading] = useState(true);
+  const [events, setEvents] = useState<EventDetails[]>([]);
+  const [currentId, setCurrentId] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | undefined>();
-  const [screen, setScreen] = useState<Screen>(initial.screen);
+  const [screen, setScreen] = useState<Screen>("auth");
   const [pastTrips, setPastTrips] = useState<PastTrip[]>(loadPastTrips);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
+  /* Tracks whose data is currently loaded, so a token refresh or other
+     no-identity-change auth event doesn't reset navigation state out from
+     under whatever the person is doing — only a real sign-in/out should. */
+  const loadedAccountId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const onHashChange = () => setShared(readShareLink());
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  /** Supabase reports the persisted session (or its absence) as soon as this
+   *  subscribes, then again on every real sign-in/out — a page reload picks
+   *  the same account back up without a manual "am I logged in?" check. */
+  useEffect(() => {
+    const unsubscribe = onAccountChange((acc) => {
+      if (acc?.id === loadedAccountId.current) {
+        setAccount(acc);
+        setAuthLoading(false);
+        return;
+      }
+      loadedAccountId.current = acc?.id;
+      setAccount(acc);
+      const next = initialState(acc);
+      setEvents(next.events);
+      setCurrentId(next.currentId);
+      setScreen(next.screen);
+      setAuthLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   const theme = getTheme(themeKey);
@@ -103,7 +128,8 @@ function App() {
   }
 
   function signOut() {
-    clearSession();
+    loadedAccountId.current = undefined;
+    void clearSession();
     setAccount(undefined);
     /* Their trips stay on the device under their own account key — signing
        back in brings them back, and nobody else's session can reach them. */
@@ -142,10 +168,15 @@ function App() {
     );
   }
 
+  if (authLoading) {
+    return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
+  }
+
   if (screen === "auth") {
     return (
       <AuthPage
         onAuthenticated={(acc) => {
+          loadedAccountId.current = acc.id;
           setAccount(acc);
           const next = initialState(acc);
           setEvents(next.events);
@@ -159,10 +190,10 @@ function App() {
   if (screen === "name") {
     return (
       <NamePage
-        onSubmit={(name) => {
+        onSubmit={async (name) => {
           if (!account) return;
-          const updated = setAccountName(account.id, name);
-          setAccount(updated ?? { ...account, name });
+          const updated = await setAccountName(account.id, name);
+          setAccount(updated);
           setScreen("setup");
         }}
       />
