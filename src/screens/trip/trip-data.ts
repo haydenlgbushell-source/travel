@@ -266,14 +266,70 @@ export async function acceptInvite(token: string): Promise<string> {
 export async function createAccessCode(
   tripId: string,
   role: "Editor" | "Contributor",
+  maxUses?: number,
 ): Promise<string> {
   const { data, error } = await supabase
     .from("trip_access_codes")
-    .insert({ trip_id: tripId, role })
+    .insert({ trip_id: tripId, role, max_uses: maxUses ?? null })
     .select("code")
     .single();
   if (error) throw error;
   return (data as { code: string }).code;
+}
+
+export interface AccessCode {
+  id: string;
+  code: string;
+  role: "Editor" | "Contributor";
+  expiresAt: string;
+  maxUses?: number;
+  useCount: number;
+  revokedAt?: string;
+  createdAt: string;
+}
+
+interface AccessCodeRow {
+  id: string;
+  code: string;
+  role: "Editor" | "Contributor";
+  expires_at: string;
+  max_uses: number | null;
+  use_count: number;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+/** Codes were previously write-and-forget — issued, copied to the clipboard,
+ *  then unreachable, so a link handed to the wrong person could never be
+ *  taken back. */
+export async function loadAccessCodes(tripId: string): Promise<AccessCode[]> {
+  const { data, error } = await supabase
+    .from("trip_access_codes")
+    .select("id, code, role, expires_at, max_uses, use_count, revoked_at, created_at")
+    .eq("trip_id", tripId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as AccessCodeRow[]).map((r) => ({
+    id: r.id,
+    code: r.code,
+    role: r.role,
+    expiresAt: r.expires_at,
+    maxUses: r.max_uses ?? undefined,
+    useCount: r.use_count,
+    revokedAt: r.revoked_at ?? undefined,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Marks the code dead rather than deleting it — redeem_access_code already
+ *  refuses anything with revoked_at set, and keeping the row means the
+ *  people who already used it stay on the trip. */
+export async function revokeAccessCode(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("trip_access_codes")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 /** Works from an anonymous session or a real account alike — either way it

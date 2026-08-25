@@ -536,10 +536,11 @@ function App() {
     );
   }
 
-  if (screen === "agency" && agency) {
+  if (screen === "agency" && agency && account) {
     return (
       <AgencyPage
         agency={agency}
+        accountId={account.id}
         onOpenTrip={openLoadedEvent}
         onCreateClientTrip={(agencyId) => {
           setPendingAgencyId(agencyId);

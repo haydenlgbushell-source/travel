@@ -1,6 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Theme } from "../../theme";
-import { INBOX, ROLE_COLORS, ROLE_RULES, type Person, type Role } from "./trip-data";
+import {
+  INBOX,
+  ROLE_COLORS,
+  ROLE_RULES,
+  loadAccessCodes,
+  revokeAccessCode,
+  type AccessCode,
+  type Person,
+  type Role,
+} from "./trip-data";
 
 const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
 
@@ -23,6 +32,7 @@ export function PeopleTab({
   pendingSuggestions,
   onCreateInvite,
   onCreateAccessCode,
+  tripId,
   isExample,
   theme,
 }: {
@@ -39,11 +49,43 @@ export function PeopleTab({
   /** Same shape, but the resulting link needs no account at all to open —
    *  it signs the opener into an anonymous session automatically. */
   onCreateAccessCode: (role: ShareableRole) => Promise<string>;
+  /** Needed to list the codes already issued for this trip — absent on the
+   *  authored example, which has no real ones. */
+  tripId?: string;
   isExample: boolean;
   theme: Theme;
 }) {
   const [busy, setBusy] = useState<`${"invite" | "code"}:${ShareableRole}` | undefined>();
   const [status, setStatus] = useState<string | undefined>();
+  const [codes, setCodes] = useState<AccessCode[]>([]);
+
+  const canManage = !isExample && role === "Organiser" && tripId !== undefined;
+
+  /* Reloaded after every issue/revoke so the list is the real server state
+     rather than something patched up locally. */
+  useEffect(() => {
+    if (!canManage || !tripId) return;
+    let cancelled = false;
+    loadAccessCodes(tripId)
+      .then((list) => {
+        if (!cancelled) setCodes(list);
+      })
+      .catch(() => {
+        if (!cancelled) setCodes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canManage, tripId, status]);
+
+  async function revoke(id: string) {
+    try {
+      await revokeAccessCode(id);
+      if (tripId) setCodes(await loadAccessCodes(tripId));
+    } catch {
+      setStatus("Couldn't revoke that code.");
+    }
+  }
 
   /* Suggestions waiting are part of the authored example — a real trip
      shows whatever's actually pending from proposeItem. */
@@ -190,6 +232,67 @@ export function PeopleTab({
             >
               {status}
             </span>
+          )}
+
+          {codes.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+              <span
+                className="wf-card__eyebrow"
+                style={{ fontFamily: theme.fontMono, color: theme.meta }}
+              >
+                Codes you've issued
+              </span>
+              {codes.map((c) => {
+                const expired = new Date(c.expiresAt).getTime() < Date.now();
+                const usedUp = c.maxUses !== undefined && c.useCount >= c.maxUses;
+                const dead = c.revokedAt !== undefined || expired || usedUp;
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      opacity: dead ? 0.55 : 1,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: theme.fontMono,
+                        fontSize: "12px",
+                        color: theme.body,
+                      }}
+                    >
+                      <strong style={{ color: theme.ink, letterSpacing: ".08em" }}>{c.code}</strong>
+                      {" · "}
+                      {c.role}
+                      {" · "}
+                      {c.useCount} {c.useCount === 1 ? "use" : "uses"}
+                      {c.maxUses !== undefined ? ` of ${c.maxUses}` : ""}
+                      {c.revokedAt ? " · revoked" : expired ? " · expired" : usedUp ? " · used up" : ""}
+                    </span>
+                    {!dead && (
+                      <button
+                        type="button"
+                        className="trip-page__reset trip-card__action"
+                        onClick={() => void revoke(c.id)}
+                        style={{ fontFamily: theme.fontMono, color: "oklch(0.5 0.16 25)", fontSize: "12px" }}
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              <span
+                className="add-sheet__hint"
+                style={{ fontFamily: theme.fontMono, color: theme.meta }}
+              >
+                Revoking stops the code working from now on — anyone already on the
+                trip stays.
+              </span>
+            </div>
           )}
         </div>
       )}

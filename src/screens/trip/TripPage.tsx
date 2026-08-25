@@ -696,6 +696,7 @@ export function TripPage({
                 )}
                 onCreateInvite={createInviteLink}
                 onCreateAccessCode={createClientLink}
+                tripId={event.id}
                 isExample={isExample}
                 theme={theme}
               />
