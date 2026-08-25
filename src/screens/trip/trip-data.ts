@@ -163,12 +163,92 @@ export function initialsOf(name: string): string {
 }
 
 /** The example trip comes with its authored crew; a real one starts with
- *  just the person who made it, until sharing exists to add anyone else. */
+ *  just the person who made it, shown immediately so there's never a blank
+ *  flash before loadTripMembers resolves with who's actually on it. */
 export function membersFor(fromExample: boolean, userName: string | undefined): Person[] {
   if (fromExample) return PEOPLE;
   const name = userName?.trim();
   if (!name) return [];
   return [{ initials: initialsOf(name), name, role: "Organiser", note: "Created this trip" }];
+}
+
+interface MemberRow {
+  account_id: string;
+  name: string | null;
+  role: Role;
+}
+
+/** The real roster — every account with a `trip_members` row on this trip,
+ *  and (via the RPC) the caller's own role, since accounts can only read
+ *  their own row directly. */
+export async function loadTripMembers(
+  tripId: string,
+  myAccountId: string,
+): Promise<{ members: Person[]; myRole: Role }> {
+  const { data, error } = await supabase.rpc("trip_members_with_names", { p_trip_id: tripId });
+  if (error) throw error;
+  const rows = data as MemberRow[];
+  const members = rows.map((row) => {
+    const name = row.name?.trim() || "New member";
+    return { initials: initialsOf(name), name, role: row.role, note: "" };
+  });
+  const mine = rows.find((row) => row.account_id === myAccountId);
+  return { members, myRole: mine?.role ?? "Contributor" };
+}
+
+/** The one write path open to a Contributor — everything else on a real
+ *  trip still goes through saveTripContent, gated to Organiser/Editor by
+ *  RLS. Forces the item onto whichever day matches `dayDate`; suggested and
+ *  suggestedBy are set server-side, not trusted from the client. */
+export async function proposeItem(tripId: string, dayDate: string, item: TripItem): Promise<void> {
+  const { error } = await supabase.rpc("propose_item", {
+    p_trip_id: tripId,
+    p_day_date: dayDate,
+    p_item: item,
+  });
+  if (error) throw error;
+}
+
+/** Organiser-only per RLS — returns the token to build a shareable link
+ *  from (`#invite=<token>`). */
+export async function createInvite(tripId: string, role: "Editor" | "Contributor"): Promise<string> {
+  const { data, error } = await supabase
+    .from("trip_invites")
+    .insert({ trip_id: tripId, role })
+    .select("token")
+    .single();
+  if (error) throw error;
+  return (data as { token: string }).token;
+}
+
+export interface InviteInfo {
+  tripName: string;
+  role: Role;
+  valid: boolean;
+}
+
+interface InviteRow {
+  trip_name: string;
+  role: Role;
+  valid: boolean;
+}
+
+/** Callable signed-out too — just enough to show "you're invited to X as Y"
+ *  before asking anyone to sign in. */
+export async function getInvite(token: string): Promise<InviteInfo | undefined> {
+  const { data, error } = await supabase.rpc("get_invite", { p_token: token });
+  if (error) throw error;
+  const row = (data as InviteRow[])[0];
+  return row ? { tripName: row.trip_name, role: row.role, valid: row.valid } : undefined;
+}
+
+/** Requires a signed-in account. Single-use — a second call with the same
+ *  token fails once the first has consumed it. Returns the trip's id so the
+ *  caller can open straight into it. */
+export async function acceptInvite(token: string): Promise<string> {
+  const { data, error } = await supabase.rpc("accept_invite", { p_token: token });
+  if (error) throw error;
+  return data as string;
 }
 
 /** Authored without ids; `DAYS` stamps them on once at module load. */

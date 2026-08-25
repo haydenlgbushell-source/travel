@@ -16,6 +16,7 @@ import { PastTripsScreen } from "./screens/trip/PastTripsScreen";
 import { SharedListScreen } from "./screens/trip/SharedListScreen";
 import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
+import { InviteAcceptScreen } from "./screens/auth/InviteAcceptScreen";
 import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
   decodeShare,
@@ -33,6 +34,14 @@ type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip"
 function readShareLink(): SharedList | undefined {
   const match = /[#&]s=([^&]+)/.exec(window.location.hash);
   return match ? decodeShare(match[1]) : undefined;
+}
+
+/** An invite token in the fragment, parallel to `#s=` above — but this one
+ *  needs a real signed-in account before it can be acted on, since it grants
+ *  real write access rather than a read-only snapshot. */
+function readInviteToken(): string | undefined {
+  const match = /[#&]invite=([^&]+)/.exec(window.location.hash);
+  return match?.[1];
 }
 
 /** Everything an account owns, read together so the screen only changes once
@@ -69,13 +78,17 @@ function App() {
   const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
+  const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
   /* Tracks whose data is currently loaded, so a token refresh or other
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
   const loadedAccountId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const onHashChange = () => setShared(readShareLink());
+    const onHashChange = () => {
+      setShared(readShareLink());
+      setInviteToken(readInviteToken());
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -197,6 +210,36 @@ function App() {
 
   if (bootLoading) {
     return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
+  }
+
+  /* Needs a real account first — sign-up/sign-in and NamePage run their
+     normal course underneath (screen still drives them), and this catches
+     the invite on the next render once account.name is set either way. */
+  if (inviteToken && account?.name) {
+    return (
+      <InviteAcceptScreen
+        token={inviteToken}
+        onJoined={(tripId) => {
+          window.location.hash = "";
+          setInviteToken(undefined);
+          loadEvents(account.id)
+            .then((next) => {
+              setEvents(next);
+              openEvent(tripId);
+            })
+            .catch(() => {
+              /* the membership still went through — it'll show up next
+                 time the trip list loads even if this refresh didn't. */
+              setScreen(events.length > 0 ? "trips" : "setup");
+            });
+        }}
+        onDecline={() => {
+          window.location.hash = "";
+          setInviteToken(undefined);
+          setScreen(currentId ? "trip" : events.length > 0 ? "trips" : "setup");
+        }}
+      />
+    );
   }
 
   if (screen === "auth") {

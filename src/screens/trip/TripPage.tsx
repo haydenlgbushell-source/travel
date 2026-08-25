@@ -22,11 +22,14 @@ import {
   byTime,
   clashAt,
   archive,
+  createInvite,
   daysForRange,
   isoDate,
   loadTripContent,
+  loadTripMembers,
   loadUserSettings,
   membersFor,
+  proposeItem,
   reconcileDays,
   saveCurrency,
   saveNotifyEnabled,
@@ -34,6 +37,7 @@ import {
   type Day,
   type DraftItem,
   type PastTrip,
+  type Person,
   type Role,
 } from "./trip-data";
 import { fetchWeather } from "./weather";
@@ -97,7 +101,10 @@ export function TripPage({
   const eventName = event.name;
   const eventDates = event.dates;
   const isExample = event.fromExample === true;
-  const members = membersFor(isExample, userName);
+  /* Seeded with just the signed-in account so there's never a blank roster
+     before the real membership load (below) lands — the example trip's
+     authored cast never changes, so it needs no fetch at all. */
+  const [members, setMembers] = useState<Person[]>(() => membersFor(isExample, userName));
   /* Open decisions are part of the authored example; a real trip has none
      until the group can actually vote on anything. */
   const decisionCount = isExample ? DECISION_COUNT : 0;
@@ -136,6 +143,10 @@ export function TripPage({
   const [voted, setVoted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [role, setRole] = useState<Role>("Editor");
+  /* Real trips: whether the membership fetch above found Organiser/Editor.
+     Example trip: whatever the "View as" demo switcher is set to. Either
+     way, this is what actually gates every write below. */
+  const canApprove = role === "Organiser" || role === "Editor";
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -157,11 +168,23 @@ export function TripPage({
   useEffect(() => {
     let cancelled = false;
     setContentLoading(true);
-    loadTripContent(event.id)
-      .then((saved) => {
+    Promise.all([
+      loadTripContent(event.id),
+      /* The example trip's cast is fixed and every real trip's creator is
+         already showing (seeded above) — no membership fetch needed either
+         way until there's an actual roster to ask about. */
+      isExample
+        ? Promise.resolve(undefined)
+        : loadTripMembers(event.id, accountId).catch(() => undefined),
+    ])
+      .then(([saved, membership]) => {
         if (cancelled) return;
         setDays(saved?.days ? reconcileDays(saved.days, seed) : seed);
         setResolved((saved?.resolved as Record<string, Verdict>) ?? {});
+        if (membership) {
+          setMembers(membership.members);
+          setRole(membership.myRole);
+        }
         setContentLoading(false);
       })
       .catch(() => {
@@ -173,7 +196,7 @@ export function TripPage({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
+  }, [event.id, accountId, isExample]);
 
   /* Loads this account's currency and notification preference once — these
      are per-account, not per-trip. */
@@ -189,16 +212,19 @@ export function TripPage({
     };
   }, [accountId]);
 
-  /* The plan survives a refresh — but not before the load above has landed,
-     since firing on the very first render would save the blank/example seed
-     over whatever was already there. */
+  /* The plan survives a refresh — but not before the load above has landed
+     (firing on the very first render would save the blank/example seed over
+     whatever was already there), and not for a Contributor: RLS rejects a
+     whole-blob write from anyone but an Organiser/Editor, so their only
+     change worth persisting — a new suggestion — goes through proposeItem
+     in addItem below instead. */
   useEffect(() => {
-    if (contentLoading) return;
+    if (contentLoading || !canApprove) return;
     void saveTripContent(event.id, { days, resolved }).catch(() => {
       /* the plan still works locally; it just won't be there on another
          device until the next successful save. */
     });
-  }, [event.id, days, resolved, contentLoading]);
+  }, [event.id, days, resolved, contentLoading, canApprove]);
 
   /* Items that name a Wikipedia article get their photo resolved once, in
      the background — a wrong or dead article just leaves the fill showing,
@@ -295,7 +321,6 @@ export function TripPage({
     return () => clearTimeout(t);
   }, [added]);
 
-  const canApprove = role === "Organiser" || role === "Editor";
   const day = days[dayIndex];
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
@@ -363,6 +388,16 @@ export function TripPage({
     setAddOpen(false);
     setTab(0);
     setAdded({ id: item.id, title: item.title });
+
+    /* A Contributor's write can't go through the generic autosave above —
+       RLS only lets an Organiser/Editor touch the whole blob — so their one
+       allowed action, proposing something new, is persisted here directly. */
+    if (!canApprove && !isExample) {
+      void proposeItem(event.id, day.date, item).catch(() => {
+        /* still shows locally for this session; just won't survive a
+           reload or reach anyone else until retried. */
+      });
+    }
   }
 
   function saveEdit(draft: DraftItem) {
@@ -387,6 +422,15 @@ export function TripPage({
       ...d,
       items: d.items.map((i) => (i.id === id ? { ...i, time: newTime } : i)).sort(byTime),
     }));
+  }
+
+  /* Organiser-only per RLS on trip_invites — PeopleTab only shows the
+     button that calls this to an Organiser, but the real gate is the
+     database, not the UI. */
+  async function createInviteLink(inviteRole: "Editor" | "Contributor"): Promise<string> {
+    const token = await createInvite(event.id, inviteRole);
+    const { origin, pathname } = window.location;
+    return `${origin}${pathname}#invite=${token}`;
   }
 
   function resolve(id: string, verdict: Verdict | undefined) {
@@ -631,6 +675,17 @@ export function TripPage({
                   toTop();
                 }}
                 members={members}
+                pendingSuggestions={days.flatMap((d, i) =>
+                  d.items
+                    .filter((item) => item.suggested && resolved[item.id] === undefined)
+                    .map((item) => ({
+                      title: item.title,
+                      meta: `${item.suggestedBy ?? "A trip member"} · ${item.time}`,
+                      note: item.note,
+                      day: i,
+                    })),
+                )}
+                onCreateInvite={createInviteLink}
                 isExample={isExample}
                 theme={theme}
               />

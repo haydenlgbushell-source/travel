@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Theme } from "../../theme";
 import { INBOX, ROLE_COLORS, ROLE_RULES, type Person, type Role } from "./trip-data";
 
@@ -5,11 +6,20 @@ const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
 
 const COUNT_WORD = ["Nobody", "One person", "Two people", "Three people", "Four people", "Five people"];
 
+interface Suggestion {
+  title: string;
+  meta: string;
+  note: string;
+  day: number;
+}
+
 export function PeopleTab({
   role,
   onRoleChange,
   onOpenSuggestion,
   members,
+  pendingSuggestions,
+  onCreateInvite,
   isExample,
   theme,
 }: {
@@ -17,12 +27,48 @@ export function PeopleTab({
   onRoleChange: (role: Role) => void;
   onOpenSuggestion: (dayIndex: number) => void;
   members: Person[];
+  /** Real trips only — the example uses its own authored INBOX below. */
+  pendingSuggestions: Suggestion[];
+  /** Creates an invite link for the given role and resolves to its full
+   *  shareable URL. Only ever called from the Organiser-only button below,
+   *  but the real gate is RLS on trip_invites, not this UI. */
+  onCreateInvite: (role: "Editor" | "Contributor") => Promise<string>;
   isExample: boolean;
   theme: Theme;
 }) {
-  /* Suggestions waiting are part of the authored example — a real trip has
-     none until someone else can actually reach it. */
-  const inbox = isExample ? INBOX : [];
+  const [inviting, setInviting] = useState<"Editor" | "Contributor" | undefined>();
+  const [inviteStatus, setInviteStatus] = useState<string | undefined>();
+
+  /* Suggestions waiting are part of the authored example — a real trip
+     shows whatever's actually pending from proposeItem. */
+  const inbox = isExample ? INBOX : pendingSuggestions;
+
+  async function invite(inviteRole: "Editor" | "Contributor") {
+    setInviting(inviteRole);
+    setInviteStatus(undefined);
+    try {
+      const url = await onCreateInvite(inviteRole);
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Join the trip", url });
+          setInviteStatus(undefined);
+          return;
+        } catch {
+          /* dismissed — fall through to copying */
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        setInviteStatus(`Link copied — share it with whoever you're inviting as ${inviteRole.toLowerCase()}.`);
+      } catch {
+        setInviteStatus(url);
+      }
+    } catch {
+      setInviteStatus("Couldn't create that invite — try again in a moment.");
+    } finally {
+      setInviting(undefined);
+    }
+  }
 
   return (
     <div className="trip-page__stack trip-page__tab-panel">
@@ -71,6 +117,48 @@ export function PeopleTab({
         ))}
       </div>
 
+      {!isExample && role === "Organiser" && (
+        <div
+          className="wf-card wf-card--pad"
+          style={{ background: theme.card, borderColor: theme.line, gap: "8px" }}
+        >
+          <span
+            className="wf-card__eyebrow"
+            style={{ fontFamily: theme.fontMono, color: theme.meta }}
+          >
+            Invite someone
+          </span>
+          <div className="kind-picker">
+            <button
+              type="button"
+              className="trip-page__reset kind-picker__option"
+              disabled={inviting !== undefined}
+              onClick={() => invite("Editor")}
+              style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
+            >
+              {inviting === "Editor" ? "Creating…" : "As an editor"}
+            </button>
+            <button
+              type="button"
+              className="trip-page__reset kind-picker__option"
+              disabled={inviting !== undefined}
+              onClick={() => invite("Contributor")}
+              style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
+            >
+              {inviting === "Contributor" ? "Creating…" : "To suggest only"}
+            </button>
+          </div>
+          {inviteStatus && (
+            <span
+              className="add-sheet__hint"
+              style={{ fontFamily: theme.fontMono, color: theme.meta }}
+            >
+              {inviteStatus}
+            </span>
+          )}
+        </div>
+      )}
+
       {inbox.length > 0 && (
       <div className="inbox">
         <div className="inbox__head">
@@ -117,35 +205,36 @@ export function PeopleTab({
           What each role can do
         </div>
 
-        {/* Prototype control: the real app takes your role from the invite. */}
-        <div className="role-switch">
-          <span
-            className="wf-card__eyebrow"
-            style={{ fontFamily: theme.fontMono, color: theme.meta }}
-          >
-            View as
-          </span>
-          {ROLES.map((r) => {
-            const on = r === role;
-            return (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={on}
-                className="trip-page__reset role-switch__option"
-                onClick={() => onRoleChange(r)}
-                style={{
-                  fontFamily: theme.fontMono,
-                  background: on ? theme.ink : theme.card,
-                  borderColor: on ? theme.ink : theme.line,
-                  color: on ? theme.bg : theme.body,
-                }}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
+        {isExample && (
+          <div className="role-switch">
+            <span
+              className="wf-card__eyebrow"
+              style={{ fontFamily: theme.fontMono, color: theme.meta }}
+            >
+              View as
+            </span>
+            {ROLES.map((r) => {
+              const on = r === role;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={on}
+                  className="trip-page__reset role-switch__option"
+                  onClick={() => onRoleChange(r)}
+                  style={{
+                    fontFamily: theme.fontMono,
+                    background: on ? theme.ink : theme.card,
+                    borderColor: on ? theme.ink : theme.line,
+                    color: on ? theme.bg : theme.body,
+                  }}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {ROLE_RULES.map((rule) => (
           <div key={rule.role} className="roles__rule">
