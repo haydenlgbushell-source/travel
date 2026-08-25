@@ -120,6 +120,10 @@ function App() {
   /* Undefined for almost everyone — only set for an account the admin has
      designated as an agency's Owner or Agent. */
   const [agency, setAgency] = useState<Agency | undefined>();
+  /* A write that failed in a way local state can't quietly paper over.
+     Rendered as one banner above whichever screen is showing, since the
+     screens below are early returns with no shared chrome. */
+  const [saveError, setSaveError] = useState<string | undefined>();
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
   const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
@@ -181,6 +185,18 @@ function App() {
   const event = events.find((e) => e.id === currentId);
   const editing = events.find((e) => e.id === editingId);
 
+  /** Opens a trip the local list may not know about yet — the agency page
+   *  fetches its own trips straight from the database, so a client trip
+   *  another agent created (or one made on another device since this tab
+   *  loaded) isn't in `events` and would otherwise fall through to the
+   *  blank setup form at the bottom of this component. */
+  function openLoadedEvent(trip: EventDetails) {
+    setEvents((prev) =>
+      prev.some((e) => e.id === trip.id) ? prev : [trip, ...prev],
+    );
+    openEvent(trip.id);
+  }
+
   function openEvent(id: string | undefined) {
     setCurrentId(id);
     /* Best-effort — if this doesn't save, the next visit just lands on the
@@ -206,9 +222,16 @@ function App() {
     setEditingId(undefined);
     if (account) {
       try {
-        await upsertEventRow(account.id, tagged);
+        await upsertEventRow(account.id, tagged, !exists);
       } catch {
-        /* still shows locally; it'll try again the next time it's edited. */
+        /* Personal trips can live in local state until the next edit
+           retries, but an agency trip that never reached the database
+           won't come back from loadAgencyTrips — so the agent would be
+           looking at a client trip their colleagues can't see. Say so
+           rather than letting the two lists quietly disagree. */
+        if (tagged.agencyId) {
+          setSaveError("That client trip didn't save — check your connection and edit it to try again.");
+        }
       }
     }
     openEvent(tagged.id);
@@ -219,11 +242,19 @@ function App() {
   function deleteEvent(id: string) {
     const next = events.filter((e) => e.id !== id);
     setEvents(next);
-    void deleteEventRow(id).catch(() => {});
+    /* Deleting needs an Organiser row, which agency access alone doesn't
+       give — so an agent can be shown Delete on a colleague's client trip,
+       have the row survive, and watch it reappear on reload. Put it back
+       and say so rather than pretending it worked. */
+    void deleteEventRow(id).catch(() => {
+      setEvents((prev) => (prev.some((e) => e.id === id) ? prev : [...prev, ...events.filter((e) => e.id === id)]));
+      setSaveError("You don't have permission to delete that trip — only its organiser can.");
+    });
     if (currentId === id) {
       setCurrentId(undefined);
       if (account) void saveCurrentEventId(account.id, undefined).catch(() => {});
     }
+    setPendingAgencyId(undefined);
     setScreen(next.length > 0 ? "trips" : "setup");
   }
 
@@ -237,6 +268,10 @@ function App() {
     setCurrentId(undefined);
     setEditingId(undefined);
     setAgency(undefined);
+    /* Left set, this would tag the *next* account's first trip into the
+       previous one's agency on a shared device. */
+    setPendingAgencyId(undefined);
+    setSaveError(undefined);
     setScreen("auth");
   }
 
@@ -253,6 +288,51 @@ function App() {
     setScreen("past");
   }
 
+  /* Every screen below is an early return with no shared wrapper, so the
+     banner goes here and `renderScreen` (hoisted) holds the chain. */
+  return (
+    <>
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            position: "fixed",
+            insetInline: 0,
+            top: 0,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "10px 14px",
+            background: "oklch(0.5 0.16 25)",
+            color: "#fff",
+            fontFamily: theme.fontMono,
+            fontSize: "12px",
+          }}
+        >
+          <span>{saveError}</span>
+          <button
+            type="button"
+            onClick={() => setSaveError(undefined)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "inherit",
+              font: "inherit",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {renderScreen()}
+    </>
+  );
+
+  function renderScreen() {
   if (shared) {
     return (
       <SharedListScreen
@@ -424,6 +504,10 @@ function App() {
         onOpen={openEvent}
         onCreate={() => {
           setEditingId(undefined);
+          /* Starting a trip from here is a personal one — without this it
+             would inherit an agency tag left over from an abandoned
+             "Build a client trip". */
+          setPendingAgencyId(undefined);
           setScreen("setup");
         }}
         onEdit={(id) => {
@@ -456,7 +540,7 @@ function App() {
     return (
       <AgencyPage
         agency={agency}
-        onOpenTrip={openEvent}
+        onOpenTrip={openLoadedEvent}
         onCreateClientTrip={(agencyId) => {
           setPendingAgencyId(agencyId);
           setEditingId(undefined);
@@ -499,12 +583,17 @@ function App() {
         events.length > 0
           ? () => {
               setEditingId(undefined);
+              /* Backing out of "Build a client trip" must drop the tag —
+                 otherwise the next trip started from anywhere silently
+                 lands in the agency. */
+              setPendingAgencyId(undefined);
               setScreen("trips");
             }
           : undefined
       }
     />
   );
+  }
 }
 
 export default App;

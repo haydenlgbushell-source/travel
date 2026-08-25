@@ -79,10 +79,18 @@ export async function loadEvents(): Promise<EventDetails[]> {
  *  caller needing to know which. `event.agencyId`, when set, tags it as a
  *  client trip an agent created rather than a personal one — set once at
  *  creation and never touched by ordinary edits. */
-export async function upsertEvent(accountId: string, event: EventDetails): Promise<void> {
+export async function upsertEvent(
+  accountId: string,
+  event: EventDetails,
+  isNew: boolean,
+): Promise<void> {
   const { error } = await supabase.from("trips").upsert({
     id: event.id,
-    owner_id: accountId,
+    /* Only stamped when the row is being created. Re-sending it on every
+       edit would hand ownership to whoever saved last — which on an agency
+       trip means the second agent to touch it quietly becomes the owner,
+       while trip_members still lists the original creator as Organiser. */
+    ...(isNew ? { owner_id: accountId } : {}),
     name: event.name,
     dates: event.dates,
     start_date: event.startDate,

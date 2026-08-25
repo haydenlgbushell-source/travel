@@ -135,14 +135,12 @@ export async function setAccountName(accountId: string, name: string): Promise<A
   const { error } = await supabase.from("accounts").update({ name: trimmed }).eq("id", accountId);
   if (error) throw error;
 
+  /* Re-read the row rather than hand-building the account from what's known
+     here — a literal would have to restate every field, and the two it can't
+     see (mobile, is_admin) would come back empty, silently dropping an
+     admin's access the moment they set a name. */
   const { data } = await supabase.auth.getUser();
-  return {
-    id: accountId,
-    email: data.user?.email ?? "",
-    mobile: "",
-    name: trimmed,
-    isAnonymous: data.user?.is_anonymous ?? false,
-  };
+  return fetchAccount(accountId, data.user?.email ?? "", data.user?.is_anonymous ?? false);
 }
 
 export async function clearSession(): Promise<void> {

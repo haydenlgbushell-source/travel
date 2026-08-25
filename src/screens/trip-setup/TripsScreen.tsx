@@ -153,6 +153,10 @@ export function TripsScreen({
                     style={{ fontFamily: theme.fontMono, color: theme.meta }}
                   >
                     {getTheme(trip.themeKey).name} style
+                    {/* Agency trips show up here too (RLS grants agency
+                        staff access), so without this they'd be
+                        indistinguishable from the agent's own trips. */}
+                    {trip.agencyId ? " · client trip" : ""}
                   </span>
                 </button>
 

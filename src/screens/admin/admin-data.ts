@@ -118,3 +118,14 @@ export async function adminCreateAgency(accountId: string, name: string): Promis
   });
   if (error) throw error;
 }
+
+/** Undoes a grant. Client trips aren't deleted — they lose the agency tag
+ *  and carry on as ordinary trips belonging to whoever built them, so this
+ *  returns how many that affects for the caller to confirm against. */
+export async function adminRevokeAgency(agencyId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("admin_revoke_agency", {
+    p_agency_id: agencyId,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
