@@ -13,6 +13,8 @@ interface Suggestion {
   day: number;
 }
 
+type ShareableRole = "Editor" | "Contributor";
+
 export function PeopleTab({
   role,
   onRoleChange,
@@ -20,6 +22,7 @@ export function PeopleTab({
   members,
   pendingSuggestions,
   onCreateInvite,
+  onCreateAccessCode,
   isExample,
   theme,
 }: {
@@ -32,26 +35,30 @@ export function PeopleTab({
   /** Creates an invite link for the given role and resolves to its full
    *  shareable URL. Only ever called from the Organiser-only button below,
    *  but the real gate is RLS on trip_invites, not this UI. */
-  onCreateInvite: (role: "Editor" | "Contributor") => Promise<string>;
+  onCreateInvite: (role: ShareableRole) => Promise<string>;
+  /** Same shape, but the resulting link needs no account at all to open —
+   *  it signs the opener into an anonymous session automatically. */
+  onCreateAccessCode: (role: ShareableRole) => Promise<string>;
   isExample: boolean;
   theme: Theme;
 }) {
-  const [inviting, setInviting] = useState<"Editor" | "Contributor" | undefined>();
-  const [inviteStatus, setInviteStatus] = useState<string | undefined>();
+  const [busy, setBusy] = useState<`${"invite" | "code"}:${ShareableRole}` | undefined>();
+  const [status, setStatus] = useState<string | undefined>();
 
   /* Suggestions waiting are part of the authored example — a real trip
      shows whatever's actually pending from proposeItem. */
   const inbox = isExample ? INBOX : pendingSuggestions;
 
-  async function invite(inviteRole: "Editor" | "Contributor") {
-    setInviting(inviteRole);
-    setInviteStatus(undefined);
+  async function share(kind: "invite" | "code", shareRole: ShareableRole) {
+    setBusy(`${kind}:${shareRole}`);
+    setStatus(undefined);
     try {
-      const url = await onCreateInvite(inviteRole);
+      const url = await (kind === "invite" ? onCreateInvite : onCreateAccessCode)(shareRole);
+      const noun = kind === "invite" ? "invite it as" : "join in, no account needed, as";
       if (navigator.share) {
         try {
           await navigator.share({ title: "Join the trip", url });
-          setInviteStatus(undefined);
+          setStatus(undefined);
           return;
         } catch {
           /* dismissed — fall through to copying */
@@ -59,14 +66,14 @@ export function PeopleTab({
       }
       try {
         await navigator.clipboard.writeText(url);
-        setInviteStatus(`Link copied — share it with whoever you're inviting as ${inviteRole.toLowerCase()}.`);
+        setStatus(`Link copied — share it with whoever you're ${noun} ${shareRole.toLowerCase()}.`);
       } catch {
-        setInviteStatus(url);
+        setStatus(url);
       }
     } catch {
-      setInviteStatus("Couldn't create that invite — try again in a moment.");
+      setStatus(`Couldn't create that ${kind === "invite" ? "invite" : "link"} — try again in a moment.`);
     } finally {
-      setInviting(undefined);
+      setBusy(undefined);
     }
   }
 
@@ -132,28 +139,56 @@ export function PeopleTab({
             <button
               type="button"
               className="trip-page__reset kind-picker__option"
-              disabled={inviting !== undefined}
-              onClick={() => invite("Editor")}
+              disabled={busy !== undefined}
+              onClick={() => share("invite", "Editor")}
               style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
             >
-              {inviting === "Editor" ? "Creating…" : "As an editor"}
+              {busy === "invite:Editor" ? "Creating…" : "As an editor"}
             </button>
             <button
               type="button"
               className="trip-page__reset kind-picker__option"
-              disabled={inviting !== undefined}
-              onClick={() => invite("Contributor")}
+              disabled={busy !== undefined}
+              onClick={() => share("invite", "Contributor")}
               style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
             >
-              {inviting === "Contributor" ? "Creating…" : "To suggest only"}
+              {busy === "invite:Contributor" ? "Creating…" : "To suggest only"}
             </button>
           </div>
-          {inviteStatus && (
+
+          <span
+            className="wf-card__eyebrow"
+            style={{ fontFamily: theme.fontMono, color: theme.meta }}
+          >
+            Client link — no account needed
+          </span>
+          <div className="kind-picker">
+            <button
+              type="button"
+              className="trip-page__reset kind-picker__option"
+              disabled={busy !== undefined}
+              onClick={() => share("code", "Editor")}
+              style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
+            >
+              {busy === "code:Editor" ? "Creating…" : "Editor access"}
+            </button>
+            <button
+              type="button"
+              className="trip-page__reset kind-picker__option"
+              disabled={busy !== undefined}
+              onClick={() => share("code", "Contributor")}
+              style={{ background: theme.card, borderColor: theme.line, color: theme.body }}
+            >
+              {busy === "code:Contributor" ? "Creating…" : "Suggest only"}
+            </button>
+          </div>
+
+          {status && (
             <span
               className="add-sheet__hint"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}
             >
-              {inviteStatus}
+              {status}
             </span>
           )}
         </div>

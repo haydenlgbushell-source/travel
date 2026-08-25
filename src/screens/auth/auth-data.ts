@@ -4,7 +4,12 @@
  * signing in on a phone picks up the same trips a laptop created. The app's
  * own UX still treats the mobile number as the username, so sign-in resolves
  * mobile -> email via `email_for_mobile` (a narrow RPC that leaks nothing but
- * "an account with this mobile exists") before handing off to Supabase. */
+ * "an account with this mobile exists") before handing off to Supabase.
+ *
+ * A guest reached via a client access code gets an anonymous Supabase
+ * session instead — no email or password at all — via signInAsGuest(). It's
+ * still a real row in `accounts` (the same signup trigger creates it), just
+ * with no mobile and no name until/unless they ever set one. */
 
 import { supabase } from "../../lib/supabase";
 
@@ -13,6 +18,10 @@ export interface Account {
   mobile: string;
   email: string;
   name?: string;
+  /** Reached via a client access code rather than signing up — no password,
+   *  no email, and (per initialState in App.tsx) never asked to pick a name
+   *  before being dropped straight into the one trip they redeemed. */
+  isAnonymous?: boolean;
 }
 
 /** Digits only, so "+1 312-660-8615" and "13126608615" are the same account. */
@@ -20,14 +29,14 @@ export function normaliseMobile(mobile: string): string {
   return mobile.replace(/[^\d]/g, "");
 }
 
-async function fetchAccount(id: string, email: string): Promise<Account> {
+async function fetchAccount(id: string, email: string, isAnonymous: boolean): Promise<Account> {
   const { data, error } = await supabase
     .from("accounts")
     .select("mobile, name")
     .eq("id", id)
     .single();
   if (error) throw error;
-  return { id, email, mobile: data.mobile ?? "", name: data.name ?? undefined };
+  return { id, email, mobile: data.mobile ?? "", name: data.name ?? undefined, isAnonymous };
 }
 
 export type SignUpError = "mobile-taken" | "email-taken";
@@ -55,7 +64,7 @@ export async function signUp(
   }
   if (!data.user) throw new Error("Sign-up did not return a user.");
 
-  return { account: await fetchAccount(data.user.id, data.user.email ?? email) };
+  return { account: await fetchAccount(data.user.id, data.user.email ?? email, false) };
 }
 
 export async function signIn(
@@ -71,7 +80,16 @@ export async function signIn(
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: "wrong-password" };
 
-  return { account: await fetchAccount(data.user.id, data.user.email ?? email) };
+  return { account: await fetchAccount(data.user.id, data.user.email ?? email, false) };
+}
+
+/** For a client opening an access-code link with no account of their own —
+ *  requires "Allow anonymous sign-ins" enabled on the Supabase project. */
+export async function signInAsGuest(): Promise<Account> {
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  if (!data.user) throw new Error("Anonymous sign-in did not return a user.");
+  return fetchAccount(data.user.id, "", true);
 }
 
 export async function setAccountName(accountId: string, name: string): Promise<Account> {
@@ -80,7 +98,13 @@ export async function setAccountName(accountId: string, name: string): Promise<A
   if (error) throw error;
 
   const { data } = await supabase.auth.getUser();
-  return { id: accountId, email: data.user?.email ?? "", mobile: "", name: trimmed };
+  return {
+    id: accountId,
+    email: data.user?.email ?? "",
+    mobile: "",
+    name: trimmed,
+    isAnonymous: data.user?.is_anonymous ?? false,
+  };
 }
 
 export async function clearSession(): Promise<void> {
@@ -92,9 +116,9 @@ export async function clearSession(): Promise<void> {
 export async function currentAccount(): Promise<Account | undefined> {
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user;
-  if (!user?.email) return undefined;
+  if (!user) return undefined;
   try {
-    return await fetchAccount(user.id, user.email);
+    return await fetchAccount(user.id, user.email ?? "", user.is_anonymous ?? false);
   } catch {
     return undefined;
   }
@@ -106,11 +130,11 @@ export async function currentAccount(): Promise<Account | undefined> {
 export function onAccountChange(callback: (account: Account | undefined) => void): () => void {
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
     const user = session?.user;
-    if (!user?.email) {
+    if (!user) {
       callback(undefined);
       return;
     }
-    fetchAccount(user.id, user.email)
+    fetchAccount(user.id, user.email ?? "", user.is_anonymous ?? false)
       .then(callback)
       .catch(() => callback(undefined));
   });

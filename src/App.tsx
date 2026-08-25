@@ -17,6 +17,7 @@ import { SharedListScreen } from "./screens/trip/SharedListScreen";
 import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
 import { InviteAcceptScreen } from "./screens/auth/InviteAcceptScreen";
+import { AccessCodeScreen } from "./screens/auth/AccessCodeScreen";
 import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
   decodeShare,
@@ -44,18 +45,28 @@ function readInviteToken(): string | undefined {
   return match?.[1];
 }
 
+/** A client access code, same fragment pattern again — but unlike an invite
+ *  this one needs no account at all going in; AccessCodeScreen signs up an
+ *  anonymous session itself if there isn't one already. */
+function readAccessCode(): string | undefined {
+  const match = /[#&]access=([^&]+)/.exec(window.location.hash);
+  return match?.[1];
+}
+
 /** Everything an account owns, read together so the screen only changes once
  *  it's known whether to open a trip, the trip list, or setup. */
 async function initialState(account: Account | undefined) {
   if (!account) {
     return { events: [], currentId: undefined, screen: "auth" as Screen, pastTrips: [] as PastTrip[] };
   }
-  if (!account.name) {
+  /* A guest reached via an access code never picks a name — they're one
+     person on one trip, not setting up an account. */
+  if (!account.name && !account.isAnonymous) {
     return { events: [], currentId: undefined, screen: "name" as Screen, pastTrips: [] as PastTrip[] };
   }
 
   const [events, savedId, pastTrips] = await Promise.all([
-    loadEvents(account.id),
+    loadEvents(),
     loadCurrentEventId(account.id),
     loadPastTrips(account.id),
   ]);
@@ -79,6 +90,7 @@ function App() {
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
   const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
+  const [accessCode, setAccessCode] = useState<string | undefined>(readAccessCode);
   /* Tracks whose data is currently loaded, so a token refresh or other
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
@@ -88,6 +100,7 @@ function App() {
     const onHashChange = () => {
       setShared(readShareLink());
       setInviteToken(readInviteToken());
+      setAccessCode(readAccessCode());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -208,6 +221,35 @@ function App() {
     );
   }
 
+  /* Needs no account at all going in — it signs up an anonymous session
+     itself if there isn't one — so it renders ahead of the bootLoading gate
+     rather than waiting on the normal boot sequence. */
+  if (accessCode) {
+    return (
+      <AccessCodeScreen
+        code={accessCode}
+        account={account}
+        onJoined={(tripId) => {
+          window.location.hash = "";
+          setAccessCode(undefined);
+          loadEvents()
+            .then((next) => {
+              setEvents(next);
+              openEvent(tripId);
+            })
+            .catch(() => {
+              setScreen("setup");
+            });
+        }}
+        onDecline={() => {
+          window.location.hash = "";
+          setAccessCode(undefined);
+          setScreen(currentId ? "trip" : events.length > 0 ? "trips" : "setup");
+        }}
+      />
+    );
+  }
+
   if (bootLoading) {
     return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
   }
@@ -222,7 +264,7 @@ function App() {
         onJoined={(tripId) => {
           window.location.hash = "";
           setInviteToken(undefined);
-          loadEvents(account.id)
+          loadEvents()
             .then((next) => {
               setEvents(next);
               openEvent(tripId);

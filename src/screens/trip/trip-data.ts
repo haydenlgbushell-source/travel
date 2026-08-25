@@ -251,6 +251,30 @@ export async function acceptInvite(token: string): Promise<string> {
   return data as string;
 }
 
+/** A short, human-typeable code rather than a link-only token — meant for
+ *  handing to a client who won't be creating an account, not just pasting
+ *  a URL. Organiser-of-the-trip only, per RLS. */
+export async function createAccessCode(
+  tripId: string,
+  role: "Editor" | "Contributor",
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("trip_access_codes")
+    .insert({ trip_id: tripId, role })
+    .select("code")
+    .single();
+  if (error) throw error;
+  return (data as { code: string }).code;
+}
+
+/** Works from an anonymous session or a real account alike — either way it
+ *  grants exactly the code's role, checked and consumed server-side. */
+export async function redeemAccessCode(code: string): Promise<string> {
+  const { data, error } = await supabase.rpc("redeem_access_code", { p_code: code });
+  if (error) throw error;
+  return data as string;
+}
+
 /** Authored without ids; `DAYS` stamps them on once at module load. */
 type AuthoredDay = Omit<Day, "items" | "date"> & { items: Array<Omit<TripItem, "id">> };
 

@@ -46,15 +46,16 @@ function fromRow(row: TripRow): EventDetails {
   };
 }
 
-/** Everything is keyed to the account that made it — RLS enforces this too,
- *  but filtering here keeps the query itself honest about what it's asking
- *  for. One device can be shared; signing out and in as someone else must
- *  not hand them the previous person's trips. */
-export async function loadEvents(accountId: string): Promise<EventDetails[]> {
+/** Every trip the signed-in account can see — RLS (trip_members-based since
+ *  Phase 2) is what actually scopes this, not a client-side filter, since a
+ *  trip someone else invited them onto is exactly as real as one they made
+ *  themselves. One device can be shared; signing out and in as someone else
+ *  still can't reach the previous person's trips, because that account has
+ *  no trip_members rows on them. */
+export async function loadEvents(): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
     .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example")
-    .eq("owner_id", accountId)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as TripRow[]).map(fromRow);

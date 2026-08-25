@@ -22,6 +22,7 @@ import {
   byTime,
   clashAt,
   archive,
+  createAccessCode,
   createInvite,
   daysForRange,
   isoDate,
@@ -433,6 +434,14 @@ export function TripPage({
     return `${origin}${pathname}#invite=${token}`;
   }
 
+  /** For a client who won't be creating an account — the link signs them
+     into an anonymous session automatically when opened. */
+  async function createClientLink(codeRole: "Editor" | "Contributor"): Promise<string> {
+    const code = await createAccessCode(event.id, codeRole);
+    const { origin, pathname } = window.location;
+    return `${origin}${pathname}#access=${code}`;
+  }
+
   function resolve(id: string, verdict: Verdict | undefined) {
     setResolved((prev) => {
       if (verdict === undefined) {
@@ -686,6 +695,7 @@ export function TripPage({
                     })),
                 )}
                 onCreateInvite={createInviteLink}
+                onCreateAccessCode={createClientLink}
                 isExample={isExample}
                 theme={theme}
               />
