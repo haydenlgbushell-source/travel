@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ThemeProvider, type Theme } from "../../theme";
+import { ThemeProvider, getTheme, type Theme } from "../../theme";
 import type { EventDetails } from "./event-data";
 import "../trip/trip-page.css";
 
@@ -148,6 +148,12 @@ export function TripsScreen({
                       {trip.destination}
                     </span>
                   )}
+                  <span
+                    className="past-card__counts"
+                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                  >
+                    {getTheme(trip.themeKey).name} style
+                  </span>
                 </button>
 
                 {confirmingId === trip.id ? (

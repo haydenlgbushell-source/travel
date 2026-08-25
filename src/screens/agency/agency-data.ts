@@ -18,6 +18,7 @@ interface TripRow {
   lng: number | null;
   from_example: boolean;
   agency_id?: string | null;
+  theme_key: string;
 }
 
 interface AgencyRpcRow {
@@ -43,7 +44,7 @@ export async function loadMyAgency(): Promise<Agency | undefined> {
 export async function loadAgencyTrips(agencyId: string): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id")
+    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id, theme_key")
     .eq("agency_id", agencyId)
     .order("created_at", { ascending: false });
   if (error) throw error;

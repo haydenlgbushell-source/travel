@@ -101,6 +101,10 @@ export function TripSetupPage({
         lat: place?.lat,
         lng: place?.lng,
         fromExample: useExample,
+        themeKey,
+        /* Not editable here — carried forward so saving changes to a
+           client trip can't silently detach it from its agency. */
+        agencyId: editing?.agencyId,
       });
     } finally {
       setCreating(false);

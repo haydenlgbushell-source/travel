@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ThemeProvider, type Theme } from "../../theme";
+import { ThemeProvider, getTheme, type Theme } from "../../theme";
 import type { EventDetails } from "../trip-setup/event-data";
 import { loadAgencyTrips, type Agency } from "./agency-data";
 import "../trip/trip-page.css";
@@ -105,6 +105,9 @@ export function AgencyPage({
                     {trip.destination}
                   </span>
                 )}
+                <span className="past-card__counts" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+                  {getTheme(trip.themeKey).name} style
+                </span>
               </button>
             </div>
           ))}

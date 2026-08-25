@@ -31,7 +31,7 @@ import { AdminPage } from "./screens/admin/AdminPage";
 import { AgencyPage } from "./screens/agency/AgencyPage";
 import { loadMyAgency, type Agency } from "./screens/agency/agency-data";
 
-type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "admin" | "agency";
+type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "agency";
 
 /** A shared list arrives in the fragment, so it needs no server route and
  *  survives being pasted anywhere. */
@@ -54,6 +54,13 @@ function readInviteToken(): string | undefined {
 function readAccessCode(): string | undefined {
   const match = /[#&]access=([^&]+)/.exec(window.location.hash);
   return match?.[1];
+}
+
+/** A direct, bookmarkable link to the admin page — no token, just a flag,
+ *  since the real gate is account.isAdmin once signed in, not anything in
+ *  the URL. */
+function readAdminRoute(): boolean {
+  return /[#&]admin(?:&|$)/.test(window.location.hash);
 }
 
 /** Everything an account owns, read together so the screen only changes once
@@ -117,6 +124,7 @@ function App() {
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
   const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
   const [accessCode, setAccessCode] = useState<string | undefined>(readAccessCode);
+  const [adminRoute, setAdminRoute] = useState<boolean>(readAdminRoute);
   /* Tracks whose data is currently loaded, so a token refresh or other
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
@@ -127,6 +135,7 @@ function App() {
       setShared(readShareLink());
       setInviteToken(readInviteToken());
       setAccessCode(readAccessCode());
+      setAdminRoute(readAdminRoute());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -291,6 +300,22 @@ function App() {
     return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
   }
 
+  /* A direct, bookmarkable route rather than something reachable only via
+     the in-app button — still gated on account.isAdmin, so visiting the
+     link signed out or as anyone else just falls through to the normal
+     screen below. */
+  if (adminRoute && account?.isAdmin) {
+    return (
+      <AdminPage
+        onBack={() => {
+          window.location.hash = "";
+          setAdminRoute(false);
+        }}
+        theme={theme}
+      />
+    );
+  }
+
   /* Needs a real account first — sign-up/sign-in and NamePage run their
      normal course underneath (screen still drives them), and this catches
      the invite on the next render once account.name is set either way. */
@@ -402,20 +427,29 @@ function App() {
           setScreen("setup");
         }}
         onEdit={(id) => {
+          /* Opens the style picker on the trip's actual design rather than
+             whatever the picker last happened to show — otherwise "Save
+             changes" without touching Trip style would silently switch it
+             to whatever was last selected elsewhere. */
+          const target = events.find((e) => e.id === id);
+          if (target) setThemeKey(target.themeKey);
           setEditingId(id);
           setScreen("setup");
         }}
         onDelete={deleteEvent}
         onBack={currentId ? () => setScreen("trip") : undefined}
-        onOpenAdmin={account?.isAdmin ? () => setScreen("admin") : undefined}
+        onOpenAdmin={
+          account?.isAdmin
+            ? () => {
+                window.location.hash = "admin";
+                setAdminRoute(true);
+              }
+            : undefined
+        }
         onOpenAgency={agency ? () => setScreen("agency") : undefined}
         theme={theme}
       />
     );
-  }
-
-  if (screen === "admin" && account?.isAdmin) {
-    return <AdminPage onBack={() => setScreen("trips")} theme={theme} />;
   }
 
   if (screen === "agency" && agency) {
@@ -441,7 +475,7 @@ function App() {
            range is edited — the saved plan is fitted to the new range as it
            loads, so nothing on a surviving day is lost. */
         key={`${event.id}:${event.startDate}:${event.endDate}:${event.fromExample}`}
-        theme={theme}
+        theme={getTheme(event.themeKey)}
         event={event}
         accountId={account.id}
         userName={account.name}

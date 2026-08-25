@@ -21,6 +21,10 @@ export interface EventDetails {
   /** Set when a travel agent created this on a client's behalf — null for
    *  every trip anyone makes for themselves. */
   agencyId?: string;
+  /** Which THEMES entry this trip renders in — chosen once at setup, seen by
+   *  everyone on the trip, same as the "Trip style" picker's copy already
+   *  promises. Always set (defaults server-side), never undefined. */
+  themeKey: string;
 }
 
 interface TripRow {
@@ -34,6 +38,7 @@ interface TripRow {
   lng: number | null;
   from_example: boolean;
   agency_id?: string | null;
+  theme_key: string;
 }
 
 /** Shared with agency-data.ts, which lists trips the same way but filtered
@@ -50,6 +55,7 @@ export function eventFromTripRow(row: TripRow): EventDetails {
     lng: row.lng ?? undefined,
     fromExample: row.from_example,
     agencyId: row.agency_id ?? undefined,
+    themeKey: row.theme_key,
   };
 }
 
@@ -62,7 +68,7 @@ export function eventFromTripRow(row: TripRow): EventDetails {
 export async function loadEvents(): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id")
+    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id, theme_key")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as TripRow[]).map(eventFromTripRow);
@@ -86,6 +92,7 @@ export async function upsertEvent(accountId: string, event: EventDetails): Promi
     lng: event.lng ?? null,
     from_example: event.fromExample ?? false,
     agency_id: event.agencyId ?? null,
+    theme_key: event.themeKey,
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;
