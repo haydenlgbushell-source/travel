@@ -44,6 +44,24 @@ interface TripRpcRow {
   created_at: string;
 }
 
+export interface AdminAgencyRow {
+  id: string;
+  name: string;
+  ownerAccountId: string;
+  ownerMobile: string;
+  agentCount: number;
+  createdAt: string;
+}
+
+interface AgencyRpcRow {
+  id: string;
+  name: string;
+  owner_account_id: string;
+  owner_mobile: string | null;
+  agent_count: number;
+  created_at: string;
+}
+
 /** Both RPCs check is_admin on the caller server-side and return nothing at
  *  all if that fails — there's no client-side gate to bypass, this is just
  *  reading what the database already refused everyone else. */
@@ -75,4 +93,28 @@ export async function adminListTrips(): Promise<AdminTripRow[]> {
     memberCount: Number(r.member_count),
     createdAt: r.created_at,
   }));
+}
+
+export async function adminListAgencies(): Promise<AdminAgencyRow[]> {
+  const { data, error } = await supabase.rpc("admin_list_agencies");
+  if (error) throw error;
+  return (data as AgencyRpcRow[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    ownerAccountId: r.owner_account_id,
+    ownerMobile: r.owner_mobile ?? "",
+    agentCount: Number(r.agent_count),
+    createdAt: r.created_at,
+  }));
+}
+
+/** The only way an account gets agency access at all — makes it that
+ *  account's agency Owner. Server-side this is is_admin-gated the same way
+ *  the two list RPCs are, and refuses an account that already owns one. */
+export async function adminCreateAgency(accountId: string, name: string): Promise<void> {
+  const { error } = await supabase.rpc("admin_create_agency", {
+    p_account_id: accountId,
+    p_name: name,
+  });
+  if (error) throw error;
 }

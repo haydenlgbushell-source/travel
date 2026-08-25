@@ -4,6 +4,7 @@ import { eventFromTripRow, type EventDetails } from "../trip-setup/event-data";
 export interface Agency {
   id: string;
   name: string;
+  role: "Owner" | "Agent";
 }
 
 interface TripRow {
@@ -19,32 +20,21 @@ interface TripRow {
   agency_id?: string | null;
 }
 
-/** One agency per account, auto-provisioned the first time the travel-agent
- *  page opens — creating one up front for an account that never uses it
- *  would just be clutter. Only ever finds an agency this account *owns*;
- *  being added as a second Agent on someone else's agency has no UI yet
- *  (the schema supports it — agency_agents.role already distinguishes
- *  Owner/Agent — this just doesn't expose a way to invite one in). */
-export async function loadOrCreateMyAgency(
-  accountId: string,
-  defaultName: string,
-): Promise<Agency> {
-  const { data: existing, error: selectError } = await supabase
-    .from("agencies")
-    .select("id, name")
-    .eq("owner_account_id", accountId)
-    .limit(1)
-    .maybeSingle();
-  if (selectError) throw selectError;
-  if (existing) return existing as Agency;
+interface AgencyRpcRow {
+  id: string;
+  name: string;
+  role: string;
+}
 
-  const { data: created, error: insertError } = await supabase
-    .from("agencies")
-    .insert({ owner_account_id: accountId, name: defaultName })
-    .select("id, name")
-    .single();
-  if (insertError) throw insertError;
-  return created as Agency;
+/** Agency access is granted, not self-served — an account only has one once
+ *  the admin has designated it as an agency's Owner (or, once that UI
+ *  exists, been added as an Agent to someone else's). This just reads
+ *  whether that's true for the signed-in account; it never creates one. */
+export async function loadMyAgency(): Promise<Agency | undefined> {
+  const { data, error } = await supabase.rpc("my_agency");
+  if (error) throw error;
+  const row = (data as AgencyRpcRow[])[0];
+  return row ? { id: row.id, name: row.name, role: row.role as Agency["role"] } : undefined;
 }
 
 /** Every trip tagged to this agency — RLS (has_agency_access) is what

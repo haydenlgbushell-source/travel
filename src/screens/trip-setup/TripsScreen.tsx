@@ -25,9 +25,10 @@ export function TripsScreen({
   /** Only passed for the one account this product's creator uses — there's
    *  no in-app way to become that account, so its absence is the gate. */
   onOpenAdmin?: () => void;
-  /** Open to any signed-in account — the agency itself is auto-provisioned
-   *  the first time this is opened, so there's nothing to gate here. */
-  onOpenAgency: () => void;
+  /** Only passed for an account the admin has designated as an agency's
+   *  Owner or Agent — agency access is granted, not something anyone can
+   *  reach on their own. */
+  onOpenAgency?: () => void;
   theme: Theme;
 }) {
   /* Deleting a trip takes its whole plan with it and there's no undo, so it
@@ -61,14 +62,16 @@ export function TripsScreen({
             {onBack ? `← ${theme.wordmark}` : theme.wordmark}
           </button>
           <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              type="button"
-              className="trip-page__reset"
-              onClick={onOpenAgency}
-              style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
-            >
-              Agency
-            </button>
+            {onOpenAgency && (
+              <button
+                type="button"
+                className="trip-page__reset"
+                onClick={onOpenAgency}
+                style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
+              >
+                Agency
+              </button>
+            )}
             {onOpenAdmin && (
               <button
                 type="button"

@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import { ThemeProvider, type Theme } from "../../theme";
-import type { Account } from "../auth/auth-data";
 import type { EventDetails } from "../trip-setup/event-data";
-import { loadAgencyTrips, loadOrCreateMyAgency, type Agency } from "./agency-data";
+import { loadAgencyTrips, type Agency } from "./agency-data";
 import "../trip/trip-page.css";
 
 export function AgencyPage({
-  account,
+  agency,
   onOpenTrip,
   onCreateClientTrip,
   onBack,
   theme,
 }: {
-  account: Account;
+  /** Only ever handed to this page once the caller has confirmed the
+   *  account has agency access — this page has no path of its own to get
+   *  or grant it, so it never fetches or creates one itself. */
+  agency: Agency;
   onOpenTrip: (id: string) => void;
   /** Sends the agent into the normal "new trip" flow, tagged so the trip
    *  that comes out of it belongs to this agency rather than being
@@ -21,29 +23,22 @@ export function AgencyPage({
   onBack: () => void;
   theme: Theme;
 }) {
-  const [agency, setAgency] = useState<Agency>();
   const [trips, setTrips] = useState<EventDetails[]>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     let cancelled = false;
-    const defaultName = account.name ? `${account.name}'s Agency` : "My Agency";
-    loadOrCreateMyAgency(account.id, defaultName)
-      .then((a) => {
-        if (cancelled) return;
-        setAgency(a);
-        return loadAgencyTrips(a.id);
-      })
+    loadAgencyTrips(agency.id)
       .then((t) => {
-        if (!cancelled && t) setTrips(t);
+        if (!cancelled) setTrips(t);
       })
       .catch(() => {
-        if (!cancelled) setError("Couldn't load your agency.");
+        if (!cancelled) setError("Couldn't load your agency's trips.");
       });
     return () => {
       cancelled = true;
     };
-  }, [account.id, account.name]);
+  }, [agency.id]);
 
   return (
     <ThemeProvider theme={theme} className="trip-page" style={{ background: theme.bg, color: theme.ink }}>
@@ -66,7 +61,7 @@ export function AgencyPage({
                 : "Loading…"}
             </div>
             <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
-              {agency?.name ?? "Travel agent"}
+              {agency.name}
             </div>
           </div>
         </div>
@@ -114,16 +109,14 @@ export function AgencyPage({
             </div>
           ))}
 
-          {agency && (
-            <button
-              type="button"
-              className="trip-page__reset trip-page__add trips__new"
-              onClick={() => onCreateClientTrip(agency.id)}
-              style={{ color: theme.bg, background: theme.ink, borderColor: theme.ink }}
-            >
-              Build a client trip
-            </button>
-          )}
+          <button
+            type="button"
+            className="trip-page__reset trip-page__add trips__new"
+            onClick={() => onCreateClientTrip(agency.id)}
+            style={{ color: theme.bg, background: theme.ink, borderColor: theme.ink }}
+          >
+            Build a client trip
+          </button>
 
           <span
             className="add-sheet__foot"

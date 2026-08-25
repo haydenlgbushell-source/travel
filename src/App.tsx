@@ -29,6 +29,7 @@ import {
 } from "./screens/trip/trip-data";
 import { AdminPage } from "./screens/admin/AdminPage";
 import { AgencyPage } from "./screens/agency/AgencyPage";
+import { loadMyAgency, type Agency } from "./screens/agency/agency-data";
 
 type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "admin" | "agency";
 
@@ -59,22 +60,38 @@ function readAccessCode(): string | undefined {
  *  it's known whether to open a trip, the trip list, or setup. */
 async function initialState(account: Account | undefined) {
   if (!account) {
-    return { events: [], currentId: undefined, screen: "auth" as Screen, pastTrips: [] as PastTrip[] };
+    return {
+      events: [],
+      currentId: undefined,
+      screen: "auth" as Screen,
+      pastTrips: [] as PastTrip[],
+      agency: undefined as Agency | undefined,
+    };
   }
   /* A guest reached via an access code never picks a name — they're one
      person on one trip, not setting up an account. */
   if (!account.name && !account.isAnonymous) {
-    return { events: [], currentId: undefined, screen: "name" as Screen, pastTrips: [] as PastTrip[] };
+    return {
+      events: [],
+      currentId: undefined,
+      screen: "name" as Screen,
+      pastTrips: [] as PastTrip[],
+      agency: undefined as Agency | undefined,
+    };
   }
 
-  const [events, savedId, pastTrips] = await Promise.all([
+  /* A guest's own agency status is meaningless — they're never the account
+     an admin would designate — so this skips the lookup for them rather
+     than firing an RPC call that could only ever come back empty. */
+  const [events, savedId, pastTrips, agency] = await Promise.all([
     loadEvents(),
     loadCurrentEventId(account.id),
     loadPastTrips(account.id),
+    account.isAnonymous ? Promise.resolve(undefined) : loadMyAgency().catch(() => undefined),
   ]);
   const currentId = events.some((e) => e.id === savedId) ? savedId : undefined;
   const screen: Screen = currentId ? "trip" : events.length > 0 ? "trips" : "setup";
-  return { events, currentId, screen, pastTrips };
+  return { events, currentId, screen, pastTrips, agency };
 }
 
 function App() {
@@ -93,6 +110,9 @@ function App() {
   const [pendingAgencyId, setPendingAgencyId] = useState<string | undefined>();
   const [screen, setScreen] = useState<Screen>("auth");
   const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
+  /* Undefined for almost everyone — only set for an account the admin has
+     designated as an agency's Owner or Agent. */
+  const [agency, setAgency] = useState<Agency | undefined>();
   const [openTripId, setOpenTripId] = useState<string | undefined>();
   const [shared, setShared] = useState<SharedList | undefined>(readShareLink);
   const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
@@ -131,6 +151,7 @@ function App() {
           setCurrentId(next.currentId);
           setScreen(next.screen);
           setPastTrips(next.pastTrips);
+          setAgency(next.agency);
           setBootLoading(false);
         })
         .catch(() => {
@@ -140,6 +161,7 @@ function App() {
           setCurrentId(undefined);
           setScreen(acc ? "trips" : "auth");
           setPastTrips([]);
+          setAgency(undefined);
           setBootLoading(false);
         });
     });
@@ -205,6 +227,7 @@ function App() {
     setEvents([]);
     setCurrentId(undefined);
     setEditingId(undefined);
+    setAgency(undefined);
     setScreen("auth");
   }
 
@@ -311,6 +334,7 @@ function App() {
               setCurrentId(next.currentId);
               setScreen(next.screen);
               setPastTrips(next.pastTrips);
+              setAgency(next.agency);
               setBootLoading(false);
             })
             .catch(() => {
@@ -318,6 +342,7 @@ function App() {
               setCurrentId(undefined);
               setScreen("trips");
               setPastTrips([]);
+              setAgency(undefined);
               setBootLoading(false);
             });
         }}
@@ -383,7 +408,7 @@ function App() {
         onDelete={deleteEvent}
         onBack={currentId ? () => setScreen("trip") : undefined}
         onOpenAdmin={account?.isAdmin ? () => setScreen("admin") : undefined}
-        onOpenAgency={() => setScreen("agency")}
+        onOpenAgency={agency ? () => setScreen("agency") : undefined}
         theme={theme}
       />
     );
@@ -393,10 +418,10 @@ function App() {
     return <AdminPage onBack={() => setScreen("trips")} theme={theme} />;
   }
 
-  if (screen === "agency" && account) {
+  if (screen === "agency" && agency) {
     return (
       <AgencyPage
-        account={account}
+        agency={agency}
         onOpenTrip={openEvent}
         onCreateClientTrip={(agencyId) => {
           setPendingAgencyId(agencyId);
