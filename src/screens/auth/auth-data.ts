@@ -45,12 +45,19 @@ export async function signUp(
   mobile: string,
   email: string,
   password: string,
-): Promise<{ account: Account } | { error: SignUpError }> {
+): Promise<{ account: Account } | { error: SignUpError } | { confirmationPending: true }> {
   const normalisedMobile = normaliseMobile(mobile);
   const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
-    options: { data: { mobile: normalisedMobile } },
+    options: {
+      data: { mobile: normalisedMobile },
+      /* Where the confirmation email's link sends them back to — without
+         this it falls back to the project's Site URL, which for a project
+         set up outside its own dashboard defaults to localhost and goes
+         nowhere real. */
+      emailRedirectTo: window.location.origin,
+    },
   });
 
   if (error) {
@@ -64,13 +71,19 @@ export async function signUp(
   }
   if (!data.user) throw new Error("Sign-up did not return a user.");
 
+  /* This project requires confirming the email before a session exists —
+     signUp() still creates the account, but there's nothing to fetch yet
+     (RLS has no session to check against), and nothing to sign the person
+     into until they click the link. */
+  if (!data.session) return { confirmationPending: true };
+
   return { account: await fetchAccount(data.user.id, data.user.email ?? email, false) };
 }
 
 export async function signIn(
   mobile: string,
   password: string,
-): Promise<{ account: Account } | { error: "not-found" | "wrong-password" }> {
+): Promise<{ account: Account } | { error: "not-found" | "wrong-password" | "not-confirmed" }> {
   const { data: email, error: lookupError } = await supabase.rpc("email_for_mobile", {
     p_mobile: normaliseMobile(mobile),
   });
@@ -78,7 +91,14 @@ export async function signIn(
   if (!email) return { error: "not-found" };
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: "wrong-password" };
+  if (error) {
+    /* This project requires confirming the email address before signing in
+       works at all — GoTrue reports that as its own error code rather than
+       folding it into "wrong password", so the message can actually say
+       what's going on. */
+    if (error.code === "email_not_confirmed") return { error: "not-confirmed" };
+    return { error: "wrong-password" };
+  }
 
   return { account: await fetchAccount(data.user.id, data.user.email ?? email, false) };
 }

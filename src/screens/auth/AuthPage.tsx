@@ -12,12 +12,14 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [confirmationPending, setConfirmationPending] = useState(false);
 
   const isSignUp = mode === "signup";
 
   function switchMode(next: "signup" | "signin") {
     setMode(next);
     setError(undefined);
+    setConfirmationPending(false);
     setPassword("");
     setConfirmPassword("");
   }
@@ -55,6 +57,10 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
           );
           return;
         }
+        if ("confirmationPending" in result) {
+          setConfirmationPending(true);
+          return;
+        }
         onAuthenticated(result.account);
       } else {
         const result = await signIn(mobile, password);
@@ -62,15 +68,37 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
           setError(
             result.error === "not-found"
               ? "No account with that mobile number."
-              : "Wrong password.",
+              : result.error === "not-confirmed"
+                ? "Confirm your email first — check the link we sent when you signed up."
+                : "Wrong password.",
           );
           return;
         }
         onAuthenticated(result.account);
       }
+    } catch {
+      setError("Something went wrong on our end — try again in a moment.");
     } finally {
       setBusy(false);
     }
+  }
+
+  if (confirmationPending) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <span className="auth-wordmark">Wayfare</span>
+          <h1 className="auth-title">Check your email</h1>
+          <p className="auth-lede">
+            We sent a confirmation link to {email.trim()}. Open it, then come back here and sign
+            in with your mobile number and password.
+          </p>
+          <button type="button" className="auth-submit" onClick={() => switchMode("signin")}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -153,8 +181,8 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
         </button>
 
         <p className="auth-note">
-          Stored on this device only — there's no server behind this yet, so it won't follow
-          you to another phone or browser.
+          Your account works on any device — sign in here with the same mobile number and
+          password.
         </p>
       </div>
     </div>
