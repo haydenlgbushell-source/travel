@@ -131,3 +131,16 @@
   margin: 14px 0 0;
   text-wrap: pretty;
 }
+
+.auth-field__match {
+  font-size: 12px;
+  margin-top: -8px;
+}
+
+.auth-field__match--ok {
+  color: oklch(0.5 0.12 155);
+}
+
+.auth-field__match--mismatch {
+  color: oklch(0.5 0.16 25);
+}

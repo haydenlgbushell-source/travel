@@ -53,7 +53,9 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
           setError(
             result.error === "mobile-taken"
               ? "That mobile number already has an account — sign in instead."
-              : "That email is already in use.",
+              : result.error === "email-taken"
+                ? "That email is already in use."
+                : "Too many attempts in a short time — wait a few minutes and try again.",
           );
           return;
         }
@@ -163,6 +165,17 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
             </label>
+          )}
+          {isSignUp && confirmPassword.length > 0 && (
+            <span
+              className={
+                password === confirmPassword
+                  ? "auth-field__match auth-field__match--ok"
+                  : "auth-field__match auth-field__match--mismatch"
+              }
+            >
+              {password === confirmPassword ? "Passwords match" : "Passwords don't match"}
+            </span>
           )}
 
           {error && <div className="auth-error">{error}</div>}

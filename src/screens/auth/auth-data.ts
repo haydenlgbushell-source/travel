@@ -39,7 +39,7 @@ async function fetchAccount(id: string, email: string, isAnonymous: boolean): Pr
   return { id, email, mobile: data.mobile ?? "", name: data.name ?? undefined, isAnonymous };
 }
 
-export type SignUpError = "mobile-taken" | "email-taken";
+export type SignUpError = "mobile-taken" | "email-taken" | "rate-limited";
 
 export async function signUp(
   mobile: string,
@@ -66,6 +66,13 @@ export async function signUp(
     }
     if (/accounts_mobile_key/i.test(error.message)) {
       return { error: "mobile-taken" };
+    }
+    /* The project's default email sender caps how many confirmation emails
+       go out in a short window — a handful of quick retries hits it fast.
+       Worth naming specifically rather than a generic failure, since
+       retrying immediately just makes it worse. */
+    if (error.code === "over_email_send_rate_limit") {
+      return { error: "rate-limited" };
     }
     throw error;
   }
