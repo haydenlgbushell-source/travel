@@ -27,8 +27,10 @@ import {
   type PastTrip,
   type SharedList,
 } from "./screens/trip/trip-data";
+import { AdminPage } from "./screens/admin/AdminPage";
+import { AgencyPage } from "./screens/agency/AgencyPage";
 
-type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip";
+type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "admin" | "agency";
 
 /** A shared list arrives in the fragment, so it needs no server route and
  *  survives being pasted anywhere. */
@@ -85,6 +87,10 @@ function App() {
   const [events, setEvents] = useState<EventDetails[]>([]);
   const [currentId, setCurrentId] = useState<string | undefined>();
   const [editingId, setEditingId] = useState<string | undefined>();
+  /* Set only by AgencyPage's "Build a client trip" button, and only read
+     once — by the setup screen's onCreate below — then cleared, so it can
+     never silently tag a later, unrelated trip as this agency's. */
+  const [pendingAgencyId, setPendingAgencyId] = useState<string | undefined>();
   const [screen, setScreen] = useState<Screen>("auth");
   const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
   const [openTripId, setOpenTripId] = useState<string | undefined>();
@@ -156,17 +162,25 @@ function App() {
    *  then persists in the background — a failed write just means the trip
    *  isn't on another device yet, not that it's lost here. */
   async function upsertEvent(next: EventDetails) {
-    const exists = events.some((e) => e.id === next.id);
-    setEvents(exists ? events.map((e) => (e.id === next.id ? next : e)) : [next, ...events]);
+    /* Only a brand-new trip picks up the pending agency tag — editing an
+       existing one later must never retroactively move it between personal
+       and agency-owned. */
+    const tagged =
+      pendingAgencyId && !events.some((e) => e.id === next.id)
+        ? { ...next, agencyId: pendingAgencyId }
+        : next;
+    setPendingAgencyId(undefined);
+    const exists = events.some((e) => e.id === tagged.id);
+    setEvents(exists ? events.map((e) => (e.id === tagged.id ? tagged : e)) : [tagged, ...events]);
     setEditingId(undefined);
     if (account) {
       try {
-        await upsertEventRow(account.id, next);
+        await upsertEventRow(account.id, tagged);
       } catch {
         /* still shows locally; it'll try again the next time it's edited. */
       }
     }
-    openEvent(next.id);
+    openEvent(tagged.id);
   }
 
   /** Deleting the row cascades to its saved content on the backend — nothing
@@ -368,6 +382,28 @@ function App() {
         }}
         onDelete={deleteEvent}
         onBack={currentId ? () => setScreen("trip") : undefined}
+        onOpenAdmin={account?.isAdmin ? () => setScreen("admin") : undefined}
+        onOpenAgency={() => setScreen("agency")}
+        theme={theme}
+      />
+    );
+  }
+
+  if (screen === "admin" && account?.isAdmin) {
+    return <AdminPage onBack={() => setScreen("trips")} theme={theme} />;
+  }
+
+  if (screen === "agency" && account) {
+    return (
+      <AgencyPage
+        account={account}
+        onOpenTrip={openEvent}
+        onCreateClientTrip={(agencyId) => {
+          setPendingAgencyId(agencyId);
+          setEditingId(undefined);
+          setScreen("setup");
+        }}
+        onBack={() => setScreen("trips")}
         theme={theme}
       />
     );

@@ -18,6 +18,9 @@ export interface EventDetails {
   lng?: number;
   /** Whether this event was seeded with the Chicago example itinerary. */
   fromExample?: boolean;
+  /** Set when a travel agent created this on a client's behalf — null for
+   *  every trip anyone makes for themselves. */
+  agencyId?: string;
 }
 
 interface TripRow {
@@ -30,9 +33,12 @@ interface TripRow {
   lat: number | null;
   lng: number | null;
   from_example: boolean;
+  agency_id?: string | null;
 }
 
-function fromRow(row: TripRow): EventDetails {
+/** Shared with agency-data.ts, which lists trips the same way but filtered
+ *  to one agency rather than "everything I can see". */
+export function eventFromTripRow(row: TripRow): EventDetails {
   return {
     id: row.id,
     name: row.name,
@@ -43,6 +49,7 @@ function fromRow(row: TripRow): EventDetails {
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,
     fromExample: row.from_example,
+    agencyId: row.agency_id ?? undefined,
   };
 }
 
@@ -55,15 +62,17 @@ function fromRow(row: TripRow): EventDetails {
 export async function loadEvents(): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example")
+    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data as TripRow[]).map(fromRow);
+  return (data as TripRow[]).map(eventFromTripRow);
 }
 
 /** Creates the trip if its id hasn't been seen, otherwise updates it in
  *  place — covers both "new event" and "edit an existing one" without the
- *  caller needing to know which. */
+ *  caller needing to know which. `event.agencyId`, when set, tags it as a
+ *  client trip an agent created rather than a personal one — set once at
+ *  creation and never touched by ordinary edits. */
 export async function upsertEvent(accountId: string, event: EventDetails): Promise<void> {
   const { error } = await supabase.from("trips").upsert({
     id: event.id,
@@ -76,6 +85,7 @@ export async function upsertEvent(accountId: string, event: EventDetails): Promi
     lat: event.lat ?? null,
     lng: event.lng ?? null,
     from_example: event.fromExample ?? false,
+    agency_id: event.agencyId ?? null,
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;

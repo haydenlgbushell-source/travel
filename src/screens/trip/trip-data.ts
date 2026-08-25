@@ -185,15 +185,24 @@ export async function loadTripMembers(
   tripId: string,
   myAccountId: string,
 ): Promise<{ members: Person[]; myRole: Role }> {
-  const { data, error } = await supabase.rpc("trip_members_with_names", { p_trip_id: tripId });
-  if (error) throw error;
-  const rows = data as MemberRow[];
+  const [membersResult, roleResult] = await Promise.all([
+    supabase.rpc("trip_members_with_names", { p_trip_id: tripId }),
+    /* Not just a lookup in the members list — an agent reaches a client's
+       trip through their agency, not a trip_members row, so their role
+       has to come from the same function the RLS itself is built on. */
+    supabase.rpc("my_trip_role", { p_trip_id: tripId }),
+  ]);
+  if (membersResult.error) throw membersResult.error;
+  if (roleResult.error) throw roleResult.error;
+
+  const rows = membersResult.data as MemberRow[];
   const members = rows.map((row) => {
     const name = row.name?.trim() || "New member";
     return { initials: initialsOf(name), name, role: row.role, note: "" };
   });
   const mine = rows.find((row) => row.account_id === myAccountId);
-  return { members, myRole: mine?.role ?? "Contributor" };
+  const myRole = (mine?.role ?? (roleResult.data as Role | null)) ?? "Contributor";
+  return { members, myRole };
 }
 
 /** The one write path open to a Contributor — everything else on a real

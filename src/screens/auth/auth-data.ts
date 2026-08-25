@@ -22,6 +22,10 @@ export interface Account {
    *  no email, and (per initialState in App.tsx) never asked to pick a name
    *  before being dropped straight into the one trip they redeemed. */
   isAnonymous?: boolean;
+  /** Set on exactly one account (the product's creator) — gates the admin
+   *  dashboard. Not something any UI can grant; only ever set directly in
+   *  the database. */
+  isAdmin?: boolean;
 }
 
 /** Digits only, so "+1 312-660-8615" and "13126608615" are the same account. */
@@ -32,11 +36,18 @@ export function normaliseMobile(mobile: string): string {
 async function fetchAccount(id: string, email: string, isAnonymous: boolean): Promise<Account> {
   const { data, error } = await supabase
     .from("accounts")
-    .select("mobile, name")
+    .select("mobile, name, is_admin")
     .eq("id", id)
     .single();
   if (error) throw error;
-  return { id, email, mobile: data.mobile ?? "", name: data.name ?? undefined, isAnonymous };
+  return {
+    id,
+    email,
+    mobile: data.mobile ?? "",
+    name: data.name ?? undefined,
+    isAnonymous,
+    isAdmin: data.is_admin ?? false,
+  };
 }
 
 export type SignUpError = "mobile-taken" | "email-taken" | "rate-limited";

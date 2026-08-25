@@ -11,6 +11,8 @@ export function TripsScreen({
   onEdit,
   onDelete,
   onBack,
+  onOpenAdmin,
+  onOpenAgency,
   theme,
 }: {
   trips: EventDetails[];
@@ -20,6 +22,12 @@ export function TripsScreen({
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onBack?: () => void;
+  /** Only passed for the one account this product's creator uses — there's
+   *  no in-app way to become that account, so its absence is the gate. */
+  onOpenAdmin?: () => void;
+  /** Open to any signed-in account — the agency itself is auto-provisioned
+   *  the first time this is opened, so there's nothing to gate here. */
+  onOpenAgency: () => void;
   theme: Theme;
 }) {
   /* Deleting a trip takes its whole plan with it and there's no undo, so it
@@ -36,7 +44,10 @@ export function TripsScreen({
         className="trip-page__head"
         style={{ background: theme.headBg, color: theme.headInk }}
       >
-        <div className="trip-page__head-row">
+        <div
+          className="trip-page__head-row"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+        >
           <button
             type="button"
             className="trip-page__reset trip-page__wordmark"
@@ -49,6 +60,26 @@ export function TripsScreen({
           >
             {onBack ? `← ${theme.wordmark}` : theme.wordmark}
           </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              type="button"
+              className="trip-page__reset"
+              onClick={onOpenAgency}
+              style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
+            >
+              Agency
+            </button>
+            {onOpenAdmin && (
+              <button
+                type="button"
+                className="trip-page__reset"
+                onClick={onOpenAdmin}
+                style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
+              >
+                Admin
+              </button>
+            )}
+          </div>
         </div>
         <div className="trip-page__head-main">
           <div>
