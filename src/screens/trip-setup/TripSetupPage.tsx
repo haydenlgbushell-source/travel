@@ -4,7 +4,7 @@ import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
 import { geocodePlace, type EventDetails } from "./event-data";
-import { EXAMPLE_END, EXAMPLE_START } from "../trip/trip-data";
+import { EXAMPLE_END, EXAMPLE_START, initialsOf } from "../trip/trip-data";
 
 /** "14 – 19 August 2026" — spans a month name only once when both ends
  *  fall in the same month, the way the rest of the app already writes it. */
@@ -45,6 +45,7 @@ export function TripSetupPage({
   themeKey,
   onThemeKeyChange,
   editing,
+  userName,
   onCreate,
   onCancel,
 }: {
@@ -52,10 +53,12 @@ export function TripSetupPage({
   onThemeKeyChange: (key: string) => void;
   /** Set when changing an existing trip rather than starting one. */
   editing?: EventDetails;
+  /** For the header avatar — absent for a guest who hasn't picked a name
+   *  yet, same as everywhere else in the app that shows initials. */
+  userName?: string;
   onCreate: (event: EventDetails) => void;
   onCancel?: () => void;
 }) {
-  const [editorsCanStyle, setEditorsCanStyle] = useState(false);
   const [eventName, setEventName] = useState(editing?.name ?? "");
   const [destination, setDestination] = useState(editing?.destination ?? "");
   const [startDate, setStartDate] = useState(editing?.startDate ?? "");
@@ -116,12 +119,14 @@ export function TripSetupPage({
       <div className="trip-setup__main">
         <header className="trip-setup__header">
           <div className="trip-setup__header-left">
-            <span className="trip-setup__brand">Meridian</span>
+            <span className="trip-setup__brand">{selected.wordmark}</span>
             <span className="wf-mono trip-setup__step">{isEditing ? "Edit trip" : "New event"}</span>
           </div>
           <div className="trip-setup__header-right">
             <span className="wf-mono trip-setup__organiser">Organiser only</span>
-            <span className="trip-setup__avatar">AN</span>
+            <span className="trip-setup__avatar">
+              {userName ? initialsOf(userName) : "?"}
+            </span>
           </div>
         </header>
 
@@ -239,20 +244,6 @@ export function TripSetupPage({
                   <span className="scope-panel__detail">{rule.detail}</span>
                 </div>
               ))}
-              <label className="scope-panel__toggle" onClick={() => setEditorsCanStyle((v) => !v)}>
-                <span
-                  className="scope-panel__checkbox"
-                  style={{
-                    borderColor: editorsCanStyle ? "#14171A" : "#C9CAC3",
-                    background: editorsCanStyle ? "#14171A" : "transparent",
-                  }}
-                >
-                  {editorsCanStyle ? "✓" : ""}
-                </span>
-                <span className="scope-panel__toggle-label">
-                  Let editors change the style too
-                </span>
-              </label>
             </div>
           </section>
 

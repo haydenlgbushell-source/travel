@@ -579,6 +579,7 @@ function App() {
       themeKey={themeKey}
       onThemeKeyChange={setThemeKey}
       editing={editing}
+      userName={account?.name}
       onCreate={upsertEvent}
       onCancel={
         events.length > 0
