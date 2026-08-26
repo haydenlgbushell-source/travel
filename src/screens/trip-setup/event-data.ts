@@ -142,18 +142,28 @@ export interface GeocodedPlace {
   lng: number;
 }
 
-interface GeocodeResponse {
-  results?: Array<{
-    name: string;
-    latitude: number;
-    longitude: number;
-    country?: string;
-    admin1?: string;
+interface PhotonResponse {
+  features?: Array<{
+    geometry: { coordinates: [number, number] };
+    properties: {
+      name?: string;
+      street?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+    };
   }>;
 }
 
-/** Open-Meteo's geocoding API — free and keyless, the same reasoning as the
- *  forecast and the CARTO map tiles. An unrecognised place resolves to
+/** Photon (komoot's OSM-backed geocoder) — free, keyless, and CORS-enabled
+ *  for browser use, same reasoning as the CARTO map tiles it draws pins on.
+ *
+ *  Swapped in for Open-Meteo's geocoding API, which only indexes cities and
+ *  towns — it had no way to resolve "Sydney Airport" or a named restaurant,
+ *  which is most of what actually gets typed into an item's "Where" field.
+ *  Photon is built on general OSM data (POIs, addresses, venues) as well as
+ *  places, so the same call now serves both a trip's city-level destination
+ *  and an item's specific venue. An unrecognised place still resolves to
  *  nothing rather than guessing, so the trip simply has no coordinates and
  *  the weather strip stays quiet. */
 export async function geocodePlace(place: string): Promise<GeocodedPlace | undefined> {
@@ -161,13 +171,15 @@ export async function geocodePlace(place: string): Promise<GeocodedPlace | undef
   if (!query) return undefined;
 
   const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`,
+    `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1&lang=en`,
   );
   if (!res.ok) throw new Error(`Geocoding ${res.status}`);
-  const data = (await res.json()) as GeocodeResponse;
-  const hit = data.results?.[0];
+  const data = (await res.json()) as PhotonResponse;
+  const hit = data.features?.[0];
   if (!hit) return undefined;
 
-  const parts = [hit.name, hit.admin1, hit.country].filter(Boolean);
-  return { label: parts.join(", "), lat: hit.latitude, lng: hit.longitude };
+  const [lng, lat] = hit.geometry.coordinates;
+  const p = hit.properties;
+  const parts = [p.name, p.city ?? p.state, p.country].filter(Boolean);
+  return { label: parts.join(", ") || query, lat, lng };
 }

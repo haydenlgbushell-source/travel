@@ -774,6 +774,10 @@ export function TripPage({
           editing={editing}
           canApprove={canApprove}
           currency={currency}
+          onCurrencyChange={(code) => {
+            setCurrency(code);
+            void saveCurrency(accountId, code).catch(() => {});
+          }}
           onSave={editing ? saveEdit : addItem}
           onDelete={editing ? () => removeItem(editing.id) : undefined}
           onClose={() => {

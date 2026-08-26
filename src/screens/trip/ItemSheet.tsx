@@ -3,13 +3,16 @@ import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
 import {
+  CURRENCIES,
   ITEM_KINDS,
   TRAVEL_MODES,
   airlineFor,
   clashAt,
   draftFrom,
+  fromBaseAmount,
   looksLikeImage,
   suggestSlots,
+  toBaseAmount,
   type Day,
   type DraftItem,
   type TripItem,
@@ -41,6 +44,7 @@ export function ItemSheet({
   editing,
   canApprove,
   currency,
+  onCurrencyChange,
   onSave,
   onDelete,
   onClose,
@@ -50,6 +54,10 @@ export function ItemSheet({
   editing?: TripItem;
   canApprove: boolean;
   currency: string;
+  /** Changes the trip's shared currency — the same setting MoneyTab shows,
+   *  offered here too since this is where a cost actually gets typed in and
+   *  people don't reliably know to go find it elsewhere first. */
+  onCurrencyChange: (code: string) => void;
   onSave: (draft: DraftItem) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -463,8 +471,37 @@ export function ItemSheet({
           </div>
 
           <div className="add-sheet__field">
-            <label htmlFor={ids.cost} className="wf-card__eyebrow" style={labelStyle}>
-              Cost each, in {currency}
+            <label htmlFor={ids.cost} className="wf-card__eyebrow currency" style={labelStyle}>
+              Cost each, in
+              <select
+                className="currency__select"
+                value={currency}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  /* Re-express what's already typed in the new currency
+                     rather than leaving the same digits under a different
+                     label — otherwise switching currency mid-entry silently
+                     changes what the number means. */
+                  const base = toBaseAmount(draft.costEach, currency);
+                  if (base !== undefined) {
+                    set("costEach", fromBaseAmount(base, next));
+                  }
+                  onCurrencyChange(next);
+                }}
+                aria-label="Currency"
+                style={{
+                  fontFamily: theme.fontMono,
+                  color: theme.ink,
+                  background: theme.strip,
+                  borderColor: theme.line,
+                }}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code}
+                  </option>
+                ))}
+              </select>
             </label>
             <input
               id={ids.cost}
