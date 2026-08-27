@@ -65,6 +65,12 @@ export function ItemSheet({
 }) {
   const [draft, setDraft] = useState<DraftItem>(editing ? draftFrom(editing, currency) : EMPTY);
   const [detailOpen, setDetailOpen] = useState(editing !== undefined);
+  /* A second, deeper reveal for the field people fill in least — pasting a
+     website is a nice-to-have, not something the "where/cost/notes" crowd
+     is usually here for, and it drags a lookup spinner and an image preview
+     along with it. Starts open when editing something that already has one,
+     so existing data is never hidden behind a tap. */
+  const [photoOpen, setPhotoOpen] = useState(() => (editing?.photoUrl ?? "").trim() !== "");
   const [photoStatus, setPhotoStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const [placeStatus, setPlaceStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const ids = {
@@ -518,40 +524,6 @@ export function ItemSheet({
           </div>
 
           <div className="add-sheet__field">
-            <label htmlFor={ids.photo} className="wf-card__eyebrow" style={labelStyle}>
-              Website
-            </label>
-            <input
-              id={ids.photo}
-              className="add-sheet__input"
-              type="url"
-              inputMode="url"
-              value={draft.photoUrl}
-              onChange={(e) => set("photoUrl", e.target.value)}
-              placeholder="Paste the place's website (optional)"
-              style={fieldStyle}
-            />
-            {photoStatus !== "idle" && (
-              <span
-                className="add-sheet__hint"
-                style={{
-                  fontFamily: theme.fontMono,
-                  color: photoStatus === "none" ? WARN_INK : theme.meta,
-                }}
-              >
-                {photoStatus === "looking"
-                  ? "Looking for a picture on that page…"
-                  : photoStatus === "found"
-                    ? "Found the picture that page shows"
-                    : "No picture found there — open the photo itself and copy its address"}
-              </span>
-            )}
-            {draft.photoUrl.trim() !== "" && (
-              <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
-            )}
-          </div>
-
-          <div className="add-sheet__field">
             <label htmlFor={ids.note} className="wf-card__eyebrow" style={labelStyle}>
               Anything the group should know
             </label>
@@ -584,6 +556,52 @@ export function ItemSheet({
             </span>
             <span style={{ color: theme.ink }}>Already booked</span>
           </button>
+
+          {photoOpen ? (
+            <div className="add-sheet__field">
+              <label htmlFor={ids.photo} className="wf-card__eyebrow" style={labelStyle}>
+                Website
+              </label>
+              <input
+                id={ids.photo}
+                className="add-sheet__input"
+                type="url"
+                inputMode="url"
+                value={draft.photoUrl}
+                onChange={(e) => set("photoUrl", e.target.value)}
+                placeholder="Paste the place's website (optional)"
+                autoFocus
+                style={fieldStyle}
+              />
+              {photoStatus !== "idle" && (
+                <span
+                  className="add-sheet__hint"
+                  style={{
+                    fontFamily: theme.fontMono,
+                    color: photoStatus === "none" ? WARN_INK : theme.meta,
+                  }}
+                >
+                  {photoStatus === "looking"
+                    ? "Looking for a picture on that page…"
+                    : photoStatus === "found"
+                      ? "Found the picture that page shows"
+                      : "No picture found there — open the photo itself and copy its address"}
+                </span>
+              )}
+              {draft.photoUrl.trim() !== "" && (
+                <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="trip-page__reset add-sheet__more"
+              onClick={() => setPhotoOpen(true)}
+              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            >
+              Add a photo or website +
+            </button>
+          )}
         </div>
       ) : (
         <button
