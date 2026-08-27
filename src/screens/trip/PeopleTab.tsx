@@ -16,6 +16,8 @@ const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
 const COUNT_WORD = ["Nobody", "One person", "Two people", "Three people", "Four people", "Five people"];
 
 interface Suggestion {
+  /** The proposed item's own id — two suggestions can share a title. */
+  id: string;
   title: string;
   meta: string;
   note: string;
@@ -137,7 +139,7 @@ export function PeopleTab({
           </span>
         </div>
         {members.map((person) => (
-          <div key={person.initials} className="people__row">
+          <div key={person.id} className="people__row">
             <div
               className="people__avatar"
               style={{ fontFamily: theme.fontMono, color: theme.body }}
@@ -309,7 +311,7 @@ export function PeopleTab({
         </div>
         {inbox.map((suggestion) => (
           <button
-            key={suggestion.title}
+            key={suggestion.id}
             type="button"
             className="trip-page__reset inbox__item"
             onClick={() => onOpenSuggestion(suggestion.day)}

@@ -13,6 +13,10 @@ function formatDateRange(startISO: string, endISO: string): string {
   const start = new Date(`${startISO}T00:00:00`);
   const end = new Date(`${endISO}T00:00:00`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+  /* A range that ends before it starts generates no days at all, which used
+     to produce a trip that crashed the moment it was opened — and kept
+     crashing, since the id was already saved as the one to reopen. */
+  if (end < start) return "";
 
   const endMonth = end.toLocaleDateString("en-US", { month: "long" });
   const year = end.getFullYear();
@@ -73,6 +77,10 @@ export function TripSetupPage({
   const dates = useExample
     ? formatDateRange(EXAMPLE_START, EXAMPLE_END)
     : formatDateRange(startDate, endDate);
+  /* `dates` comes back empty for a reversed range, which is what blocks the
+     save — but "add both dates first" would be a lie when both are filled
+     in, so the note below names the real problem. */
+  const datesBackwards = !useExample && startDate !== "" && endDate !== "" && endDate < startDate;
   const canCreate = eventName.trim().length > 0 && dates.length > 0 && !creating;
   const previewName = eventName.trim() || "Your event";
   const previewDates = dates || "Pick your dates";
@@ -174,6 +182,7 @@ export function TripSetupPage({
                 <input
                   className="event-field__input"
                   type="date"
+                  max={endDate || undefined}
                   value={useExample ? EXAMPLE_START : startDate}
                   disabled={useExample}
                   onChange={(e) => setStartDate(e.target.value)}
@@ -266,7 +275,11 @@ export function TripSetupPage({
               </button>
             )}
             <span className="wf-mono trip-setup__actions-note">
-              {canCreate ? "Everyone joins as a contributor" : "Add a name and both dates first"}
+              {canCreate
+                ? "Everyone joins as a contributor"
+                : datesBackwards
+                  ? "The end date is before the start date"
+                  : "Add a name and both dates first"}
             </span>
           </div>
         </div>

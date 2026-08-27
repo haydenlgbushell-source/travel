@@ -1,4 +1,5 @@
 import type { Theme } from "../../theme";
+import type { Verdict } from "./ItemCard";
 import { EMERGENCY_NUMBER, STAY, type Day } from "./trip-data";
 
 const REF_INK = "oklch(0.8 0.11 60)";
@@ -7,13 +8,23 @@ const REF_INK = "oklch(0.8 0.11 60)";
  *  on one dark card that survives being screenshotted. */
 export function AirportPanel({
   day,
+  resolved,
   isExample,
   theme,
 }: {
   day: Day;
+  /** Same filter the calendar export, the archive and the money totals apply.
+   *  Without it this screen — the one you open at a gate — listed the
+   *  restaurant the group turned down alongside the flight they're catching. */
+  resolved: Record<string, Verdict>;
   isExample: boolean;
   theme: Theme;
 }) {
+  const live = day.items.filter((item) => {
+    const verdict = resolved[item.id];
+    if (verdict === "declined") return false;
+    return !item.suggested || verdict === "approved";
+  });
   return (
     <div className="airport" style={{ background: theme.headBg, color: theme.headInk }}>
       <div className="airport__head">
@@ -29,10 +40,10 @@ export function AirportPanel({
       </div>
 
       <div className="airport__rows">
-        {day.items.map((item, i) => {
+        {live.map((item) => {
           const ref = item.booking?.find((b) => b.label === "Ref")?.value ?? "—";
           return (
-            <div key={i} className="airport__row">
+            <div key={item.id} className="airport__row">
               <span className="airport__time" style={{ fontFamily: theme.fontMono }}>
                 {item.time}
               </span>

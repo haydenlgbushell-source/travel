@@ -578,6 +578,11 @@
   gap: 8px;
 }
 
+.item__pending-note {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .item__pending-btn {
   min-height: 44px;
   display: flex;

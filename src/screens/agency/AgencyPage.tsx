@@ -184,19 +184,38 @@ export function AgencyPage({
   });
 
   /* Only what's on screen — a total that silently included archived or
-     filtered-out trips would be misleading next to the list. */
-  const pipeline = visible.reduce(
-    (sum, t) => {
-      const d = details.get(t.id);
-      if (d?.sellPrice !== undefined) sum.sell += d.sellPrice;
-      if (d?.sellPrice !== undefined && d?.costPrice !== undefined) {
-        sum.margin += d.sellPrice - d.costPrice;
-      }
-      return sum;
-    },
-    { sell: 0, margin: 0 },
-  );
-  const currency = visible.map((t) => details.get(t.id)?.currency).find(Boolean) ?? "AUD";
+     filtered-out trips would be misleading next to the list.
+  
+     Totalled per currency rather than into one number: an agency running AUD,
+     JPY and USD trips used to have those three added together and stamped
+     with whichever currency happened to come first, which made the headline
+     figure meaningless. Cancelled trips are left out entirely, and Confirmed
+     and later are counted apart from what's still only quoted — an agent
+     needs those as two numbers, not one. */
+  const COMMITTED: TripStatus[] = ["Confirmed", "Travelling", "Completed"];
+  const pipeline = new Map<string, { booked: number; quoted: number; margin: number }>();
+  for (const t of visible) {
+    const d = details.get(t.id);
+    if (d?.sellPrice === undefined) continue;
+    const status = d.status ?? "Draft";
+    if (status === "Cancelled") continue;
+    const row = pipeline.get(d.currency) ?? { booked: 0, quoted: 0, margin: 0 };
+    if (COMMITTED.includes(status)) {
+      row.booked += d.sellPrice;
+      if (d.costPrice !== undefined) row.margin += d.sellPrice - d.costPrice;
+    } else {
+      row.quoted += d.sellPrice;
+    }
+    pipeline.set(d.currency, row);
+  }
+  const pipelineLabel = [...pipeline.entries()]
+    .map(([code, row]) => {
+      const parts = [`${row.booked.toFixed(0)} ${code} booked`];
+      if (row.quoted > 0) parts.push(`${row.quoted.toFixed(0)} quoted`);
+      if (row.margin !== 0) parts.push(`${row.margin.toFixed(0)} commission`);
+      return parts.join(" · ");
+    })
+    .join("  |  ");
 
   const labelStyle = { fontFamily: theme.fontMono, color: theme.meta, fontSize: "11px" };
   const fieldStyle = {
@@ -258,7 +277,7 @@ export function AgencyPage({
           <div>
             <div className="trip-page__dates" style={{ fontFamily: theme.fontMono, color: theme.headMeta }}>
               {trips
-                ? `${visible.length} of ${trips.length} · ${pipeline.sell.toFixed(0)} ${currency} booked · ${pipeline.margin.toFixed(0)} commission`
+                ? `${visible.length} of ${trips.length}${pipelineLabel ? ` · ${pipelineLabel}` : ""}`
                 : "Loading…"}
             </div>
             {agencies.length > 1 ? (

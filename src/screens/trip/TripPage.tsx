@@ -16,6 +16,7 @@ import type { EventDetails } from "../trip-setup/event-data";
 import {
   DAYS,
   DECISION_COUNT,
+  INBOX,
   DEFAULT_CURRENCY,
   applyDraft,
   buildItem,
@@ -106,7 +107,7 @@ export function TripPage({
   /* Seeded with just the signed-in account so there's never a blank roster
      before the real membership load (below) lands — the example trip's
      authored cast never changes, so it needs no fetch at all. */
-  const [members, setMembers] = useState<Person[]>(() => membersFor(isExample, userName));
+  const [members, setMembers] = useState<Person[]>(() => membersFor(isExample, userName, accountId));
   /* Open decisions are part of the authored example; a real trip has none
      until the group can actually vote on anything. */
   const decisionCount = isExample ? DECISION_COUNT : 0;
@@ -363,9 +364,67 @@ export function TripPage({
     return () => clearTimeout(t);
   }, [added]);
 
-  const day = days[dayIndex];
+  /* A trip whose dates don't make a range produces no days at all. That used
+     to fall straight through to `days[dayIndex].items` and white-screen —
+     and because the trip id is saved as the one to reopen, every later visit
+     hit the same crash with no way back out. Say what's wrong and offer the
+     way out instead. */
+  const day = days[dayIndex] as Day | undefined;
+  if (!day) {
+    return (
+      <ThemeProvider
+        theme={theme}
+        className="trip-page"
+        style={{ background: theme.bg, color: theme.ink }}
+      >
+        <div className="trip-page__stack" style={{ padding: "40px 20px" }}>
+          <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
+            <span
+              className="empty-day__title"
+              style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+            >
+              These dates don't make a trip
+            </span>
+            <span className="empty-day__note">
+              {eventName} ends before it starts ({eventDates}), so there are no days
+              to plan. Edit the trip and set the end date after the start date.
+            </span>
+            {onBack && (
+              <button
+                type="button"
+                className="trip-page__reset add-sheet__more"
+                onClick={onBack}
+                style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              >
+                Back to your trips →
+              </button>
+            )}
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+  /* Narrowed past the guard above, for the closures below — a function body
+     doesn't inherit the narrowing from an early return. */
+  const activeDay: Day = day;
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
+
+  /* Computed once so the People tab's list and the More sheet's badge can
+     never disagree — the badge used to read the example's hardcoded INBOX
+     regardless of which trip was open. */
+  const pendingSuggestions = days.flatMap((d, i) =>
+    d.items
+      .filter((item) => item.suggested && resolved[item.id] === undefined)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: `${item.suggestedBy ?? "A trip member"} · ${item.time}`,
+        note: item.note,
+        day: i,
+      })),
+  );
+  const pendingCount = isExample ? INBOX.length : pendingSuggestions.length;
 
   function toTop() {
     body.current?.scrollTo({ top: 0 });
@@ -417,7 +476,7 @@ export function TripPage({
       currency,
       people: Math.max(members.length, 1),
     });
-    const clash = clashAt(item.time, day.items);
+    const clash = clashAt(item.time, activeDay.items);
     const flag = clash
       ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
       : undefined;
@@ -435,7 +494,7 @@ export function TripPage({
        RLS only lets an Organiser/Editor touch the whole blob — so their one
        allowed action, proposing something new, is persisted here directly. */
     if (!canApprove && !isExample) {
-      void proposeItem(event.id, day.date, item).catch(() => {
+      void proposeItem(event.id, activeDay.date, item).catch(() => {
         /* still shows locally for this session; just won't survive a
            reload or reach anyone else until retried. */
       });
@@ -601,7 +660,7 @@ export function TripPage({
           <div className="trip-page__avatars">
             {members.map((member) => (
               <div
-                key={member.initials}
+                key={member.id}
                 className="trip-page__avatar"
                 style={{
                   fontFamily: theme.fontMono,
@@ -626,7 +685,7 @@ export function TripPage({
           const flagged = d.conflict !== undefined || (d.flags?.length ?? 0) > 0;
           return (
             <button
-              key={d.num}
+              key={d.date}
               type="button"
               aria-pressed={on}
               aria-label={`${d.fullDate}${flagged ? ", has a clash" : ""}`}
@@ -699,14 +758,17 @@ export function TripPage({
         className="trip-page__body"
       >
         {airport ? (
-          <AirportPanel day={day} isExample={isExample} theme={theme} />
+          <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
         ) : mapOpen ? (
           <MapTab days={days} center={mapCenter} theme={theme} />
         ) : (
           <>
             {tab === 0 && (
               <PlanTab
-                day={weather[day.num] ? { ...day, weather: weather[day.num] } : day}
+                /* Keyed by the ISO date fetchWeather actually returns —
+                   looking it up by day.num ("14") never matched, so the live
+                   forecast never once reached the day header. */
+                day={weather[day.date] ? { ...day, weather: weather[day.date] } : day}
                 highlightId={added?.id}
                 loading={loading || contentLoading}
                 resolved={resolved}
@@ -759,16 +821,7 @@ export function TripPage({
                   toTop();
                 }}
                 members={members}
-                pendingSuggestions={days.flatMap((d, i) =>
-                  d.items
-                    .filter((item) => item.suggested && resolved[item.id] === undefined)
-                    .map((item) => ({
-                      title: item.title,
-                      meta: `${item.suggestedBy ?? "A trip member"} · ${item.time}`,
-                      note: item.note,
-                      day: i,
-                    })),
-                )}
+                pendingSuggestions={pendingSuggestions}
                 onCreateInvite={createInviteLink}
                 onCreateAccessCode={createClientLink}
                 tripId={event.id}
@@ -875,6 +928,7 @@ export function TripPage({
       {moreOpen && (
         <MoreSheet
           onOpen={openFromMore}
+          pendingCount={pendingCount}
           onClose={() => setMoreOpen(false)}
           notifyEnabled={notifyEnabled}
           notifySupported={notifyPermission() !== "unsupported"}

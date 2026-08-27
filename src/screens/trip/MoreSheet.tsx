@@ -1,6 +1,5 @@
 import type { Theme } from "../../theme";
 import { Sheet } from "./Sheet";
-import { INBOX } from "./trip-data";
 
 const ENTRIES = [
   { label: "Money", note: "Shared spend, the day-by-day split and who owes who" },
@@ -9,6 +8,7 @@ const ENTRIES = [
 
 export function MoreSheet({
   onOpen,
+  pendingCount,
   onClose,
   notifyEnabled,
   notifySupported,
@@ -20,6 +20,10 @@ export function MoreSheet({
   theme,
 }: {
   onOpen: (label: string) => void;
+  /** Suggestions actually waiting on an editor for *this* trip. This used to
+   *  read the example trip's hardcoded INBOX, so every real trip carried a
+   *  permanent "2" for suggestions that didn't exist. */
+  pendingCount: number;
   onClose: () => void;
   notifyEnabled: boolean;
   notifySupported: boolean;
@@ -50,12 +54,12 @@ export function MoreSheet({
             <span className="more-sheet__label" style={{ color: theme.ink }}>
               {entry.label}
             </span>
-            {entry.label === "People" && INBOX.length > 0 && (
+            {entry.label === "People" && pendingCount > 0 && (
               <span
                 className="trip-page__decisions-count"
                 style={{ background: theme.accent, color: theme.btnInk }}
               >
-                {INBOX.length}
+                {pendingCount}
               </span>
             )}
           </span>
