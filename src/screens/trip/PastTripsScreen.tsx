@@ -16,7 +16,7 @@ export function PastTripsScreen({
   return (
     <ThemeProvider
       theme={theme}
-      className="trip-page"
+      className="trip-page trip-page--wide"
       style={{ background: theme.bg, color: theme.ink }}
     >
       <div
@@ -49,7 +49,7 @@ export function PastTripsScreen({
       </div>
 
       <div className="trip-page__body">
-        <div className="trip-page__stack">
+        <div className="trip-page__stack trip-page__stack--cards">
           {trips.length === 0 ? (
             <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
               <span

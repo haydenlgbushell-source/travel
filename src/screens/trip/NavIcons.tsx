@@ -42,6 +42,29 @@ export function InfoIcon() {
   );
 }
 
+/* Money and People only appear in the sidebar a desktop has room for — on a
+   phone they stay behind the menu, which uses words rather than icons. */
+export function MoneyIcon() {
+  return (
+    <svg {...COMMON} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.8" y="6" width="18.4" height="12" rx="2.2" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6.2 9.4v5.2M17.8 9.4v5.2" />
+    </svg>
+  );
+}
+
+export function PeopleIcon() {
+  return (
+    <svg {...COMMON} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9.4" cy="8.6" r="3.1" />
+      <path d="M3.6 19.4a5.8 5.8 0 0 1 11.6 0" />
+      <path d="M16 6.2a3.1 3.1 0 0 1 0 5.9" />
+      <path d="M17.4 14.4a5.8 5.8 0 0 1 3 5" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon() {
   return (
     <svg

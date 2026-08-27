@@ -7,7 +7,7 @@ import { ItemSheet } from "./ItemSheet";
 import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
 import { MoreSheet } from "./MoreSheet";
-import { HamburgerIcon, InfoIcon, MapIcon, PlanIcon, TravelIcon } from "./NavIcons";
+import { HamburgerIcon, InfoIcon, MapIcon, MoneyIcon, PeopleIcon, PlanIcon, TravelIcon } from "./NavIcons";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
@@ -43,6 +43,7 @@ import {
   type Person,
   type Role,
 } from "./trip-data";
+import { useIsDesktop } from "../../lib/useIsDesktop";
 import { fetchWeather } from "./weather";
 import {
   notifyPermission,
@@ -76,6 +77,15 @@ const NAV_TABS: NavEntry[] = [
   { label: "Stay & travel", short: "Travel", kind: "tab", tab: 1, icon: TravelIcon },
   { label: "Trip map", short: "Map", kind: "map", icon: MapIcon },
   { label: "Info", short: "Info", kind: "tab", tab: 3, icon: InfoIcon },
+];
+
+/* On a desktop the tab bar is a sidebar with room to spare, so the two tabs
+   a phone hides behind the menu sit out in the open with the rest. The menu
+   still carries them, along with notifications and the account. */
+const DESK_NAV: NavEntry[] = [
+  ...NAV_TABS,
+  { label: "Money", short: "Money", kind: "tab", tab: 2, icon: MoneyIcon },
+  { label: "People", short: "People", kind: "tab", tab: 4, icon: PeopleIcon },
 ];
 
 export function TripPage({
@@ -166,6 +176,8 @@ export function TripPage({
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
   const [notifyEnabled, setNotifyEnabled] = useState(false);
+  /* Drives what the tab bar renders, not just how it looks — see DESK_NAV. */
+  const desktop = useIsDesktop();
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -407,6 +419,7 @@ export function TripPage({
   /* Narrowed past the guard above, for the closures below — a function body
      doesn't inherit the narrowing from an early return. */
   const activeDay: Day = day;
+  const navEntries = desktop ? DESK_NAV : NAV_TABS;
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
 
@@ -555,12 +568,13 @@ export function TripPage({
   return (
     <ThemeProvider
       theme={theme}
-      className="trip-page"
+      className="trip-page trip-page--app"
       style={{ background: theme.bg, color: theme.ink }}
     >
       {contentConflict && (
         <div
           role="alert"
+          className="trip-page__banner"
           style={{
             display: "flex",
             alignItems: "center",
@@ -841,7 +855,7 @@ export function TripPage({
         className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
-        {NAV_TABS.map((entry, i) => {
+        {navEntries.map((entry, i) => {
           const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
           const Icon = entry.icon;
           return (
@@ -861,8 +875,8 @@ export function TripPage({
                 const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
                 if (step === 0) return;
                 e.preventDefault();
-                const next = (i + step + NAV_TABS.length) % NAV_TABS.length;
-                const nextEntry = NAV_TABS[next];
+                const next = (i + step + navEntries.length) % navEntries.length;
+                const nextEntry = navEntries[next];
                 if (nextEntry.kind === "map") setMapOpenTab();
                 else pickTab(nextEntry.tab);
                 document.getElementById(`wf-tab-nav-${next}`)?.focus();

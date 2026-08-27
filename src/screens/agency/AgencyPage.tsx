@@ -254,7 +254,7 @@ export function AgencyPage({
   }
 
   return (
-    <ThemeProvider theme={theme} className="trip-page" style={{ background: theme.bg, color: theme.ink }}>
+    <ThemeProvider theme={theme} className="trip-page trip-page--wide" style={{ background: theme.bg, color: theme.ink }}>
       <div className="trip-page__head" style={{ background: theme.headBg, color: theme.headInk }}>
         <div
           className="trip-page__head-row"

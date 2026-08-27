@@ -1,3 +1,5 @@
+@import "./desktop.css";
+
 /* Geometry for the mobile trip page. Colour, type and radius come from the
    active theme (inline `var(--wf-*)` / theme props), same as the phone preview. */
 
