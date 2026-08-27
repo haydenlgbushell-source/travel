@@ -141,7 +141,7 @@ export function BrandPanel({
       setStatus({ text: "Saved — every client trip you own now carries it.", tone: "ok" });
     } catch {
       setStatus({
-        text: "Couldn't save that. If nothing here has ever saved, the branding migration may not have been run on the database yet.",
+        text: "Couldn't save that — check your connection and try again. Only the agency's owner can change the brand.",
         tone: "error",
       });
     } finally {

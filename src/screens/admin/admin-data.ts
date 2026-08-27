@@ -133,47 +133,44 @@ export async function adminRevokeAgency(agencyId: string): Promise<number> {
 
 /* ---------- setting trips up from the console ---------- */
 
-/** Creating a trip as the admin goes through the ordinary `trips` insert
- *  rather than a bespoke RPC — the admin is a real account, and a trip they
- *  make is owned by them like anyone else's. What's admin-only is the
- *  agency tag: handing a brand-new trip straight to an agency so its agents
- *  can pick it up without anyone being invited first.
- *
- *  The tag is attempted, and only the tag is allowed to fail: RLS on `trips`
- *  scopes agency writes to agencies the caller belongs to, and an admin
- *  usually belongs to none of them. When that's refused the trip is still
- *  worth having, so it's created untagged and the caller is told which of
- *  the two happened rather than being shown a success that isn't one. */
+/** Creating a trip as the admin goes through the ordinary `trips` insert —
+ *  the admin is a real account, and a trip they make is owned by them like
+ *  anyone else's. The agency tag can't ride along on that insert: RLS on
+ *  `trips` carries `agency_id is null or is_agency_member(agency_id)` on
+ *  both insert and update, so an account can only tag a trip to an agency it
+ *  belongs to, and an admin belongs to none of them. So the trip is created
+ *  untagged and then handed over through admin_set_trip_agency, which is
+ *  is_admin-gated server-side. */
 export type CreatedTrip = { trip: EventDetails; assigned: boolean };
 
 export async function adminCreateTrip(
   accountId: string,
   trip: EventDetails,
 ): Promise<CreatedTrip> {
-  if (!trip.agencyId) {
-    await upsertEvent(accountId, trip, true);
-    return { trip, assigned: false };
-  }
+  const agencyId = trip.agencyId;
+  await upsertEvent(accountId, { ...trip, agencyId: undefined }, true);
+  if (!agencyId) return { trip: { ...trip, agencyId: undefined }, assigned: false };
+
   try {
-    await upsertEvent(accountId, trip, true);
+    await adminSetTripAgency(trip.id, agencyId);
     return { trip, assigned: true };
   } catch {
-    const untagged = { ...trip, agencyId: undefined };
-    await upsertEvent(accountId, untagged, true);
-    return { trip: untagged, assigned: false };
+    /* The trip exists and is worth keeping — it just belongs to the admin
+       rather than the agency, and the caller says so rather than reporting
+       a success that isn't one. */
+    return { trip: { ...trip, agencyId: undefined }, assigned: false };
   }
 }
 
-/** Moves an existing trip into an agency (or, with `undefined`, back out of
- *  one). Same RLS caveat as above — this throws rather than falling back,
- *  since unlike creation there's no half-useful outcome to keep. */
+/** Moves a trip into an agency, or with `undefined` back out of one.
+ *  Admin-only, enforced in the function rather than here. */
 export async function adminSetTripAgency(
   tripId: string,
   agencyId: string | undefined,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("trips")
-    .update({ agency_id: agencyId ?? null, updated_at: new Date().toISOString() })
-    .eq("id", tripId);
+  const { error } = await supabase.rpc("admin_set_trip_agency", {
+    p_trip_id: tripId,
+    p_agency_id: agencyId ?? null,
+  });
   if (error) throw error;
 }

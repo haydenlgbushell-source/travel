@@ -35,10 +35,11 @@ function fromRow(row: BrandingRow | undefined): AgencyBranding | undefined {
 }
 
 /** Both loaders swallow every failure into `undefined`, which is the same
- *  thing they return for an agency that simply hasn't set any branding. That
- *  is deliberate: until the migration in `supabase/migrations` has been run
- *  these functions don't exist, and an unbranded trip is the correct
- *  fallback — not a broken screen. */
+ *  thing they return for an agency that simply hasn't set any branding.
+ *  Branding decorates a screen rather than carrying any of its meaning, so
+ *  a failed read should cost you a logo, never the trip. The functions
+ *  themselves filter rather than raise, so "not yours to see" and "not set"
+ *  are already the same answer server-side. */
 export async function loadAgencyBranding(
   agencyId: string,
 ): Promise<AgencyBranding | undefined> {
