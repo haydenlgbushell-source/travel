@@ -29,7 +29,7 @@ import {
 } from "./screens/trip/trip-data";
 import { AdminPage } from "./screens/admin/AdminPage";
 import { AgencyPage } from "./screens/agency/AgencyPage";
-import { loadMyAgency, type Agency } from "./screens/agency/agency-data";
+import { loadMyAgencies, type Agency } from "./screens/agency/agency-data";
 
 type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "agency";
 
@@ -72,7 +72,7 @@ async function initialState(account: Account | undefined) {
       currentId: undefined,
       screen: "auth" as Screen,
       pastTrips: [] as PastTrip[],
-      agency: undefined as Agency | undefined,
+      agencies: [] as Agency[],
     };
   }
   /* A guest reached via an access code never picks a name — they're one
@@ -83,22 +83,22 @@ async function initialState(account: Account | undefined) {
       currentId: undefined,
       screen: "name" as Screen,
       pastTrips: [] as PastTrip[],
-      agency: undefined as Agency | undefined,
+      agencies: [] as Agency[],
     };
   }
 
   /* A guest's own agency status is meaningless — they're never the account
      an admin would designate — so this skips the lookup for them rather
      than firing an RPC call that could only ever come back empty. */
-  const [events, savedId, pastTrips, agency] = await Promise.all([
+  const [events, savedId, pastTrips, agencies] = await Promise.all([
     loadEvents(),
     loadCurrentEventId(account.id),
     loadPastTrips(account.id),
-    account.isAnonymous ? Promise.resolve(undefined) : loadMyAgency().catch(() => undefined),
+    account.isAnonymous ? Promise.resolve([] as Agency[]) : loadMyAgencies().catch(() => [] as Agency[]),
   ]);
   const currentId = events.some((e) => e.id === savedId) ? savedId : undefined;
   const screen: Screen = currentId ? "trip" : events.length > 0 ? "trips" : "setup";
-  return { events, currentId, screen, pastTrips, agency };
+  return { events, currentId, screen, pastTrips, agencies };
 }
 
 function App() {
@@ -117,9 +117,14 @@ function App() {
   const [pendingAgencyId, setPendingAgencyId] = useState<string | undefined>();
   const [screen, setScreen] = useState<Screen>("auth");
   const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
-  /* Undefined for almost everyone — only set for an account the admin has
-     designated as an agency's Owner or Agent. */
-  const [agency, setAgency] = useState<Agency | undefined>();
+  /* Empty for almost everyone — only populated for an account the admin has
+     designated as an agency's Owner, or an Owner has added as an Agent —
+     every agency that's true for, since an Agent can belong to more than
+     one. */
+  const [agencies, setAgencies] = useState<Agency[]>([]);
+  /* Which of `agencies` the agency page is currently showing — session-only,
+     not persisted, so it always starts back on the first one. */
+  const [activeAgencyId, setActiveAgencyId] = useState<string | undefined>();
   /* A write that failed in a way local state can't quietly paper over.
      Rendered as one banner above whichever screen is showing, since the
      screens below are early returns with no shared chrome. */
@@ -133,6 +138,14 @@ function App() {
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
   const loadedAccountId = useRef<string | undefined>(undefined);
+
+  /** Resets which agency is active whenever the list itself is (re)loaded —
+   *  defaulting to the first keeps today's single-agency accounts landing
+   *  exactly where they always did. */
+  function applyAgencies(list: Agency[]) {
+    setAgencies(list);
+    setActiveAgencyId(list[0]?.id);
+  }
 
   useEffect(() => {
     const onHashChange = () => {
@@ -164,7 +177,7 @@ function App() {
           setCurrentId(next.currentId);
           setScreen(next.screen);
           setPastTrips(next.pastTrips);
-          setAgency(next.agency);
+          applyAgencies(next.agencies);
           setBootLoading(false);
         })
         .catch(() => {
@@ -174,7 +187,7 @@ function App() {
           setCurrentId(undefined);
           setScreen(acc ? "trips" : "auth");
           setPastTrips([]);
-          setAgency(undefined);
+          applyAgencies([]);
           setBootLoading(false);
         });
     });
@@ -267,7 +280,8 @@ function App() {
     setEvents([]);
     setCurrentId(undefined);
     setEditingId(undefined);
-    setAgency(undefined);
+    setAgencies([]);
+    setActiveAgencyId(undefined);
     /* Left set, this would tag the *next* account's first trip into the
        previous one's agency on a shared device. */
     setPendingAgencyId(undefined);
@@ -439,7 +453,7 @@ function App() {
               setCurrentId(next.currentId);
               setScreen(next.screen);
               setPastTrips(next.pastTrips);
-              setAgency(next.agency);
+              applyAgencies(next.agencies);
               setBootLoading(false);
             })
             .catch(() => {
@@ -447,7 +461,7 @@ function App() {
               setCurrentId(undefined);
               setScreen("trips");
               setPastTrips([]);
-              setAgency(undefined);
+              applyAgencies([]);
               setBootLoading(false);
             });
         }}
@@ -530,16 +544,19 @@ function App() {
               }
             : undefined
         }
-        onOpenAgency={agency ? () => setScreen("agency") : undefined}
+        onOpenAgency={agencies.length > 0 ? () => setScreen("agency") : undefined}
         theme={theme}
       />
     );
   }
 
-  if (screen === "agency" && agency && account) {
+  const activeAgency = agencies.find((a) => a.id === activeAgencyId);
+  if (screen === "agency" && activeAgency && account) {
     return (
       <AgencyPage
-        agency={agency}
+        agency={activeAgency}
+        agencies={agencies}
+        onSwitchAgency={setActiveAgencyId}
         accountId={account.id}
         onOpenTrip={openLoadedEvent}
         onCreateClientTrip={(agencyId) => {

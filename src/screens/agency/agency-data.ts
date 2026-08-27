@@ -110,13 +110,17 @@ function detailsFromRow(row: DetailsRow): TripAgencyDetails {
 
 /** Agency access is granted, not self-served — an account only has one once
  *  the admin has designated it as an agency's Owner, or an Owner has added
- *  them as an Agent. This just reads whether that's true for the signed-in
- *  account; it never creates one. */
-export async function loadMyAgency(): Promise<Agency | undefined> {
-  const { data, error } = await supabase.rpc("my_agency");
+ *  them as an Agent — every one of them, since an Agent can be added to more
+ *  than one. This just reads which agencies that's true for; it never
+ *  creates one. */
+export async function loadMyAgencies(): Promise<Agency[]> {
+  const { data, error } = await supabase.rpc("my_agencies");
   if (error) throw error;
-  const row = (data as AgencyRpcRow[])[0];
-  return row ? { id: row.id, name: row.name, role: row.role as Agency["role"] } : undefined;
+  return (data as AgencyRpcRow[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role as Agency["role"],
+  }));
 }
 
 /** Every trip tagged to this agency — RLS (has_agency_access) is what
@@ -236,7 +240,9 @@ export async function duplicateTripForClient(
       const from = content.days[i];
       return from ? { ...day, items: from.items, conflict: from.conflict } : day;
     });
-    await saveTripContent(copy.id, { days, resolved: content.resolved });
+    /* A brand-new trip's content row doesn't exist yet — revision 1 is what
+       save_trip_content expects for that first-ever insert. */
+    await saveTripContent(copy.id, { days, resolved: content.resolved, revision: 1 });
   }
   return copy;
 }

@@ -27,6 +27,8 @@ function blankDetails(tripId: string): TripAgencyDetails {
 
 export function AgencyPage({
   agency,
+  agencies,
+  onSwitchAgency,
   accountId,
   onOpenTrip,
   onCreateClientTrip,
@@ -37,6 +39,11 @@ export function AgencyPage({
    *  account has agency access — this page has no path of its own to get
    *  or grant it, so it never fetches or creates one itself. */
   agency: Agency;
+  /** Every agency this account belongs to — almost always just `[agency]`,
+   *  since access is granted per-agency rather than self-served. The
+   *  switcher below only renders once there's a real choice to make. */
+  agencies: Agency[];
+  onSwitchAgency: (agencyId: string) => void;
   accountId: string;
   /** Hands back the whole trip, not just its id — this list is fetched
    *  straight from the database, so a client trip a colleague created
@@ -254,9 +261,32 @@ export function AgencyPage({
                 ? `${visible.length} of ${trips.length} · ${pipeline.sell.toFixed(0)} ${currency} booked · ${pipeline.margin.toFixed(0)} commission`
                 : "Loading…"}
             </div>
-            <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
-              {agency.name}
-            </div>
+            {agencies.length > 1 ? (
+              <select
+                value={agency.id}
+                onChange={(e) => onSwitchAgency(e.target.value)}
+                className="trip-page__reset"
+                style={{
+                  fontFamily: theme.fontDisplay,
+                  fontSize: "inherit",
+                  color: theme.headInk,
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                {agencies.map((a) => (
+                  <option key={a.id} value={a.id} style={{ color: theme.ink, background: theme.card }}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
+                {agency.name}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1515,12 +1515,29 @@ const CONTENT_VERSION = "3";
 export interface SavedState {
   days: Day[];
   resolved: Record<string, string>;
+  /** A save must present the revision it was read at to succeed — stamped
+   *  from what was last loaded or successfully saved. Lets a write that's
+   *  fallen behind another device's save get refused instead of silently
+   *  overwriting it, the way a blind upsert used to. */
+  revision: number;
 }
 
 interface TripContentRow {
   content_version: string;
   days: Day[];
   resolved: Record<string, string>;
+  revision: number;
+}
+
+/** Thrown by saveTripContent when the trip was saved elsewhere since this
+ *  copy's revision was read — the write is refused, not applied, so nothing
+ *  gets silently clobbered. Callers should offer to reload rather than
+ *  retry blindly, since retrying with the same stale revision fails again. */
+export class StaleRevisionError extends Error {
+  constructor() {
+    super("This trip was changed elsewhere since it was last loaded.");
+    this.name = "StaleRevisionError";
+  }
 }
 
 /** One row per trip holding the whole plan as a blob — the exact shape
@@ -1529,7 +1546,7 @@ interface TripContentRow {
 export async function loadTripContent(tripId: string): Promise<SavedState | undefined> {
   const { data, error } = await supabase
     .from("trip_content")
-    .select("content_version, days, resolved")
+    .select("content_version, days, resolved, revision")
     .eq("trip_id", tripId)
     .maybeSingle();
   if (error) throw error;
@@ -1540,18 +1557,32 @@ export async function loadTripContent(tripId: string): Promise<SavedState | unde
   /* Days written before each one carried its real date can't drive the
      forecast or the calendar export, so they're treated as stale. */
   if (row.days.some((d) => typeof d.date !== "string")) return undefined;
-  return { days: row.days, resolved: row.resolved };
+  return { days: row.days, resolved: row.resolved, revision: row.revision };
 }
 
-export async function saveTripContent(tripId: string, state: SavedState): Promise<void> {
-  const { error } = await supabase.from("trip_content").upsert({
-    trip_id: tripId,
-    content_version: CONTENT_VERSION,
-    days: state.days,
-    resolved: state.resolved,
-    updated_at: new Date().toISOString(),
+/** Resolves to the new revision on success — the caller must remember it
+ *  and pass it back as `state.revision` on the next save. A trip with no
+ *  saved content yet has no revision to present, so callers pass 1 for a
+ *  first save; save_trip_content ignores it and inserts instead of
+ *  updating in that case. */
+export async function saveTripContent(tripId: string, state: SavedState): Promise<number> {
+  const { data, error } = await supabase.rpc("save_trip_content", {
+    p_trip_id: tripId,
+    p_content_version: CONTENT_VERSION,
+    p_days: state.days,
+    p_resolved: state.resolved,
+    p_expected_revision: state.revision,
   });
-  if (error) throw error;
+  if (error) {
+    /* The RPC's own message for a real conflict; a duplicate-key error is
+       the same situation caught a different way — two first-ever saves for
+       the same trip racing each other. */
+    if (/stale_revision|trip_content_pkey/i.test(error.message)) {
+      throw new StaleRevisionError();
+    }
+    throw error;
+  }
+  return data as number;
 }
 
 /* ---------- saved trips ---------- */

@@ -35,6 +35,7 @@ import {
   saveCurrency,
   saveNotifyEnabled,
   saveTripContent,
+  StaleRevisionError,
   type Day,
   type DraftItem,
   type PastTrip,
@@ -128,6 +129,16 @@ export function TripPage({
   const [days, setDays] = useState<Day[]>(seed);
   const [resolved, setResolved] = useState<Record<string, Verdict>>({});
   const [contentLoading, setContentLoading] = useState(true);
+  /* What save_trip_content must be told the trip is currently at for a save
+     to succeed — bumped after every successful save, reset on reload. A
+     trip with no saved content yet starts at 1, matching what the RPC
+     expects for its first-ever insert. */
+  const contentRevision = useRef(1);
+  /* Set when a save comes back rejected because someone else's save landed
+     first — autosave stops firing (see the effect below) until this is
+     cleared by reloading, so the local, now-behind copy can't keep trying
+     to overwrite the newer one. */
+  const [contentConflict, setContentConflict] = useState(false);
   /* The example opens on its second day, where the authored plan is richest.
      A real trip opens on today if the trip is running, otherwise day one. */
   const [dayIndex, setDayIndex] = useState(() => {
@@ -182,6 +193,8 @@ export function TripPage({
         if (cancelled) return;
         setDays(saved?.days ? reconcileDays(saved.days, seed) : seed);
         setResolved((saved?.resolved as Record<string, Verdict>) ?? {});
+        contentRevision.current = saved?.revision ?? 1;
+        setContentConflict(false);
         if (membership) {
           setMembers(membership.members);
           setRole(membership.myRole);
@@ -220,12 +233,40 @@ export function TripPage({
      change worth persisting — a new suggestion — goes through proposeItem
      in addItem below instead. */
   useEffect(() => {
-    if (contentLoading || !canApprove) return;
-    void saveTripContent(event.id, { days, resolved }).catch(() => {
-      /* the plan still works locally; it just won't be there on another
-         device until the next successful save. */
-    });
-  }, [event.id, days, resolved, contentLoading, canApprove]);
+    /* A conflict means this copy is known to be behind — saving again with
+       the same stale revision would just fail again, so autosave stays off
+       until reloadAfterConflict below brings it back up to date. */
+    if (contentLoading || !canApprove || contentConflict) return;
+    void saveTripContent(event.id, { days, resolved, revision: contentRevision.current })
+      .then((newRevision) => {
+        contentRevision.current = newRevision;
+      })
+      .catch((err) => {
+        if (err instanceof StaleRevisionError) {
+          setContentConflict(true);
+          return;
+        }
+        /* Any other failure: the plan still works locally; it just won't be
+           there on another device until the next successful save. */
+      });
+  }, [event.id, days, resolved, contentLoading, canApprove, contentConflict]);
+
+  /* The explicit way out of a conflict — replaces the local plan with
+     whatever's actually saved and picks autosave back up. There's no merge:
+     the two copies could differ anywhere, so the only honest move is to
+     show what's really there rather than guess how to combine them. */
+  function reloadAfterConflict() {
+    setContentLoading(true);
+    loadTripContent(event.id)
+      .then((saved) => {
+        setDays(saved?.days ? reconcileDays(saved.days, seed) : seed);
+        setResolved((saved?.resolved as Record<string, Verdict>) ?? {});
+        contentRevision.current = saved?.revision ?? 1;
+        setContentConflict(false);
+        setContentLoading(false);
+      })
+      .catch(() => setContentLoading(false));
+  }
 
   /* Items that name a Wikipedia article get their photo resolved once, in
      the background — a wrong or dead article just leaves the fill showing,
@@ -458,6 +499,40 @@ export function TripPage({
       className="trip-page"
       style={{ background: theme.bg, color: theme.ink }}
     >
+      {contentConflict && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "10px 14px",
+            background: "oklch(0.5 0.16 25)",
+            color: "#fff",
+            fontFamily: theme.fontMono,
+            fontSize: "12px",
+          }}
+        >
+          <span>This trip changed on another device — your latest edits here haven't saved.</span>
+          <button
+            type="button"
+            onClick={reloadAfterConflict}
+            style={{
+              background: "none",
+              border: "1px solid #fff",
+              borderRadius: "6px",
+              padding: "4px 10px",
+              color: "inherit",
+              font: "inherit",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Reload latest
+          </button>
+        </div>
+      )}
       <div
         className="trip-page__head"
         style={{ background: theme.headBg, color: theme.headInk }}
