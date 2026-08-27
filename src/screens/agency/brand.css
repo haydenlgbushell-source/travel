@@ -1,0 +1,294 @@
+/* The branding editor. Sits inside the agency page, which carries the
+   --wf-* custom properties, so the chrome around the controls follows
+   whichever style is active — while the preview to the right is painted
+   from the *branded* theme instead, straight off inline styles. */
+
+.brand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+@media (min-width: 1040px) {
+  .brand {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+    align-items: start;
+  }
+}
+
+.brand__panel {
+  border: 1px solid var(--wf-line);
+  border-radius: var(--wf-card-radius);
+  background: var(--wf-card);
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.brand__panel--empty {
+  color: var(--wf-body);
+  font-size: 14px;
+}
+
+.brand__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand__title {
+  font-family: var(--wf-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wf-meta);
+}
+
+.brand__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.brand__fields:disabled {
+  opacity: 0.6;
+}
+
+.brand__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.brand__label {
+  font-family: var(--wf-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wf-meta);
+}
+
+.brand__input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  font-family: var(--wf-font-sans);
+  font-size: 14px;
+  color: var(--wf-ink);
+  background: var(--wf-bg);
+  border: 1px solid var(--wf-line);
+  border-radius: 9px;
+}
+
+.brand__input:focus {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 1px;
+}
+
+.brand__input--hex {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--wf-font-mono);
+  text-transform: uppercase;
+}
+
+.brand__colour-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* The native swatch, sized to sit level with the text field beside it. */
+.brand__swatch-input {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 40px;
+  padding: 2px;
+  background: var(--wf-bg);
+  border: 1px solid var(--wf-line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.brand__reset-link {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--wf-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wf-body);
+  white-space: nowrap;
+}
+
+.brand__presets {
+  display: flex;
+  gap: 6px;
+}
+
+.brand__preset {
+  all: unset;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(20, 23, 26, 0.16);
+}
+
+.brand__preset:focus-visible,
+.brand__reset-link:focus-visible,
+.brand__swatch-input:focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
+}
+
+.brand__hint {
+  font-family: var(--wf-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--wf-meta);
+  text-wrap: pretty;
+}
+
+.brand__hint--warn {
+  color: var(--wf-warn-ink);
+}
+
+.brand__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.brand__btn {
+  all: unset;
+  cursor: pointer;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 9px;
+  border: 1px solid transparent;
+}
+
+.brand__btn:focus-visible {
+  outline: 2px solid var(--wf-accent);
+  outline-offset: 2px;
+}
+
+.brand__btn--primary {
+  background: var(--wf-ink);
+  color: var(--wf-bg);
+}
+
+.brand__btn--ghost {
+  border-color: var(--wf-line);
+  color: var(--wf-ink);
+}
+
+.brand__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.brand__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- the preview ---------- */
+
+.brand__preview {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.brand__preview-head {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brand__preview-mark {
+  font-size: 17px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.brand__preview-dates {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.brand__preview-name {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.brand__preview-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.brand__preview-card {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 11px;
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand__preview-time {
+  font-size: 11px;
+}
+
+.brand__preview-item {
+  font-size: 14px;
+}
+
+.brand__preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand__preview-btn {
+  all: unset;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.brand__preview-link {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

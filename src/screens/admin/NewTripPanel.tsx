@@ -208,9 +208,21 @@ export function NewTripPanel({
           </label>
         </div>
 
+        {/* The real checkbox stays in the tab order and drives the state; the
+            span beside it is what you actually see, so the focus ring has to
+            be drawn on the span from the input's :focus-visible. Hiding the
+            input with opacity alone left a keyboard user tabbing onto a
+            control with no visible focus at all. */}
         <label className="admin__check">
+          <input
+            type="checkbox"
+            className="admin__check-input"
+            checked={useExample}
+            onChange={(e) => setUseExample(e.target.checked)}
+          />
           <span
             className="admin__check-box"
+            aria-hidden="true"
             style={{
               background: useExample ? "var(--wf-ink)" : "transparent",
               borderColor: useExample ? "var(--wf-ink)" : "var(--wf-line)",
@@ -218,12 +230,6 @@ export function NewTripPanel({
           >
             {useExample ? "✓" : ""}
           </span>
-          <input
-            type="checkbox"
-            checked={useExample}
-            onChange={(e) => setUseExample(e.target.checked)}
-            style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-          />
           <span>
             Fill it with the example itinerary
             <span className="admin__check-note">

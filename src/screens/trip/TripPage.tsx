@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
-import { ThemeProvider, type Theme } from "../../theme";
+import { ThemeProvider, Wordmark, type Theme } from "../../theme";
+import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/branding";
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
@@ -89,7 +90,7 @@ const DESK_NAV: NavEntry[] = [
 ];
 
 export function TripPage({
-  theme,
+  theme: baseTheme,
   event,
   accountId,
   userName,
@@ -178,6 +179,12 @@ export function TripPage({
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   /* Drives what the tab bar renders, not just how it looks — see DESK_NAV. */
   const desktop = useIsDesktop();
+  /* An agency trip carries that agency's logo and colours. Everyone on the
+     trip sees them — including a client on an access code, who has no
+     agency relationship of their own and reads this through trip_branding.
+     A personal trip never asks. */
+  const [branding, setBranding] = useState<AgencyBranding>();
+  const theme = brandTheme(baseTheme, branding);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -224,6 +231,20 @@ export function TripPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, accountId, isExample]);
+
+  useEffect(() => {
+    if (!event.agencyId) {
+      setBranding(undefined);
+      return;
+    }
+    let cancelled = false;
+    loadTripBranding(event.id).then((b) => {
+      if (!cancelled) setBranding(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [event.id, event.agencyId]);
 
   /* Loads this account's currency and notification preference once — these
      are per-account, not per-trip. */
@@ -420,6 +441,15 @@ export function TripPage({
      doesn't inherit the narrowing from an early return. */
   const activeDay: Day = day;
   const navEntries = desktop ? DESK_NAV : NAV_TABS;
+  /* Which nav button is current, so the panel below can name it. Falls back
+     to the first entry when the open tab has no button at this width —
+     Money and People on a phone, reached through the menu instead. */
+  const selectedNavIndex = Math.max(
+    navEntries.findIndex((entry) =>
+      entry.kind === "map" ? mapOpen : !mapOpen && entry.tab === tab,
+    ),
+    0,
+  );
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
 
@@ -632,7 +662,7 @@ export function TripPage({
                 cursor: onBack ? "pointer" : "default",
               }}
             >
-              {theme.wordmark}
+              <Wordmark theme={theme} />
             </button>
           </div>
           <div className="trip-page__head-actions">
@@ -767,7 +797,12 @@ export function TripPage({
         ref={body}
         id="wf-tabpanel"
         role={airport || mapOpen ? undefined : "tabpanel"}
-        aria-labelledby={airport || mapOpen ? undefined : `wf-tab-${tab}`}
+        /* Labelled by the tab that is actually selected. This used to name
+           `wf-tab-${tab}` while the buttons carried `wf-tab-nav-${i}` — two
+           different schemes, so the panel was labelled by nothing at all. */
+        aria-labelledby={
+          airport || mapOpen ? undefined : `wf-tab-nav-${selectedNavIndex}`
+        }
         tabIndex={0}
         className="trip-page__body"
       >

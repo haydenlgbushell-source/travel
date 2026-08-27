@@ -58,12 +58,19 @@ export function AdminPage({
   const [trips, setTrips] = useState<AdminTripRow[]>();
   const [agencies, setAgencies] = useState<AdminAgencyRow[]>();
   const [notice, setNotice] = useState<Notice>();
-  const [busy, setBusy] = useState(false);
+  /* Which single thing is in flight, keyed by what it acts on — one global
+     `busy` disabled every select and every button on the page while one row
+     saved, which reads as the console having hung. `undefined` means idle;
+     "refresh" covers the whole-page reload. */
+  const [busyKey, setBusyKey] = useState<string>();
+  const busy = busyKey !== undefined;
   const [accountSearch, setAccountSearch] = useState("");
   const [tripSearch, setTripSearch] = useState("");
   /* Which agency the admin has clicked Revoke on but not yet confirmed — it
      detaches every client trip in it, so it asks first. */
   const [confirmingRevoke, setConfirmingRevoke] = useState<string>();
+  /* The account being granted an agency, and the name being typed for it. */
+  const [granting, setGranting] = useState<{ account: AdminAccountRow; name: string }>();
 
   /* The refresh after a grant or revoke resolves long after the effect that
      started the first load, so a plain `cancelled` local wouldn't cover it —
@@ -106,8 +113,8 @@ export function AdminPage({
   /** Every mutation runs the same shape: mark busy, do the thing, refresh,
    *  say what happened. A failure past the mutation itself is the refresh
    *  failing and must not be reported as a failed action. */
-  async function run(action: () => Promise<string>, failure: string) {
-    setBusy(true);
+  async function run(key: string, action: () => Promise<string>, failure: string) {
+    setBusyKey(key);
     setNotice(undefined);
     let message: string;
     try {
@@ -115,28 +122,32 @@ export function AdminPage({
     } catch {
       if (alive.current) {
         setNotice({ text: failure, tone: "error" });
-        setBusy(false);
+        setBusyKey(undefined);
       }
       return;
     }
     await load();
     if (alive.current) {
       setNotice({ text: message, tone: "ok" });
-      setBusy(false);
+      setBusyKey(undefined);
     }
   }
 
-  function grantAgency(account: AdminAccountRow) {
-    const name = `${account.name || account.mobile || "New"}'s Agency`;
-    void run(async () => {
-      await adminCreateAgency(account.id, name);
-      return `${accountLabel(account)} now owns ${name}.`;
+  /* --- 6. The name used to be generated and unchangeable. It is the agency's
+     own name, shown to their clients, so it is asked for. --- */
+  function grantAgency(account: AdminAccountRow, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setGranting(undefined);
+    void run(`grant:${account.id}`, async () => {
+      await adminCreateAgency(account.id, trimmed);
+      return `${accountLabel(account)} now owns ${trimmed}.`;
     }, "Couldn't grant agency access.");
   }
 
   function revokeAgency(agency: AdminAgencyRow) {
     setConfirmingRevoke(undefined);
-    void run(async () => {
+    void run(`agency:${agency.id}`, async () => {
       const detached = await adminRevokeAgency(agency.id);
       return detached > 0
         ? `Revoked ${agency.name}. ${detached} ${detached === 1 ? "trip" : "trips"} stayed, as ordinary trips.`
@@ -145,7 +156,7 @@ export function AdminPage({
   }
 
   function moveTrip(trip: AdminTripRow, nextAgencyId: string) {
-    void run(async () => {
+    void run(`trip:${trip.id}`, async () => {
       await adminSetTripAgency(trip.id, nextAgencyId || undefined);
       const agency = agencies?.find((a) => a.id === nextAgencyId);
       return nextAgencyId
@@ -223,7 +234,10 @@ export function AdminPage({
           <button
             type="button"
             className="admin__reset admin__top-btn"
-            onClick={() => void load()}
+            onClick={() => {
+              setBusyKey("refresh");
+              void load().finally(() => alive.current && setBusyKey(undefined));
+            }}
             disabled={busy}
           >
             {busy ? "Working…" : "Refresh"}
@@ -450,7 +464,7 @@ export function AdminPage({
                                 className="admin__select"
                                 style={{ minHeight: "32px", fontSize: "13px" }}
                                 value={t.agencyId ?? ""}
-                                disabled={busy || agencies.length === 0}
+                                disabled={busyKey === `trip:${t.id}` || agencies.length === 0}
                                 onChange={(e) => moveTrip(t, e.target.value)}
                                 aria-label={`Agency for ${t.name}`}
                               >
@@ -543,7 +557,7 @@ export function AdminPage({
                                     <button
                                       type="button"
                                       className="admin__reset admin__link admin__link--danger"
-                                      disabled={busy}
+                                      disabled={busyKey === `agency:${ag.id}`}
                                       onClick={() => revokeAgency(ag)}
                                     >
                                       Revoke
@@ -560,7 +574,7 @@ export function AdminPage({
                                   <button
                                     type="button"
                                     className="admin__reset admin__link admin__link--muted"
-                                    disabled={busy}
+                                    disabled={busyKey === `agency:${ag.id}`}
                                     onClick={() => setConfirmingRevoke(ag.id)}
                                   >
                                     Revoke access
@@ -597,6 +611,56 @@ export function AdminPage({
                   </p>
                 </div>
               </div>
+
+              {granting && (
+                <div className="admin__panel">
+                  <div className="admin__panel-head">
+                    <span className="admin__panel-title">
+                      Grant agency access to {accountLabel(granting.account)}
+                    </span>
+                  </div>
+                  <form
+                    className="admin__panel-body"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      grantAgency(granting.account, granting.name);
+                    }}
+                  >
+                    <label className="admin__field">
+                      <span className="admin__label">Agency name</span>
+                      <input
+                        className="admin__input"
+                        value={granting.name}
+                        autoFocus
+                        onChange={(e) =>
+                          setGranting({ account: granting.account, name: e.target.value })
+                        }
+                        placeholder="Northbound Travel"
+                      />
+                      <span className="admin__hint">
+                        Their clients see this, so it is the agency's real name — not
+                        the account holder's.
+                      </span>
+                    </label>
+                    <div className="admin__actions">
+                      <button
+                        type="submit"
+                        className="admin__reset admin__btn admin__btn--primary"
+                        disabled={granting.name.trim().length === 0 || busy}
+                      >
+                        Grant access
+                      </button>
+                      <button
+                        type="button"
+                        className="admin__reset admin__btn admin__btn--ghost"
+                        onClick={() => setGranting(undefined)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
               <div className="admin__panel">
                 <div className="admin__panel-head">
@@ -665,10 +729,17 @@ export function AdminPage({
                                 <button
                                   type="button"
                                   className="admin__reset admin__link"
-                                  disabled={busy}
-                                  onClick={() => grantAgency(a)}
+                                  disabled={busyKey === `grant:${a.id}`}
+                                  onClick={() =>
+                                    setGranting({
+                                      account: a,
+                                      /* Seeded with a sensible default so the
+                                         common case is one click and Enter. */
+                                      name: `${a.name || a.mobile || "New"}'s Agency`,
+                                    })
+                                  }
                                 >
-                                  Grant agency access
+                                  {busyKey === `grant:${a.id}` ? "Granting…" : "Grant agency access"}
                                 </button>
                               )}
                             </td>

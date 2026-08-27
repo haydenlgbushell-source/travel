@@ -190,14 +190,6 @@
     max-width: 640px;
   }
 
-  .trip-page.trip-page--app .day-map__canvas {
-    height: 300px;
-  }
-
-  .trip-page.trip-page--app .day-map__canvas > * {
-    height: 100% !important;
-  }
-
   /* Long-form panels stay at a readable measure rather than stretching the
      full width of the pane. */
   .trip-page.trip-page--app .trip-page__tab-panel {
@@ -226,6 +218,15 @@
   .trip-page.trip-page--app .sheet__grabber,
   .trip-page.trip-page--wide .sheet__grabber {
     display: none;
+  }
+
+  /* The scrim is absolute inside the frame, which on a phone is the whole
+     viewport. Centred at 1180px it left the paper either side undimmed and
+     unclickable — so click-outside-to-close silently stopped working in
+     exactly the place a mouse is most likely to aim. */
+  .trip-page.trip-page--app .sheet__scrim,
+  .trip-page.trip-page--wide .sheet__scrim {
+    position: fixed;
   }
 
   .trip-page.trip-page--app .undo {

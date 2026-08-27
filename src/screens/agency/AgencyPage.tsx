@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ThemeProvider, getTheme, type Theme } from "../../theme";
+import { ThemeProvider, getTheme, Wordmark, type Theme } from "../../theme";
+import { BrandPanel } from "./BrandPanel";
+import { brandTheme, loadAgencyBranding, type AgencyBranding } from "./branding";
+import "./brand.css";
 import type { EventDetails } from "../trip-setup/event-data";
 import {
   TRIP_STATUSES,
@@ -19,7 +22,7 @@ import { ClientDetailsSheet } from "./ClientDetailsSheet";
 import { DuplicateTripSheet } from "./DuplicateTripSheet";
 import "../trip/trip-page.css";
 
-type Tab = "trips" | "team";
+type Tab = "trips" | "team" | "brand";
 
 function blankDetails(tripId: string): TripAgencyDetails {
   return { tripId, status: "Draft", currency: "AUD" };
@@ -33,7 +36,7 @@ export function AgencyPage({
   onOpenTrip,
   onCreateClientTrip,
   onBack,
-  theme,
+  theme: baseTheme,
 }: {
   /** Only ever handed to this page once the caller has confirmed the
    *  account has agency access — this page has no path of its own to get
@@ -60,6 +63,10 @@ export function AgencyPage({
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TripStatus | "All">("All");
+  /* The agency's own logo and colours. Loaded here rather than in BrandPanel
+     so the console itself is branded too, not just the preview inside the
+     editor — an agency should see their brand the moment they sign in. */
+  const [branding, setBranding] = useState<AgencyBranding>();
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<EventDetails>();
   const [duplicating, setDuplicating] = useState<EventDetails>();
@@ -217,6 +224,20 @@ export function AgencyPage({
     })
     .join("  |  ");
 
+  /* Reloaded per agency — an agent can belong to more than one, and they
+     don't share a brand. */
+  useEffect(() => {
+    let cancelled = false;
+    setBranding(undefined);
+    loadAgencyBranding(agency.id).then((b) => {
+      if (!cancelled) setBranding(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [agency.id]);
+
+  const theme = brandTheme(baseTheme, branding);
   const labelStyle = { fontFamily: theme.fontMono, color: theme.meta, fontSize: "11px" };
   const fieldStyle = {
     background: theme.card,
@@ -266,11 +287,12 @@ export function AgencyPage({
             onClick={onBack}
             style={{ fontFamily: theme.fontDisplay, letterSpacing: theme.wordTrack }}
           >
-            ← {theme.wordmark}
+            <Wordmark theme={theme} prefix="← " />
           </button>
           <div style={{ display: "flex", gap: "6px" }}>
             {tabButton("trips", "Trips")}
             {tabButton("team", "Team")}
+            {tabButton("brand", "Brand")}
           </div>
         </div>
         <div className="trip-page__head-main">
@@ -326,7 +348,17 @@ export function AgencyPage({
             </div>
           )}
 
-          {tab === "team" ? (
+          {tab === "brand" ? (
+            <BrandPanel
+              agencyId={agency.id}
+              agencyName={agency.name}
+              isOwner={agency.role === "Owner"}
+              /* The unbranded style, so the editor's own preview shows what
+                 the branding changes rather than what it already changed. */
+              baseTheme={baseTheme}
+              onSaved={setBranding}
+            />
+          ) : tab === "team" ? (
             <>
               <span className="wf-card__eyebrow" style={labelStyle}>
                 Who can see this agency's client trips

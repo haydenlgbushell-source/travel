@@ -19,6 +19,7 @@ import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
 import { dayTotal, money, timeForPosition, type Day, type TripItem } from "./trip-data";
 import { TripMap } from "./TripMap";
+import { useIsDesktop } from "../../lib/useIsDesktop";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -101,6 +102,11 @@ export function PlanTab({
   currency: string;
   theme: Theme;
 }) {
+  /* The day map is a 130px strip on a phone because that is all the room
+     there is. On a desktop it gets a size worth looking at — passed as the
+     component's own prop, since TripMap sets its height inline and CSS could
+     only beat that with !important. */
+  const mapHeight = useIsDesktop() ? 300 : 130;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -244,7 +250,7 @@ export function PlanTab({
             <TripMap
               pins={live.map((item, i) => ({ item, number: i + 1 }))}
               center={center}
-              height={130}
+              height={mapHeight}
             />
           </div>
           <button
