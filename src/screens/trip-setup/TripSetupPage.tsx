@@ -3,29 +3,8 @@ import { THEMES, getTheme } from "../../theme";
 import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
-import { geocodePlace, type EventDetails } from "./event-data";
+import { formatDateRange, geocodePlace, type EventDetails } from "./event-data";
 import { EXAMPLE_END, EXAMPLE_START, initialsOf } from "../trip/trip-data";
-
-/** "14 – 19 August 2026" — spans a month name only once when both ends
- *  fall in the same month, the way the rest of the app already writes it. */
-function formatDateRange(startISO: string, endISO: string): string {
-  if (!startISO || !endISO) return "";
-  const start = new Date(`${startISO}T00:00:00`);
-  const end = new Date(`${endISO}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
-  /* A range that ends before it starts generates no days at all, which used
-     to produce a trip that crashed the moment it was opened — and kept
-     crashing, since the id was already saved as the one to reopen. */
-  if (end < start) return "";
-
-  const endMonth = end.toLocaleDateString("en-US", { month: "long" });
-  const year = end.getFullYear();
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${start.getDate()} – ${end.getDate()} ${endMonth} ${year}`;
-  }
-  const startMonth = start.toLocaleDateString("en-US", { month: "long" });
-  return `${start.getDate()} ${startMonth} – ${end.getDate()} ${endMonth} ${year}`;
-}
 
 const SCOPE_RULES = [
   {

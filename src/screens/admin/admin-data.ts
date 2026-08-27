@@ -1,4 +1,5 @@
 import { supabase } from "../../lib/supabase";
+import { upsertEvent, type EventDetails } from "../trip-setup/event-data";
 
 export interface AdminAccountRow {
   id: string;
@@ -128,4 +129,51 @@ export async function adminRevokeAgency(agencyId: string): Promise<number> {
   });
   if (error) throw error;
   return Number(data ?? 0);
+}
+
+/* ---------- setting trips up from the console ---------- */
+
+/** Creating a trip as the admin goes through the ordinary `trips` insert
+ *  rather than a bespoke RPC — the admin is a real account, and a trip they
+ *  make is owned by them like anyone else's. What's admin-only is the
+ *  agency tag: handing a brand-new trip straight to an agency so its agents
+ *  can pick it up without anyone being invited first.
+ *
+ *  The tag is attempted, and only the tag is allowed to fail: RLS on `trips`
+ *  scopes agency writes to agencies the caller belongs to, and an admin
+ *  usually belongs to none of them. When that's refused the trip is still
+ *  worth having, so it's created untagged and the caller is told which of
+ *  the two happened rather than being shown a success that isn't one. */
+export type CreatedTrip = { trip: EventDetails; assigned: boolean };
+
+export async function adminCreateTrip(
+  accountId: string,
+  trip: EventDetails,
+): Promise<CreatedTrip> {
+  if (!trip.agencyId) {
+    await upsertEvent(accountId, trip, true);
+    return { trip, assigned: false };
+  }
+  try {
+    await upsertEvent(accountId, trip, true);
+    return { trip, assigned: true };
+  } catch {
+    const untagged = { ...trip, agencyId: undefined };
+    await upsertEvent(accountId, untagged, true);
+    return { trip: untagged, assigned: false };
+  }
+}
+
+/** Moves an existing trip into an agency (or, with `undefined`, back out of
+ *  one). Same RLS caveat as above — this throws rather than falling back,
+ *  since unlike creation there's no half-useful outcome to keep. */
+export async function adminSetTripAgency(
+  tripId: string,
+  agencyId: string | undefined,
+): Promise<void> {
+  const { error } = await supabase
+    .from("trips")
+    .update({ agency_id: agencyId ?? null, updated_at: new Date().toISOString() })
+    .eq("id", tripId);
+  if (error) throw error;
 }
