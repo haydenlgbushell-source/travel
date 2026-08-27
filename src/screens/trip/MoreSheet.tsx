@@ -1,10 +1,7 @@
 import type { Theme } from "../../theme";
 import { Sheet } from "./Sheet";
 
-const ENTRIES = [
-  { label: "Money", note: "Shared spend, the day-by-day split and who owes who" },
-  { label: "People", note: "Roles, invites and any suggestions waiting on an editor" },
-];
+const ENTRIES = [{ label: "Money" }, { label: "People" }];
 
 export function MoreSheet({
   onOpen,
@@ -38,7 +35,7 @@ export function MoreSheet({
     ? "Not supported in this browser."
     : notifyBlocked
       ? "Blocked — allow notifications for this site in your browser settings."
-      : "Reminders 30 minutes before each item — only while this tab stays open, since there's no server to deliver them once it's closed.";
+      : "";
 
   return (
     <Sheet title="More" onClose={onClose} theme={theme}>
@@ -62,9 +59,6 @@ export function MoreSheet({
                 {pendingCount}
               </span>
             )}
-          </span>
-          <span className="more-sheet__note" style={{ color: theme.body }}>
-            {entry.note}
           </span>
         </button>
       ))}
@@ -92,9 +86,11 @@ export function MoreSheet({
             />
           </span>
         </span>
-        <span className="more-sheet__note" style={{ color: theme.body }}>
-          {notifyNote}
-        </span>
+        {notifyNote && (
+          <span className="more-sheet__note" style={{ color: theme.body }}>
+            {notifyNote}
+          </span>
+        )}
       </button>
 
       <button
@@ -107,9 +103,6 @@ export function MoreSheet({
           <span className="more-sheet__label" style={{ color: theme.ink }}>
             Your trips
           </span>
-        </span>
-        <span className="more-sheet__note" style={{ color: theme.body }}>
-          Switch between trips, start another, or edit this one's dates
         </span>
       </button>
 

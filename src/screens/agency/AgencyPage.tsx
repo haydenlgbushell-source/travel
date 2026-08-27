@@ -412,10 +412,6 @@ export function AgencyPage({
                       Add
                     </button>
                   </div>
-                  <span style={{ fontFamily: theme.fontMono, color: theme.meta, fontSize: "12px" }}>
-                    They need a Wayfare account already — this links the one
-                    registered to that number.
-                  </span>
                   {teamNote && (
                     <span style={{ fontFamily: theme.fontMono, color: theme.body, fontSize: "12px" }}>
                       {teamNote}
@@ -554,14 +550,6 @@ export function AgencyPage({
               >
                 Build a client trip
               </button>
-
-              <span
-                className="add-sheet__foot"
-                style={{ fontFamily: theme.fontMono, color: theme.meta, textAlign: "center" }}
-              >
-                Open a client trip's People tab to generate an access code they can use with no
-                account of their own.
-              </span>
             </>
           )}
         </div>

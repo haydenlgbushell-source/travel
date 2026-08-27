@@ -1195,15 +1195,6 @@ export const INFO = [
   },
 ];
 
-export const ROLE_RULES = [
-  { role: "Organiser", detail: "Owns the trip, the money view and who else can do what." },
-  {
-    role: "Editor",
-    detail: "Adds and changes plan items directly, approves suggestions, books things.",
-  },
-  { role: "Contributor", detail: "Suggests items and votes. Suggestions wait for an editor." },
-];
-
 export const DECISIONS = [
   {
     text: "Saturday's river cruise — the 13:00 slot or wait for 15:00?",

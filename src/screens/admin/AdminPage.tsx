@@ -297,11 +297,6 @@ export function AdminPage({
               <div className="admin__head">
                 <div>
                   <h1 className="admin__title">Overview</h1>
-                  <p className="admin__sub">
-                    Everything on the platform, as the database sees it. Setting a
-                    trip up and granting an agency both happen from here — trips
-                    from the Trips tab, agency access from Accounts.
-                  </p>
                 </div>
               </div>
 
@@ -309,30 +304,18 @@ export function AdminPage({
                 <div className="admin__stat">
                   <span className="admin__stat-n">{counts.accounts}</span>
                   <span className="admin__stat-label">Accounts</span>
-                  <span className="admin__stat-note">
-                    {counts.guests} reached by access code, with no password.
-                  </span>
                 </div>
                 <div className="admin__stat">
                   <span className="admin__stat-n">{counts.trips}</span>
                   <span className="admin__stat-label">Trips</span>
-                  <span className="admin__stat-note">
-                    {counts.agencyTrips} built for a client by an agency.
-                  </span>
                 </div>
                 <div className="admin__stat">
                   <span className="admin__stat-n">{counts.agencies}</span>
                   <span className="admin__stat-label">Agencies</span>
-                  <span className="admin__stat-note">
-                    Access is granted here — nobody can create one themselves.
-                  </span>
                 </div>
                 <div className="admin__stat">
                   <span className="admin__stat-n">{counts.unconfirmed}</span>
                   <span className="admin__stat-label">Unconfirmed</span>
-                  <span className="admin__stat-note">
-                    Signed up but never clicked the email link, so they can't sign in.
-                  </span>
                 </div>
               </div>
 
@@ -399,11 +382,6 @@ export function AdminPage({
               <div className="admin__head">
                 <div>
                   <h1 className="admin__title">Trips</h1>
-                  <p className="admin__sub">
-                    Set a trip up and hand it to an agency, or move an existing one
-                    between agencies. A trip you create is owned by you until an
-                    agency picks it up.
-                  </p>
                 </div>
               </div>
 
@@ -501,11 +479,6 @@ export function AdminPage({
               <div className="admin__head">
                 <div>
                   <h1 className="admin__title">Agencies</h1>
-                  <p className="admin__sub">
-                    An agency exists because you granted one — nobody can create
-                    their own. Its owner adds their own colleagues as agents from
-                    the agency page; you don't need to add each one here.
-                  </p>
                 </div>
               </div>
 
@@ -604,11 +577,6 @@ export function AdminPage({
               <div className="admin__head">
                 <div>
                   <h1 className="admin__title">Accounts</h1>
-                  <p className="admin__sub">
-                    Granting agency access makes that account the owner of a new
-                    agency. They can then add their own agents, build client trips,
-                    and see their pipeline — none of which they can reach otherwise.
-                  </p>
                 </div>
               </div>
 
@@ -637,10 +605,6 @@ export function AdminPage({
                         }
                         placeholder="Northbound Travel"
                       />
-                      <span className="admin__hint">
-                        Their clients see this, so it is the agency's real name — not
-                        the account holder's.
-                      </span>
                     </label>
                     <div className="admin__actions">
                       <button

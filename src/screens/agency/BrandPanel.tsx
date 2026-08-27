@@ -17,14 +17,12 @@ const ACCENT_PRESETS = ["#5B54B8", "#0F7B6C", "#B4522E", "#1F6FB2", "#8A5A2B"];
 
 function ColourField({
   label,
-  hint,
   value,
   fallback,
   onChange,
   presets,
 }: {
   label: string;
-  hint: string;
   value: string;
   /** What the trip's own style uses when the agency hasn't chosen. Already
    *  normalised to hex by the caller — the built-in styles store their
@@ -75,9 +73,11 @@ function ColourField({
           />
         ))}
       </div>
-      <span className={`brand__hint${valid ? "" : " brand__hint--warn"}`}>
-        {valid ? hint : "That needs to be a hex colour, like #1B3A4B."}
-      </span>
+      {!valid && (
+        <span className="brand__hint brand__hint--warn">
+          That needs to be a hex colour, like #1B3A4B.
+        </span>
+      )}
     </div>
   );
 }
@@ -138,10 +138,10 @@ export function BrandPanel({
     try {
       await saveAgencyBranding(agencyId, draft);
       onSaved(draft);
-      setStatus({ text: "Saved — every client trip you own now carries it.", tone: "ok" });
+      setStatus({ text: "Saved", tone: "ok" });
     } catch {
       setStatus({
-        text: "Couldn't save that — check your connection and try again. Only the agency's owner can change the brand.",
+        text: "Couldn't save that — check your connection and try again.",
         tone: "error",
       });
     } finally {
@@ -162,11 +162,9 @@ export function BrandPanel({
       <div className="brand__panel">
         <div className="brand__head">
           <span className="brand__title">Your brand</span>
-          <span className="brand__hint">
-            {isOwner
-              ? "Applied to every client trip this agency owns — on their phones too."
-              : "Only the agency's owner can change this."}
-          </span>
+          {!isOwner && (
+            <span className="brand__hint">Only the agency's owner can change this.</span>
+          )}
         </div>
 
         <fieldset className="brand__fields" disabled={!isOwner || saving}>
@@ -180,10 +178,6 @@ export function BrandPanel({
               onChange={(e) => set("wordmark", e.target.value)}
               placeholder={agencyName}
             />
-            <span className="brand__hint">
-              Shown where the app's own name would be. Leave it blank to use
-              "{agencyName}".
-            </span>
           </div>
 
           <div className="brand__field">
@@ -197,16 +191,15 @@ export function BrandPanel({
               placeholder="https://…/logo.svg"
               spellCheck={false}
             />
-            <span className={`brand__hint${badLogo ? " brand__hint--warn" : ""}`}>
-              {badLogo
-                ? "The address has to start with https:// — the browser won't load a logo over anything else."
-                : "A wide, transparent PNG or SVG works best. It replaces the name above; if it won't load, the name comes back."}
-            </span>
+            {badLogo && (
+              <span className="brand__hint brand__hint--warn">
+                The address has to start with https://
+              </span>
+            )}
           </div>
 
           <ColourField
             label="Header"
-            hint="The bar across the top of every screen. Text on it is set to whichever of black or white reads better."
             value={draft.headBg ?? ""}
             fallback={asHex(baseTheme.headBg) ?? "#14171A"}
             presets={HEAD_PRESETS}
@@ -215,7 +208,6 @@ export function BrandPanel({
 
           <ColourField
             label="Accent"
-            hint="Buttons, links and the marker on the open tab."
             value={draft.accent ?? ""}
             fallback={asHex(baseTheme.accent) ?? "#5B54B8"}
             presets={ACCENT_PRESETS}

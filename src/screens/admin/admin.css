@@ -201,13 +201,6 @@
   margin: 0;
 }
 
-.admin__sub {
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--wf-body);
-  max-width: 68ch;
-  margin: 5px 0 0;
-}
 
 /* ---------- stat tiles ---------- */
 
@@ -243,11 +236,6 @@
   color: var(--wf-meta);
 }
 
-.admin__stat-note {
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--wf-body);
-}
 
 /* ---------- panels ---------- */
 
@@ -391,13 +379,6 @@
   color: var(--wf-bg);
 }
 
-.admin__check-note {
-  display: block;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--wf-body);
-  margin-top: 2px;
-}
 
 /* ---------- buttons ---------- */
 

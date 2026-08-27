@@ -69,10 +69,6 @@ export function InfoTab({
         >
           Add to your calendar
         </div>
-        <div className="info-card__note" style={{ color: theme.body }}>
-          Every approved item, as its own event with the time and place —
-          import the file into whichever calendar app you actually use.
-        </div>
         <div className="info-card__actions">
           <button
             type="button"
@@ -101,10 +97,6 @@ export function InfoTab({
           style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
         >
           Save the places
-        </div>
-        <div className="info-card__note" style={{ color: theme.body }}>
-          Keep the restaurants, the stay and the things you did as a list you
-          can send to whoever asks where to go.
         </div>
         <div className="info-card__actions">
           <button

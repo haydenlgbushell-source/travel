@@ -1152,25 +1152,8 @@
   gap: 11px;
 }
 
-.roles__rule {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid #f1f1ea;
-}
 
-.roles__role {
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
-.roles__detail {
-  font-size: 12.5px;
-  line-height: 1.5;
-  text-wrap: pretty;
-}
 
 /* ---------- bottom bar ---------- */
 
@@ -1469,11 +1452,6 @@
   text-transform: uppercase;
 }
 
-.add-sheet__clash-note {
-  font-size: 12.5px;
-  line-height: 1.45;
-  text-wrap: pretty;
-}
 
 .add-sheet__more {
   align-self: flex-start;

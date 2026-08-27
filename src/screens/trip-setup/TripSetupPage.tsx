@@ -6,24 +6,6 @@ import "./trip-setup.css";
 import { formatDateRange, geocodePlace, type EventDetails } from "./event-data";
 import { EXAMPLE_END, EXAMPLE_START, initialsOf } from "../trip/trip-data";
 
-const SCOPE_RULES = [
-  {
-    label: "Changes",
-    detail:
-      "Colours, fonts, corner radius and the wording of small labels — countdowns, tags, button text.",
-  },
-  {
-    label: "Stays the same",
-    detail:
-      "Every screen, every field, all bookings, ratings, money and permissions. A style is a skin, not a different product.",
-  },
-  {
-    label: "Who sees it",
-    detail:
-      "Everyone on the trip, on desktop and on their phones. Nobody can override it for themselves.",
-  },
-];
-
 export function TripSetupPage({
   themeKey,
   onThemeKeyChange,
@@ -122,11 +104,6 @@ export function TripSetupPage({
             <h1 className="trip-setup__title">
               {isEditing ? "Edit your trip" : "Set up your event"}
             </h1>
-            <p className="trip-setup__lede">
-              {isEditing
-                ? "Change the name, the dates or where it is. Widening the range adds the new days; narrowing it drops the days that fall outside, along with anything planned on them."
-                : "Name it, say where and when, then pick a style. You'll get a day for every date in the range, empty and ready to fill in."}
-            </p>
           </div>
 
           <section className="trip-setup__section">
@@ -152,9 +129,6 @@ export function TripSetupPage({
                   disabled={useExample}
                   onChange={(e) => setDestination(e.target.value)}
                 />
-                <span className="event-field__hint">
-                  Sets the forecast and where the map opens. Optional.
-                </span>
               </label>
               <label className="event-field">
                 <span className="wf-mono event-field__label">Starts</span>
@@ -191,13 +165,7 @@ export function TripSetupPage({
               >
                 {useExample ? "✓" : ""}
               </span>
-              <span className="event-example__text">
-                <span className="event-example__label">Fill it with the example trip</span>
-                <span className="event-example__note">
-                  Six days in Chicago, already planned — a quick way to see how the app
-                  works before building your own.
-                </span>
-              </span>
+              <span className="event-example__label">Fill it with the example trip</span>
             </label>
             )}
           </section>
@@ -223,18 +191,6 @@ export function TripSetupPage({
             </div>
           </section>
 
-          <section className="trip-setup__section">
-            <span className="wf-mono trip-setup__eyebrow">How it applies</span>
-            <div className="scope-panel">
-              {SCOPE_RULES.map((rule) => (
-                <div key={rule.label} className="scope-panel__row">
-                  <span className="wf-mono scope-panel__label">{rule.label}</span>
-                  <span className="scope-panel__detail">{rule.detail}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
           <div className="trip-setup__actions">
             <button
               type="button"
@@ -254,11 +210,7 @@ export function TripSetupPage({
               </button>
             )}
             <span className="wf-mono trip-setup__actions-note">
-              {canCreate
-                ? "Everyone joins as a contributor"
-                : datesBackwards
-                  ? "The end date is before the start date"
-                  : "Add a name and both dates first"}
+              {datesBackwards ? "The end date is before the start date" : ""}
             </span>
           </div>
         </div>

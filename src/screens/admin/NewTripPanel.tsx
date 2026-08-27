@@ -113,7 +113,7 @@ export function NewTripPanel({
       <div className="admin__panel-head">
         <span className="admin__panel-title">Set up a trip</span>
         <span className="admin__hint">
-          {dates || (backwards ? "Dates are the wrong way round" : "Name and dates are required")}
+          {dates || (backwards ? "Dates are the wrong way round" : "")}
         </span>
       </div>
       <div className="admin__panel-body">
@@ -139,9 +139,6 @@ export function NewTripPanel({
               onChange={(e) => setDestination(e.target.value)}
               placeholder="Kyoto, Japan"
             />
-            <span className="admin__hint">
-              Sets the forecast and where the map opens. Optional.
-            </span>
           </label>
 
           <label className="admin__field">
@@ -184,11 +181,6 @@ export function NewTripPanel({
                 </option>
               ))}
             </select>
-            <span className="admin__hint">
-              {agencies.length === 0
-                ? "No agencies yet — grant one from Accounts first."
-                : "Every agent at that agency can open and edit it."}
-            </span>
           </label>
 
           <label className="admin__field">
@@ -204,7 +196,6 @@ export function NewTripPanel({
                 </option>
               ))}
             </select>
-            <span className="admin__hint">What everyone on the trip sees.</span>
           </label>
         </div>
 
@@ -230,13 +221,7 @@ export function NewTripPanel({
           >
             {useExample ? "✓" : ""}
           </span>
-          <span>
-            Fill it with the example itinerary
-            <span className="admin__check-note">
-              Six planned days in Chicago, on the example's own dates. Useful for
-              showing someone how the app works — not for a real client trip.
-            </span>
-          </span>
+          <span>Fill it with the example itinerary</span>
         </label>
 
         <div className="admin__actions">
