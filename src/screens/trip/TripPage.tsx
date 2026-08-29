@@ -185,6 +185,14 @@ export function TripPage({
      A personal trip never asks. */
   const [branding, setBranding] = useState<AgencyBranding>();
   const theme = brandTheme(baseTheme, branding);
+  /* The header's brand slot falls back to the *style's* own name
+     ("Postcard", "Meridian") when nobody has set anything else — which
+     means every unbranded trip showed the look it was drawn in as if that
+     were the trip's own identity. An agency's logo or chosen name still
+     wins, since that is real branding; short of that, what belongs in a
+     trip's own header is the trip, not the theme. */
+  const headerBrand: Theme =
+    theme.logoUrl || branding?.wordmark?.trim() ? theme : { ...theme, wordmark: eventName };
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -662,7 +670,7 @@ export function TripPage({
                 cursor: onBack ? "pointer" : "default",
               }}
             >
-              <Wordmark theme={theme} />
+              <Wordmark theme={headerBrand} />
             </button>
           </div>
           <div className="trip-page__head-actions">

@@ -96,15 +96,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .trip-page__head-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* Airport mode and the countdown are the fixed, short side of the row —
+     they hold their size rather than yielding to a long trip name. */
+  flex-shrink: 0;
 }
 
 .trip-page__wordmark {
+  /* This slot used to carry a short, curated style name ("Postcard"). It
+     now carries the trip's own name, which someone typed and can run long
+     ("The Bennett family, Japan") — so it needs to be allowed to shrink and
+     to truncate, neither of which a flex child does by default. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 17px;
 }
 
@@ -1987,6 +1999,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  /* Lets the wordmark button's own min-width: 0 (and its ellipsis) actually
+     take effect — a flex item's default min-width is its content's width,
+     which would hold this whole row open at the trip name's full length. */
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .trip-page__hamburger {
