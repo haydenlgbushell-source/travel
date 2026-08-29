@@ -5,6 +5,9 @@ export interface Theme {
 
   /** Copy tokens — a theme also sets the tone of small labels, not just colour. */
   wordmark: string;
+  /** A picture to show instead of the wordmark. Only ever set by an agency's
+   *  own branding — the four built-in styles are wordmark-only. */
+  logoUrl?: string;
   typeNote: string;
   strapline: string;
   countdown: string;

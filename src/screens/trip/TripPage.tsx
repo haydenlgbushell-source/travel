@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
-import { ThemeProvider, type Theme } from "../../theme";
+import { ThemeProvider, Wordmark, type Theme } from "../../theme";
+import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/branding";
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
@@ -7,7 +8,7 @@ import { ItemSheet } from "./ItemSheet";
 import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
 import { MoreSheet } from "./MoreSheet";
-import { HamburgerIcon, InfoIcon, MapIcon, PlanIcon, TravelIcon } from "./NavIcons";
+import { HamburgerIcon, InfoIcon, MapIcon, MoneyIcon, PeopleIcon, PlanIcon, TravelIcon } from "./NavIcons";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
 import { TravelTab } from "./TravelTab";
@@ -16,6 +17,7 @@ import type { EventDetails } from "../trip-setup/event-data";
 import {
   DAYS,
   DECISION_COUNT,
+  INBOX,
   DEFAULT_CURRENCY,
   applyDraft,
   buildItem,
@@ -42,6 +44,7 @@ import {
   type Person,
   type Role,
 } from "./trip-data";
+import { useIsDesktop } from "../../lib/useIsDesktop";
 import { fetchWeather } from "./weather";
 import {
   notifyPermission,
@@ -77,8 +80,17 @@ const NAV_TABS: NavEntry[] = [
   { label: "Info", short: "Info", kind: "tab", tab: 3, icon: InfoIcon },
 ];
 
+/* On a desktop the tab bar is a sidebar with room to spare, so the two tabs
+   a phone hides behind the menu sit out in the open with the rest. The menu
+   still carries them, along with notifications and the account. */
+const DESK_NAV: NavEntry[] = [
+  ...NAV_TABS,
+  { label: "Money", short: "Money", kind: "tab", tab: 2, icon: MoneyIcon },
+  { label: "People", short: "People", kind: "tab", tab: 4, icon: PeopleIcon },
+];
+
 export function TripPage({
-  theme,
+  theme: baseTheme,
   event,
   accountId,
   userName,
@@ -106,7 +118,7 @@ export function TripPage({
   /* Seeded with just the signed-in account so there's never a blank roster
      before the real membership load (below) lands — the example trip's
      authored cast never changes, so it needs no fetch at all. */
-  const [members, setMembers] = useState<Person[]>(() => membersFor(isExample, userName));
+  const [members, setMembers] = useState<Person[]>(() => membersFor(isExample, userName, accountId));
   /* Open decisions are part of the authored example; a real trip has none
      until the group can actually vote on anything. */
   const decisionCount = isExample ? DECISION_COUNT : 0;
@@ -165,6 +177,14 @@ export function TripPage({
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
   const [notifyEnabled, setNotifyEnabled] = useState(false);
+  /* Drives what the tab bar renders, not just how it looks — see DESK_NAV. */
+  const desktop = useIsDesktop();
+  /* An agency trip carries that agency's logo and colours. Everyone on the
+     trip sees them — including a client on an access code, who has no
+     agency relationship of their own and reads this through trip_branding.
+     A personal trip never asks. */
+  const [branding, setBranding] = useState<AgencyBranding>();
+  const theme = brandTheme(baseTheme, branding);
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
@@ -211,6 +231,20 @@ export function TripPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, accountId, isExample]);
+
+  useEffect(() => {
+    if (!event.agencyId) {
+      setBranding(undefined);
+      return;
+    }
+    let cancelled = false;
+    loadTripBranding(event.id).then((b) => {
+      if (!cancelled) setBranding(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [event.id, event.agencyId]);
 
   /* Loads this account's currency and notification preference once — these
      are per-account, not per-trip. */
@@ -363,9 +397,77 @@ export function TripPage({
     return () => clearTimeout(t);
   }, [added]);
 
-  const day = days[dayIndex];
+  /* A trip whose dates don't make a range produces no days at all. That used
+     to fall straight through to `days[dayIndex].items` and white-screen —
+     and because the trip id is saved as the one to reopen, every later visit
+     hit the same crash with no way back out. Say what's wrong and offer the
+     way out instead. */
+  const day = days[dayIndex] as Day | undefined;
+  if (!day) {
+    return (
+      <ThemeProvider
+        theme={theme}
+        className="trip-page"
+        style={{ background: theme.bg, color: theme.ink }}
+      >
+        <div className="trip-page__stack" style={{ padding: "40px 20px" }}>
+          <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
+            <span
+              className="empty-day__title"
+              style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
+            >
+              These dates don't make a trip
+            </span>
+            <span className="empty-day__note">
+              {eventName} ends before it starts ({eventDates}), so there are no days
+              to plan. Edit the trip and set the end date after the start date.
+            </span>
+            {onBack && (
+              <button
+                type="button"
+                className="trip-page__reset add-sheet__more"
+                onClick={onBack}
+                style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              >
+                Back to your trips →
+              </button>
+            )}
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+  /* Narrowed past the guard above, for the closures below — a function body
+     doesn't inherit the narrowing from an early return. */
+  const activeDay: Day = day;
+  const navEntries = desktop ? DESK_NAV : NAV_TABS;
+  /* Which nav button is current, so the panel below can name it. Falls back
+     to the first entry when the open tab has no button at this width —
+     Money and People on a phone, reached through the menu instead. */
+  const selectedNavIndex = Math.max(
+    navEntries.findIndex((entry) =>
+      entry.kind === "map" ? mapOpen : !mapOpen && entry.tab === tab,
+    ),
+    0,
+  );
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
+
+  /* Computed once so the People tab's list and the More sheet's badge can
+     never disagree — the badge used to read the example's hardcoded INBOX
+     regardless of which trip was open. */
+  const pendingSuggestions = days.flatMap((d, i) =>
+    d.items
+      .filter((item) => item.suggested && resolved[item.id] === undefined)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        meta: `${item.suggestedBy ?? "A trip member"} · ${item.time}`,
+        note: item.note,
+        day: i,
+      })),
+  );
+  const pendingCount = isExample ? INBOX.length : pendingSuggestions.length;
 
   function toTop() {
     body.current?.scrollTo({ top: 0 });
@@ -417,7 +519,7 @@ export function TripPage({
       currency,
       people: Math.max(members.length, 1),
     });
-    const clash = clashAt(item.time, day.items);
+    const clash = clashAt(item.time, activeDay.items);
     const flag = clash
       ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
       : undefined;
@@ -435,7 +537,7 @@ export function TripPage({
        RLS only lets an Organiser/Editor touch the whole blob — so their one
        allowed action, proposing something new, is persisted here directly. */
     if (!canApprove && !isExample) {
-      void proposeItem(event.id, day.date, item).catch(() => {
+      void proposeItem(event.id, activeDay.date, item).catch(() => {
         /* still shows locally for this session; just won't survive a
            reload or reach anyone else until retried. */
       });
@@ -496,12 +598,13 @@ export function TripPage({
   return (
     <ThemeProvider
       theme={theme}
-      className="trip-page"
+      className="trip-page trip-page--app"
       style={{ background: theme.bg, color: theme.ink }}
     >
       {contentConflict && (
         <div
           role="alert"
+          className="trip-page__banner"
           style={{
             display: "flex",
             alignItems: "center",
@@ -559,7 +662,7 @@ export function TripPage({
                 cursor: onBack ? "pointer" : "default",
               }}
             >
-              {theme.wordmark}
+              <Wordmark theme={theme} />
             </button>
           </div>
           <div className="trip-page__head-actions">
@@ -601,7 +704,7 @@ export function TripPage({
           <div className="trip-page__avatars">
             {members.map((member) => (
               <div
-                key={member.initials}
+                key={member.id}
                 className="trip-page__avatar"
                 style={{
                   fontFamily: theme.fontMono,
@@ -626,7 +729,7 @@ export function TripPage({
           const flagged = d.conflict !== undefined || (d.flags?.length ?? 0) > 0;
           return (
             <button
-              key={d.num}
+              key={d.date}
               type="button"
               aria-pressed={on}
               aria-label={`${d.fullDate}${flagged ? ", has a clash" : ""}`}
@@ -694,19 +797,27 @@ export function TripPage({
         ref={body}
         id="wf-tabpanel"
         role={airport || mapOpen ? undefined : "tabpanel"}
-        aria-labelledby={airport || mapOpen ? undefined : `wf-tab-${tab}`}
+        /* Labelled by the tab that is actually selected. This used to name
+           `wf-tab-${tab}` while the buttons carried `wf-tab-nav-${i}` — two
+           different schemes, so the panel was labelled by nothing at all. */
+        aria-labelledby={
+          airport || mapOpen ? undefined : `wf-tab-nav-${selectedNavIndex}`
+        }
         tabIndex={0}
         className="trip-page__body"
       >
         {airport ? (
-          <AirportPanel day={day} isExample={isExample} theme={theme} />
+          <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
         ) : mapOpen ? (
           <MapTab days={days} center={mapCenter} theme={theme} />
         ) : (
           <>
             {tab === 0 && (
               <PlanTab
-                day={weather[day.num] ? { ...day, weather: weather[day.num] } : day}
+                /* Keyed by the ISO date fetchWeather actually returns —
+                   looking it up by day.num ("14") never matched, so the live
+                   forecast never once reached the day header. */
+                day={weather[day.date] ? { ...day, weather: weather[day.date] } : day}
                 highlightId={added?.id}
                 loading={loading || contentLoading}
                 resolved={resolved}
@@ -759,16 +870,7 @@ export function TripPage({
                   toTop();
                 }}
                 members={members}
-                pendingSuggestions={days.flatMap((d, i) =>
-                  d.items
-                    .filter((item) => item.suggested && resolved[item.id] === undefined)
-                    .map((item) => ({
-                      title: item.title,
-                      meta: `${item.suggestedBy ?? "A trip member"} · ${item.time}`,
-                      note: item.note,
-                      day: i,
-                    })),
-                )}
+                pendingSuggestions={pendingSuggestions}
                 onCreateInvite={createInviteLink}
                 onCreateAccessCode={createClientLink}
                 tripId={event.id}
@@ -788,7 +890,7 @@ export function TripPage({
         className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
-        {NAV_TABS.map((entry, i) => {
+        {navEntries.map((entry, i) => {
           const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
           const Icon = entry.icon;
           return (
@@ -808,8 +910,8 @@ export function TripPage({
                 const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
                 if (step === 0) return;
                 e.preventDefault();
-                const next = (i + step + NAV_TABS.length) % NAV_TABS.length;
-                const nextEntry = NAV_TABS[next];
+                const next = (i + step + navEntries.length) % navEntries.length;
+                const nextEntry = navEntries[next];
                 if (nextEntry.kind === "map") setMapOpenTab();
                 else pickTab(nextEntry.tab);
                 document.getElementById(`wf-tab-nav-${next}`)?.focus();
@@ -875,6 +977,7 @@ export function TripPage({
       {moreOpen && (
         <MoreSheet
           onOpen={openFromMore}
+          pendingCount={pendingCount}
           onClose={() => setMoreOpen(false)}
           notifyEnabled={notifyEnabled}
           notifySupported={notifyPermission() !== "unsupported"}

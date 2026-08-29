@@ -152,10 +152,6 @@ export function DuplicateTripSheet({
                 : `${newDays} days vs ${sourceDays}: the first ${newDays} ${newDays === 1 ? "day copies" : "days copy"} across, the rest is dropped.`}
         </span>
 
-        <span style={{ fontFamily: theme.fontMono, fontSize: "12px", color: theme.meta }}>
-          Bookings and prices copy as written — check anything date-specific.
-        </span>
-
         {error && (
           <span style={{ fontFamily: theme.fontMono, fontSize: "12px", color: "oklch(0.5 0.16 25)" }}>
             {error}

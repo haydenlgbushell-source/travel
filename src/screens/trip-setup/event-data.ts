@@ -136,6 +136,27 @@ export async function saveCurrentEventId(
   if (error) throw error;
 }
 
+/** "14 – 19 August 2026" — spans a month name only once when both ends fall
+ *  in the same month, the way the rest of the app already writes it. Returns
+ *  an empty string for a range that ends before it starts, which is what
+ *  stops such a trip being created at all: a reversed range generates no
+ *  days, and a trip with no days can't be opened. */
+export function formatDateRange(startISO: string, endISO: string): string {
+  if (!startISO || !endISO) return "";
+  const start = new Date(`${startISO}T00:00:00`);
+  const end = new Date(`${endISO}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+  if (end < start) return "";
+
+  const endMonth = end.toLocaleDateString("en-US", { month: "long" });
+  const year = end.getFullYear();
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.getDate()} – ${end.getDate()} ${endMonth} ${year}`;
+  }
+  const startMonth = start.toLocaleDateString("en-US", { month: "long" });
+  return `${start.getDate()} ${startMonth} – ${end.getDate()} ${endMonth} ${year}`;
+}
+
 export interface GeocodedPlace {
   label: string;
   lat: number;

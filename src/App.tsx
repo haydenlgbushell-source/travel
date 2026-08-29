@@ -401,6 +401,7 @@ function App() {
   if (adminRoute && account?.isAdmin) {
     return (
       <AdminPage
+        accountId={account.id}
         onBack={() => {
           window.location.hash = "";
           setAdminRoute(false);

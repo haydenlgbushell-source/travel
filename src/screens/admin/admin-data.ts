@@ -1,4 +1,5 @@
 import { supabase } from "../../lib/supabase";
+import { upsertEvent, type EventDetails } from "../trip-setup/event-data";
 
 export interface AdminAccountRow {
   id: string;
@@ -128,4 +129,48 @@ export async function adminRevokeAgency(agencyId: string): Promise<number> {
   });
   if (error) throw error;
   return Number(data ?? 0);
+}
+
+/* ---------- setting trips up from the console ---------- */
+
+/** Creating a trip as the admin goes through the ordinary `trips` insert —
+ *  the admin is a real account, and a trip they make is owned by them like
+ *  anyone else's. The agency tag can't ride along on that insert: RLS on
+ *  `trips` carries `agency_id is null or is_agency_member(agency_id)` on
+ *  both insert and update, so an account can only tag a trip to an agency it
+ *  belongs to, and an admin belongs to none of them. So the trip is created
+ *  untagged and then handed over through admin_set_trip_agency, which is
+ *  is_admin-gated server-side. */
+export type CreatedTrip = { trip: EventDetails; assigned: boolean };
+
+export async function adminCreateTrip(
+  accountId: string,
+  trip: EventDetails,
+): Promise<CreatedTrip> {
+  const agencyId = trip.agencyId;
+  await upsertEvent(accountId, { ...trip, agencyId: undefined }, true);
+  if (!agencyId) return { trip: { ...trip, agencyId: undefined }, assigned: false };
+
+  try {
+    await adminSetTripAgency(trip.id, agencyId);
+    return { trip, assigned: true };
+  } catch {
+    /* The trip exists and is worth keeping — it just belongs to the admin
+       rather than the agency, and the caller says so rather than reporting
+       a success that isn't one. */
+    return { trip: { ...trip, agencyId: undefined }, assigned: false };
+  }
+}
+
+/** Moves a trip into an agency, or with `undefined` back out of one.
+ *  Admin-only, enforced in the function rather than here. */
+export async function adminSetTripAgency(
+  tripId: string,
+  agencyId: string | undefined,
+): Promise<void> {
+  const { error } = await supabase.rpc("admin_set_trip_agency", {
+    p_trip_id: tripId,
+    p_agency_id: agencyId ?? null,
+  });
+  if (error) throw error;
 }

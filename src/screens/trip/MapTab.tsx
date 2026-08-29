@@ -67,7 +67,7 @@ export function MapTab({
         const items = located.filter((entry) => entry.day === day);
         if (items.length === 0) return null;
         return (
-          <div key={day.num} className="map-group">
+          <div key={day.date} className="map-group">
             <span
               className="wf-card__eyebrow"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}

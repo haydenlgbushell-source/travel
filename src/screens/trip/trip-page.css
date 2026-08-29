@@ -1,3 +1,5 @@
+@import "./desktop.css";
+
 /* Geometry for the mobile trip page. Colour, type and radius come from the
    active theme (inline `var(--wf-*)` / theme props), same as the phone preview. */
 
@@ -578,6 +580,11 @@
   gap: 8px;
 }
 
+.item__pending-note {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .item__pending-btn {
   min-height: 44px;
   display: flex;
@@ -1145,25 +1152,8 @@
   gap: 11px;
 }
 
-.roles__rule {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid #f1f1ea;
-}
 
-.roles__role {
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
-.roles__detail {
-  font-size: 12.5px;
-  line-height: 1.5;
-  text-wrap: pretty;
-}
 
 /* ---------- bottom bar ---------- */
 
@@ -1462,11 +1452,6 @@
   text-transform: uppercase;
 }
 
-.add-sheet__clash-note {
-  font-size: 12.5px;
-  line-height: 1.45;
-  text-wrap: pretty;
-}
 
 .add-sheet__more {
   align-self: flex-start;

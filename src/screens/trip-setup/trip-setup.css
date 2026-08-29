@@ -107,14 +107,6 @@
   margin: 0;
 }
 
-.trip-setup__lede {
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: #5e635d;
-  margin: 0;
-  max-width: 620px;
-  text-wrap: pretty;
-}
 
 .trip-setup__section {
   display: flex;
@@ -230,10 +222,6 @@
   cursor: not-allowed;
 }
 
-.event-field__hint {
-  font-size: 11.5px;
-  color: #8a8f88;
-}
 
 .event-example {
   display: flex;
@@ -246,11 +234,6 @@
   padding: 14px 15px;
 }
 
-.event-example__text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
 
 .event-example__label {
   font-size: 13.5px;
@@ -258,12 +241,6 @@
   color: #14171a;
 }
 
-.event-example__note {
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: #5e635d;
-  text-wrap: pretty;
-}
 
 /* ---------- style picker grid ---------- */
 
@@ -422,37 +399,9 @@
 
 /* ---------- scope panel ---------- */
 
-.scope-panel {
-  background: #fdfdfc;
-  border: 1px solid #e4e4dd;
-  border-radius: 14px;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-}
 
-.scope-panel__row {
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  gap: 16px;
-  align-items: baseline;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f1f1ea;
-}
 
-.scope-panel__label {
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
-.scope-panel__detail {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: #5e635d;
-  text-wrap: pretty;
-}
 
 .scope-panel__toggle {
   display: flex;

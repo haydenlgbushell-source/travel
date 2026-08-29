@@ -192,11 +192,6 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
         >
           {isSignUp ? "Already have an account? Sign in" : "New here? Create an account"}
         </button>
-
-        <p className="auth-note">
-          Your account works on any device — sign in here with the same mobile number and
-          password.
-        </p>
       </div>
     </div>
   );

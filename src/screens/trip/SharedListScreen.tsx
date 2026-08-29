@@ -17,7 +17,7 @@ export function SharedListScreen({
   return (
     <ThemeProvider
       theme={theme}
-      className="trip-page"
+      className="trip-page trip-page--wide"
       style={{ background: theme.bg, color: theme.ink }}
     >
       <div

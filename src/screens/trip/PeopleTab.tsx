@@ -3,7 +3,6 @@ import type { Theme } from "../../theme";
 import {
   INBOX,
   ROLE_COLORS,
-  ROLE_RULES,
   loadAccessCodes,
   revokeAccessCode,
   type AccessCode,
@@ -16,6 +15,8 @@ const ROLES: Role[] = ["Organiser", "Editor", "Contributor"];
 const COUNT_WORD = ["Nobody", "One person", "Two people", "Three people", "Four people", "Five people"];
 
 interface Suggestion {
+  /** The proposed item's own id — two suggestions can share a title. */
+  id: string;
   title: string;
   meta: string;
   note: string;
@@ -137,7 +138,7 @@ export function PeopleTab({
           </span>
         </div>
         {members.map((person) => (
-          <div key={person.initials} className="people__row">
+          <div key={person.id} className="people__row">
             <div
               className="people__avatar"
               style={{ fontFamily: theme.fontMono, color: theme.body }}
@@ -285,13 +286,6 @@ export function PeopleTab({
                   </div>
                 );
               })}
-              <span
-                className="add-sheet__hint"
-                style={{ fontFamily: theme.fontMono, color: theme.meta }}
-              >
-                Revoking stops the code working from now on — anyone already on the
-                trip stays.
-              </span>
             </div>
           )}
         </div>
@@ -309,7 +303,7 @@ export function PeopleTab({
         </div>
         {inbox.map((suggestion) => (
           <button
-            key={suggestion.title}
+            key={suggestion.id}
             type="button"
             className="trip-page__reset inbox__item"
             onClick={() => onOpenSuggestion(suggestion.day)}
@@ -336,13 +330,6 @@ export function PeopleTab({
         className="wf-card wf-card--pad roles"
         style={{ background: theme.card, borderColor: theme.line, padding: "15px 16px" }}
       >
-        <div
-          className="wf-card__eyebrow"
-          style={{ fontFamily: theme.fontMono, color: theme.meta }}
-        >
-          What each role can do
-        </div>
-
         {isExample && (
           <div className="role-switch">
             <span
@@ -374,19 +361,6 @@ export function PeopleTab({
           </div>
         )}
 
-        {ROLE_RULES.map((rule) => (
-          <div key={rule.role} className="roles__rule">
-            <span
-              className="roles__role"
-              style={{ fontFamily: theme.fontMono, color: theme.ink }}
-            >
-              {rule.role}
-            </span>
-            <span className="roles__detail" style={{ color: theme.body }}>
-              {rule.detail}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );

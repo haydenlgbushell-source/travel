@@ -21,7 +21,7 @@ export function PlacesList({ places, theme }: { places: Place[]; theme: Theme })
         const group = places.filter((p) => p.kind === kind);
         if (group.length === 0) return null;
         return (
-          <div key={kind} className="trip-page__stack trip-page__stack--tight">
+          <div key={kind} className="trip-page__stack trip-page__stack--tight trip-page__stack--cards">
             <span
               className="wf-card__eyebrow"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}

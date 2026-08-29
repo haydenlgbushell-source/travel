@@ -225,39 +225,39 @@ export function ItemCard({
           {pending && (
             <div className="item__pending">
               <span className="item__pending-label" style={{ fontFamily: theme.fontMono }}>
-                Suggested by {item.suggestedBy} · 2 of 5 backing it
+                Suggested by {item.suggestedBy}
               </span>
-              <div className="item__pending-actions">
-                {canApprove ? (
-                  <>
-                    <button
-                      type="button"
-                      className="trip-page__reset item__pending-btn"
-                      onClick={() => onResolve("approved")}
-                      style={{ color: theme.btnInk, background: theme.accent }}
-                    >
-                      Add to the day
-                    </button>
-                    <button
-                      type="button"
-                      className="trip-page__reset item__pending-btn"
-                      onClick={() => onResolve("declined")}
-                      style={{ color: theme.ink, border: "1px solid #D6D7D0" }}
-                    >
-                      Not this time
-                    </button>
-                  </>
-                ) : (
+              {/* Only an editor gets buttons here. This used to offer a
+                  Contributor a "Back this" button wired to the very same
+                  onResolve("approved") an editor's approve fires — so a vote
+                  silently put the item in the plan, in the day's money and in
+                  the calendar export, on that one device only, since RLS
+                  refuses their write. Nothing tallies backings, so until
+                  something does, this says who is waiting on whom. */}
+              {canApprove ? (
+                <div className="item__pending-actions">
                   <button
                     type="button"
                     className="trip-page__reset item__pending-btn"
                     onClick={() => onResolve("approved")}
-                    style={{ color: theme.accentInk, border: "1px solid var(--wf-accent-edge)" }}
+                    style={{ color: theme.btnInk, background: theme.accent }}
                   >
-                    Back this
+                    Add to the day
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    className="trip-page__reset item__pending-btn"
+                    onClick={() => onResolve("declined")}
+                    style={{ color: theme.ink, border: "1px solid #D6D7D0" }}
+                  >
+                    Not this time
+                  </button>
+                </div>
+              ) : (
+                <span className="item__pending-note" style={{ color: theme.body }}>
+                  Waiting on an editor to add it to the day.
+                </span>
+              )}
             </div>
           )}
 

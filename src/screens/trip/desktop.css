@@ -1,0 +1,307 @@
+/* The desktop layer.
+ *
+ * Everything in trip-page.css is drawn for a 390 × 844 phone and centres a
+ * 430px column on anything wider — which is the right default, since the
+ * plan is a phone product first. This file is what happens above 1040px,
+ * where that column leaves most of the screen empty: the same markup is
+ * re-laid-out as a two-pane app, and nothing below the breakpoint is
+ * touched.
+ *
+ * Two shapes only:
+ *   .trip-page--app   the trip itself — header, day rail, sidebar, content
+ *   .trip-page--wide  the list screens — more room and a card grid
+ *
+ * Both are written as .trip-page.trip-page--x: this file is @imported at the
+ * top of trip-page.css, so it loses on source order at equal specificity —
+ * the doubled class is what makes the overrides actually apply.
+ */
+
+@media (min-width: 1040px) {
+  /* ---------- shared: both desktop shapes ---------- */
+
+  .trip-page.trip-page--app,
+  .trip-page.trip-page--wide {
+    max-width: 1180px;
+    border-left: 1px solid var(--wf-line);
+    border-right: 1px solid var(--wf-line);
+  }
+
+  /* On a phone the frame fills the viewport, so the page behind it is never
+     seen. Centred at 1180px it is — and the browser's white would sit either
+     side of a cream app. Each theme has its own paper, so this paints the
+     backdrop from the active one rather than hard-coding a fourth colour.
+     Only ever the top-level screen: the nested ThemeProviders in the style
+     picker's previews don't carry these classes. */
+  .trip-page.trip-page--app::before,
+  .trip-page.trip-page--wide::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--wf-bg);
+  }
+
+  .trip-page.trip-page--app .trip-page__head,
+  .trip-page.trip-page--wide .trip-page__head {
+    padding: 18px 30px;
+  }
+
+  .trip-page.trip-page--app .trip-page__name,
+  .trip-page.trip-page--wide .trip-page__name {
+    font-size: 30px;
+  }
+
+  /* The phone hides scrollbars because a thumb does the scrolling. On a
+     desktop that removes the only cue that a pane scrolls at all. */
+  .trip-page.trip-page--app ::-webkit-scrollbar,
+  .trip-page.trip-page--wide ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .trip-page.trip-page--app ::-webkit-scrollbar-thumb,
+  .trip-page.trip-page--wide ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--wf-meta) 34%, transparent);
+    border-radius: 8px;
+  }
+
+  /* ---------- the trip: header / day rail / sidebar / content ---------- */
+
+  .trip-page.trip-page--app {
+    display: grid;
+    /* The conflict banner is conditional. Its row is `auto`, so with no
+       banner in the DOM it collapses to nothing rather than leaving a gap. */
+    grid-template-columns: 208px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "banner banner"
+      "head   head"
+      "nav    days"
+      "nav    actions"
+      "nav    main";
+  }
+
+  .trip-page__banner {
+    grid-area: banner;
+  }
+
+  .trip-page.trip-page--app .trip-page__head {
+    grid-area: head;
+  }
+
+  .trip-page.trip-page--app .trip-page__days {
+    grid-area: days;
+    padding: 12px 30px;
+  }
+
+  .trip-page.trip-page--app .trip-page__actions {
+    grid-area: actions;
+    padding: 10px 30px 11px;
+  }
+
+  .trip-page.trip-page--app .trip-page__body {
+    grid-area: main;
+    /* No bottom bar to clear any more — the nav is beside the content. */
+    padding: 22px 30px 40px;
+  }
+
+  /* The day chips have room to be read rather than squinted at. */
+  .trip-page.trip-page--app .trip-page__day {
+    min-width: 58px;
+    min-height: 54px;
+  }
+
+  .trip-page.trip-page--app .trip-page__day-num {
+    font-size: 18px;
+  }
+
+  /* Adding to the day is the primary action, but at this width a
+     full-bleed button looks like a mistake. */
+  .trip-page.trip-page--app .trip-page__add {
+    flex: 0 0 auto;
+    min-width: 190px;
+    padding: 0 20px;
+  }
+
+  /* ---------- the tab bar becomes a sidebar ---------- */
+
+  .trip-page.trip-page--app .trip-page__nav {
+    position: static;
+    grid-area: nav;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 18px 12px;
+    border-top: none;
+    border-right: 1px solid var(--wf-line);
+    overflow-y: auto;
+  }
+
+  .trip-page.trip-page--app .trip-page__nav-item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 11px;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    letter-spacing: 0;
+    transition:
+      background 0.16s ease,
+      color 0.16s ease;
+  }
+
+  .trip-page.trip-page--app .trip-page__nav-item:hover {
+    background: var(--wf-card);
+  }
+
+  /* The phone marks the active tab with a rule above it, which reads as
+     nothing at all on a vertical list — a filled row is the sidebar
+     equivalent, so the rule becomes a left edge instead. */
+  .trip-page.trip-page--app .trip-page__nav-item[aria-selected="true"] {
+    background: var(--wf-card);
+  }
+
+  .trip-page.trip-page--app .trip-page__nav-mark {
+    top: 50%;
+    left: 0;
+    width: 2px;
+    height: 20px;
+    transform: translateY(-50%);
+  }
+
+  /* ---------- the plan reads as two columns ---------- */
+
+  /* The day map is a 130px strip on a phone because that is all there is
+     room for. Here it sits beside the items at a size worth looking at. */
+  .trip-page.trip-page--app .trip-page__stack {
+    gap: 16px;
+  }
+
+  .trip-page.trip-page--app .items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  .trip-page.trip-page--app .day-chips {
+    max-width: 640px;
+  }
+
+  /* Long-form panels stay at a readable measure rather than stretching the
+     full width of the pane. */
+  .trip-page.trip-page--app .trip-page__tab-panel {
+    max-width: 760px;
+  }
+
+  /* ---------- sheets become centred dialogs ---------- */
+
+  /* A sheet that slides up from the bottom of a 1180px window is a phone
+     gesture on a desktop. Same markup, centred and boxed. */
+  .trip-page.trip-page--app .sheet,
+  .trip-page.trip-page--wide .sheet {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: min(560px, calc(100% - 80px));
+    max-height: 82%;
+    transform: translate(-50%, -50%);
+    border-radius: 16px;
+    padding: 20px 24px 24px;
+    box-shadow: 0 30px 80px -30px rgba(20, 23, 26, 0.5);
+    animation: wf-fade 0.18s ease both;
+  }
+
+  .trip-page.trip-page--app .sheet__grabber,
+  .trip-page.trip-page--wide .sheet__grabber {
+    display: none;
+  }
+
+  /* The scrim is absolute inside the frame, which on a phone is the whole
+     viewport. Centred at 1180px it left the paper either side undimmed and
+     unclickable — so click-outside-to-close silently stopped working in
+     exactly the place a mouse is most likely to aim. */
+  .trip-page.trip-page--app .sheet__scrim,
+  .trip-page.trip-page--wide .sheet__scrim {
+    position: fixed;
+  }
+
+  .trip-page.trip-page--app .undo {
+    left: auto;
+    right: 30px;
+    bottom: 26px;
+    width: 340px;
+  }
+
+  /* ---------- the list screens ---------- */
+
+  .trip-page.trip-page--wide .trip-page__body {
+    padding: 26px 30px 48px;
+  }
+
+  .trip-page.trip-page--wide .trip-page__stack--cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  /* Neither the empty state nor the new-trip button is a card, so neither
+     should sit in the grid pretending to be one. */
+  .trip-page.trip-page--wide .trip-page__stack--cards > .empty-day {
+    grid-column: 1 / -1;
+  }
+
+  .trip-page.trip-page--wide .trip-page__stack--cards > .trips__new {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-width: 220px;
+    padding: 0 24px;
+    min-height: 44px;
+  }
+
+  .trip-page.trip-page--wide .past-card__name {
+    font-size: 22px;
+  }
+}
+
+/* ---------- between a phone and a desk ---------- */
+
+/* A tablet, or a half-width browser window: too narrow for the sidebar, too
+   wide for a 430px column stranded in the middle of the screen. */
+@media (min-width: 700px) and (max-width: 1039px) {
+  .trip-page.trip-page--app,
+  .trip-page.trip-page--wide {
+    max-width: 680px;
+    border-left: 1px solid var(--wf-line);
+    border-right: 1px solid var(--wf-line);
+  }
+
+  .trip-page.trip-page--wide .trip-page__stack--cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .trip-page.trip-page--wide .trip-page__stack--cards > .empty-day,
+  .trip-page.trip-page--wide .trip-page__stack--cards > .trips__new {
+    grid-column: 1 / -1;
+  }
+
+  .trip-page.trip-page--wide .trip-page__stack--cards > .trips__new {
+    justify-self: start;
+    min-width: 220px;
+    padding: 0 24px;
+  }
+
+  .trip-page.trip-page--app .items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+}

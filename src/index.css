@@ -35,3 +35,14 @@ a {
   outline: 2px solid oklch(0.52 0.13 285);
   outline-offset: 2px;
 }
+
+/* An agency's logo, wherever it stands in for the wordmark — the trip page,
+   the agency console, the branding preview. Capped so a large upload can't
+   push the header out of shape. */
+.wf-logo {
+  display: block;
+  max-height: 24px;
+  max-width: 170px;
+  width: auto;
+  object-fit: contain;
+}

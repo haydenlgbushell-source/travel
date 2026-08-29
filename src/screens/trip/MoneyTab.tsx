@@ -110,7 +110,7 @@ export function MoneyTab({
           Day by day
         </div>
         {days.map((day, i) => (
-          <div key={day.num} className="bar">
+          <div key={day.date} className="bar">
             <span
               className="bar__label"
               style={{ fontFamily: theme.fontMono, color: theme.body }}

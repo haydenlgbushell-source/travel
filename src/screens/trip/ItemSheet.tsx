@@ -310,7 +310,7 @@ export function ItemSheet({
                   className="add-sheet__hint"
                   style={{ fontFamily: theme.fontMono, color: theme.meta }}
                 >
-                  {carrier} — add the route and times below
+                  {carrier}
                 </span>
               )}
             </div>
@@ -427,10 +427,6 @@ export function ItemSheet({
           >
             Tight against {clash.title} at {clash.time}
           </span>
-          <span className="add-sheet__clash-note" style={{ color: theme.body }}>
-            That one is booked. Go ahead if you want — the day will carry a note
-            about it.
-          </span>
         </div>
       )}
 
@@ -468,10 +464,10 @@ export function ItemSheet({
                 }}
               >
                 {placeStatus === "looking"
-                  ? "Looking that place up…"
+                  ? "Looking…"
                   : placeStatus === "found"
                     ? draft.placeAddress
-                    : "Couldn't find that one — it still works, it just won't sit on the map"}
+                    : "Couldn't find that one"}
               </span>
             )}
           </div>
@@ -582,10 +578,10 @@ export function ItemSheet({
                   }}
                 >
                   {photoStatus === "looking"
-                    ? "Looking for a picture on that page…"
+                    ? "Looking…"
                     : photoStatus === "found"
-                      ? "Found the picture that page shows"
-                      : "No picture found there — open the photo itself and copy its address"}
+                      ? ""
+                      : "No picture found there"}
                 </span>
               )}
               {draft.photoUrl.trim() !== "" && (
@@ -639,11 +635,6 @@ export function ItemSheet({
         </button>
       )}
 
-      {!editing && !canApprove && (
-        <span className="add-sheet__foot" style={labelStyle}>
-          An editor sees it before it joins the plan
-        </span>
-      )}
     </Sheet>
   );
 }

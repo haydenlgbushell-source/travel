@@ -12,6 +12,11 @@ export const GREEN = "oklch(0.52 0.11 155)";
 export type Role = "Organiser" | "Editor" | "Contributor";
 
 export interface Person {
+  /** The member's account id on a real trip. Rows and avatars key off this
+   *  rather than `initials`, which two people on the same trip can share —
+   *  "Jo Rahman" and "Jack Rowe" are both JR, and one of them used to
+   *  vanish from the roster. */
+  id: string;
   initials: string;
   name: string;
   role: Role;
@@ -146,11 +151,11 @@ export interface Day {
 }
 
 export const PEOPLE: Person[] = [
-  { initials: "AN", name: "Ana Ferreira", role: "Organiser", note: "Holds the hotel and both flights" },
-  { initials: "TM", name: "Tom Reid", role: "Editor", note: "Booked the Cubs tickets" },
-  { initials: "JR", name: "Jo Rahman", role: "Editor", note: "Handles the museum passes" },
-  { initials: "SB", name: "Sam Boyd", role: "Contributor", note: "Joined Tuesday" },
-  { initials: "KE", name: "Kit Ellis", role: "Contributor", note: "Two suggestions waiting" },
+  { id: "ex-an", initials: "AN", name: "Ana Ferreira", role: "Organiser", note: "Holds the hotel and both flights" },
+  { id: "ex-tm", initials: "TM", name: "Tom Reid", role: "Editor", note: "Booked the Cubs tickets" },
+  { id: "ex-jr", initials: "JR", name: "Jo Rahman", role: "Editor", note: "Handles the museum passes" },
+  { id: "ex-sb", initials: "SB", name: "Sam Boyd", role: "Contributor", note: "Joined Tuesday" },
+  { id: "ex-ke", initials: "KE", name: "Kit Ellis", role: "Contributor", note: "Two suggestions waiting" },
 ];
 
 /** "Ana Novak" → "AN", "Ana" → "AN". Used for the header avatars, where a
@@ -165,11 +170,15 @@ export function initialsOf(name: string): string {
 /** The example trip comes with its authored crew; a real one starts with
  *  just the person who made it, shown immediately so there's never a blank
  *  flash before loadTripMembers resolves with who's actually on it. */
-export function membersFor(fromExample: boolean, userName: string | undefined): Person[] {
+export function membersFor(
+  fromExample: boolean,
+  userName: string | undefined,
+  accountId: string,
+): Person[] {
   if (fromExample) return PEOPLE;
   const name = userName?.trim();
   if (!name) return [];
-  return [{ initials: initialsOf(name), name, role: "Organiser", note: "Created this trip" }];
+  return [{ id: accountId, initials: initialsOf(name), name, role: "Organiser", note: "Created this trip" }];
 }
 
 interface MemberRow {
@@ -198,7 +207,7 @@ export async function loadTripMembers(
   const rows = membersResult.data as MemberRow[];
   const members = rows.map((row) => {
     const name = row.name?.trim() || "New member";
-    return { initials: initialsOf(name), name, role: row.role, note: "" };
+    return { id: row.account_id, initials: initialsOf(name), name, role: row.role, note: "" };
   });
   const mine = rows.find((row) => row.account_id === myAccountId);
   const myRole = (mine?.role ?? (roleResult.data as Role | null)) ?? "Contributor";
@@ -1104,7 +1113,13 @@ export const OWES = [
   { who: "Sam owes Jo", amount: 65 },
 ];
 
-const BUDGET_KIND_LABEL: Partial<Record<ItemKind, string>> = {
+/* Every kind needs a row here. Stay used to be missing, which meant
+   liveBudget quietly dropped accommodation while dayTotal — the day bars on
+   the same screen, and the Plan tab's "Each" chip — counted it, so the two
+   halves of the Money tab contradicted each other on any trip with a hotel
+   on the plan. */
+const BUDGET_KIND_LABEL: Record<ItemKind, string> = {
+  Stay: "Where you're staying",
   Do: "Tickets and entries",
   Travel: "Transport and transfers",
   Eat: "Food, so far",
@@ -1148,9 +1163,9 @@ export function liveBudget(
        example. A real trip's costs come only from what's actually on the
        plan, so nobody is shown money they never agreed to spend. */
     ...(options.fromExample ? FIXED_COSTS : []),
-    ...ITEM_KINDS.filter((kind) => BUDGET_KIND_LABEL[kind]).map((kind) => {
+    ...ITEM_KINDS.map((kind) => {
       const each = byKind.get(kind) ?? 0;
-      return { label: BUDGET_KIND_LABEL[kind] as string, each, total: each * people };
+      return { label: BUDGET_KIND_LABEL[kind], each, total: each * people };
     }),
   ];
   const each = rows.reduce((sum, row) => sum + row.each, 0);
@@ -1180,15 +1195,6 @@ export const INFO = [
   },
 ];
 
-export const ROLE_RULES = [
-  { role: "Organiser", detail: "Owns the trip, the money view and who else can do what." },
-  {
-    role: "Editor",
-    detail: "Adds and changes plan items directly, approves suggestions, books things.",
-  },
-  { role: "Contributor", detail: "Suggests items and votes. Suggestions wait for an editor." },
-];
-
 export const DECISIONS = [
   {
     text: "Saturday's river cruise — the 13:00 slot or wait for 15:00?",
@@ -1208,12 +1214,14 @@ export const DECISION_COUNT = DECISIONS.length;
 /** Suggestions waiting on an editor, shown on the People tab. */
 export const INBOX = [
   {
+    id: "inbox-second-city",
     title: "Second City late show",
     meta: "Kit · 2 hours ago · Mon 22:00",
     note: "Only works if we skip a slow morning Tuesday.",
     day: 3,
   },
   {
+    id: "inbox-alinea",
     title: "Alinea, if anyone wants to splurge",
     meta: "Sam · yesterday · Wed lunch",
     note: "Would mean swapping out the airport-day lunch entirely.",
