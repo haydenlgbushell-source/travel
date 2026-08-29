@@ -5,11 +5,12 @@
 [functions]
   directory = "netlify/functions"
 
-# Keep the function reachable — the catch-all below would otherwise claim it.
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# No redirect needed to keep a function reachable: Netlify always serves
+# netlify/functions at /.netlify/functions/* itself, ahead of the catch-all
+# below. The rule that used to sit here was also invalid — /.netlify/* is a
+# reserved path and can't be used as a redirect *source* — which is why every
+# deploy has been logging "1 invalid redirect rule found" since this file
+# was added; it was a silent no-op, not something protecting the functions.
 
 # Single-page app: serve index.html for any path the build didn't emit.
 [[redirects]]
