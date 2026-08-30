@@ -2110,6 +2110,23 @@
   transition: opacity 0.24s ease;
 }
 
+.trip-page__nav-icon {
+  position: relative;
+  display: flex;
+}
+
+/* Marks a tab with something worth a look — cleared the moment it's
+   opened, so this never lingers as a permanent decoration. */
+.trip-page__nav-badge {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1.5px solid;
+}
+
 /* ---------- trip map ---------- */
 
 .map-canvas {
