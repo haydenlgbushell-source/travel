@@ -5,6 +5,8 @@ import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
 import { ItemSheet } from "./ItemSheet";
+import { ActivityPickerSheet } from "./ActivityPickerSheet";
+import type { AgencyActivity } from "../agency/activity-data";
 import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
 import { MoreSheet } from "./MoreSheet";
@@ -27,6 +29,7 @@ import {
   createAccessCode,
   createInvite,
   daysForRange,
+  fromBaseAmount,
   isoDate,
   loadTripContent,
   loadTripMembers,
@@ -95,6 +98,7 @@ export function TripPage({
   accountId,
   userName,
   savedCount,
+  libraryAgencyId,
   onSaveTrip,
   onOpenPast,
   onOpenTrips,
@@ -106,6 +110,10 @@ export function TripPage({
   accountId: string;
   userName?: string;
   savedCount: number;
+  /** Set only when the signed-in account belongs to this trip's own agency —
+   *  gates the "From library" add option, an internal working tool that has
+   *  no business being visible to the client on their own trip. */
+  libraryAgencyId?: string;
   onSaveTrip: (trip: PastTrip) => void;
   onOpenPast: () => void;
   onOpenTrips: () => void;
@@ -173,6 +181,10 @@ export function TripPage({
   const canApprove = role === "Organiser" || role === "Editor";
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
   const [addOpen, setAddOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  /* Set for the one add that follows picking something from the library —
+     ItemSheet reads it once on open to pre-fill, same as editing does. */
+  const [addTemplate, setAddTemplate] = useState<Partial<DraftItem>>();
   const [editingId, setEditingId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
@@ -522,6 +534,25 @@ export function TripPage({
   /* New items slot into the day by time rather than landing at the end, so
      the plan still reads as a sequence. A clash the group creates is kept on
      the day, not just flashed in the sheet. */
+  /** What's left is picking a time — everything else about the activity
+     carries straight over into the sheet's fields. `costEach` moves from the
+     library's fixed base currency into whatever the trip is showing. */
+  function pickFromLibrary(activity: AgencyActivity) {
+    setAddTemplate({
+      kind: activity.kind,
+      title: activity.title,
+      place: activity.place ?? "",
+      placeAddress: activity.place,
+      lat: activity.lat,
+      lng: activity.lng,
+      note: activity.note ?? "",
+      costEach: activity.costEach !== undefined ? fromBaseAmount(activity.costEach, currency) : "",
+      photoUrl: activity.photoUrl ?? "",
+    });
+    setLibraryOpen(false);
+    setAddOpen(true);
+  }
+
   function addItem(draft: DraftItem) {
     const item = buildItem(draft, !canApprove, {
       currency,
@@ -538,6 +569,7 @@ export function TripPage({
       flags: flag ? [...(d.flags ?? []), flag] : d.flags,
     }));
     setAddOpen(false);
+    setAddTemplate(undefined);
     setTab(0);
     setAdded({ id: item.id, title: item.title });
 
@@ -783,6 +815,21 @@ export function TripPage({
         >
           {canApprove ? "Add to this day" : "Suggest something"}
         </button>
+        {libraryAgencyId && canApprove && (
+          <button
+            type="button"
+            className="trip-page__reset trip-page__decisions"
+            onClick={() => setLibraryOpen(true)}
+            style={{
+              fontFamily: theme.fontMono,
+              color: theme.body,
+              background: "transparent",
+              borderColor: theme.line,
+            }}
+          >
+            From library
+          </button>
+        )}
         {decisionCount > 0 && (
           <button
             type="button"
@@ -957,6 +1004,7 @@ export function TripPage({
         <ItemSheet
           day={day}
           editing={editing}
+          template={editing ? undefined : addTemplate}
           canApprove={canApprove}
           currency={currency}
           onCurrencyChange={(code) => {
@@ -967,8 +1015,18 @@ export function TripPage({
           onDelete={editing ? () => removeItem(editing.id) : undefined}
           onClose={() => {
             setAddOpen(false);
+            setAddTemplate(undefined);
             setEditingId(undefined);
           }}
+          theme={theme}
+        />
+      )}
+
+      {libraryOpen && libraryAgencyId && (
+        <ActivityPickerSheet
+          agencyId={libraryAgencyId}
+          onPick={pickFromLibrary}
+          onClose={() => setLibraryOpen(false)}
           theme={theme}
         />
       )}

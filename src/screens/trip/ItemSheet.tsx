@@ -42,6 +42,7 @@ const EMPTY: DraftItem = {
 export function ItemSheet({
   day,
   editing,
+  template,
   canApprove,
   currency,
   onCurrencyChange,
@@ -52,6 +53,10 @@ export function ItemSheet({
 }: {
   day: Day;
   editing?: TripItem;
+  /** Pre-fills a new item from an agency's saved activity — everything but
+   *  the time, which still has to be chosen here same as any other add.
+   *  Ignored once `editing` is set. */
+  template?: Partial<DraftItem>;
   canApprove: boolean;
   currency: string;
   /** Changes the trip's shared currency — the same setting MoneyTab shows,
@@ -63,14 +68,18 @@ export function ItemSheet({
   onClose: () => void;
   theme: Theme;
 }) {
-  const [draft, setDraft] = useState<DraftItem>(editing ? draftFrom(editing, currency) : EMPTY);
-  const [detailOpen, setDetailOpen] = useState(editing !== undefined);
+  const [draft, setDraft] = useState<DraftItem>(
+    editing ? draftFrom(editing, currency) : { ...EMPTY, ...template },
+  );
+  const [detailOpen, setDetailOpen] = useState(editing !== undefined || template !== undefined);
   /* A second, deeper reveal for the field people fill in least — pasting a
      website is a nice-to-have, not something the "where/cost/notes" crowd
      is usually here for, and it drags a lookup spinner and an image preview
      along with it. Starts open when editing something that already has one,
      so existing data is never hidden behind a tap. */
-  const [photoOpen, setPhotoOpen] = useState(() => (editing?.photoUrl ?? "").trim() !== "");
+  const [photoOpen, setPhotoOpen] = useState(
+    () => (editing?.photoUrl ?? template?.photoUrl ?? "").trim() !== "",
+  );
   const [photoStatus, setPhotoStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const [placeStatus, setPlaceStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const ids = {

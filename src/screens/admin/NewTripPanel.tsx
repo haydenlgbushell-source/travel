@@ -81,7 +81,9 @@ export function NewTripPanel({
         lat: place?.lat,
         lng: place?.lng,
         fromExample: useExample,
-        themeKey,
+        /* Handed to an agency, this always renders off the neutral base plus
+           that agency's own brand — never a style picked here. */
+        themeKey: agencyId ? DEFAULT_THEME_KEY : themeKey,
         agencyId: agencyId || undefined,
       };
 
@@ -183,20 +185,22 @@ export function NewTripPanel({
             </select>
           </label>
 
-          <label className="admin__field">
-            <span className="admin__label">Style</span>
-            <select
-              className="admin__select"
-              value={themeKey}
-              onChange={(e) => setThemeKey(e.target.value)}
-            >
-              {THEMES.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!agencyId && (
+            <label className="admin__field">
+              <span className="admin__label">Style</span>
+              <select
+                className="admin__select"
+                value={themeKey}
+                onChange={(e) => setThemeKey(e.target.value)}
+              >
+                {THEMES.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {/* The real checkbox stays in the tab order and drives the state; the
