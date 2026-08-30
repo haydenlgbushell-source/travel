@@ -288,13 +288,22 @@ export function AgencyPage({
             onClick={onBack}
             style={{ fontFamily: theme.fontDisplay, letterSpacing: theme.wordTrack }}
           >
-            <Wordmark theme={theme} prefix="← " />
+            <Wordmark theme={theme} />
           </button>
-          <div style={{ display: "flex", gap: "6px" }}>
-            {tabButton("trips", "Trips")}
-            {tabButton("team", "Team")}
-            {tabButton("library", "Library")}
-            {tabButton("brand", "Brand")}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              className="trip-page__reset trip-page__nav-link"
+              onClick={onBack}
+            >
+              ← Dashboard
+            </button>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {tabButton("trips", "Trips")}
+              {tabButton("team", "Team")}
+              {tabButton("library", "Library")}
+              {tabButton("brand", "Brand")}
+            </div>
           </div>
         </div>
         <div className="trip-page__head-main">
