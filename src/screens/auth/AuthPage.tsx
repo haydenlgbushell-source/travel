@@ -14,7 +14,7 @@ export function AuthPage({
    *  an unrelated sign-up wall. */
   banner?: string;
 }) {
-  const [mode, setMode] = useState<"signup" | "signin">("signup");
+  const [mode, setMode] = useState<"signup" | "signin">("signin");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
