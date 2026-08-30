@@ -61,13 +61,12 @@ export function TripsScreen({
           >
             {onBack ? `← ${theme.wordmark}` : theme.wordmark}
           </button>
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
             {onOpenAgency && (
               <button
                 type="button"
-                className="trip-page__reset"
+                className="trip-page__reset trip-page__nav-link"
                 onClick={onOpenAgency}
-                style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
               >
                 Agency
               </button>
@@ -75,9 +74,8 @@ export function TripsScreen({
             {onOpenAdmin && (
               <button
                 type="button"
-                className="trip-page__reset"
+                className="trip-page__reset trip-page__nav-link"
                 onClick={onOpenAdmin}
-                style={{ fontFamily: theme.fontMono, color: theme.headMeta, fontSize: "12px" }}
               >
                 Admin
               </button>

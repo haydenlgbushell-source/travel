@@ -138,6 +138,34 @@
   border: 1px solid #3a3f42;
 }
 
+/* Admin and Agency, in the trip list's header — plain header-meta text
+   there used to read as a caption rather than something to tap, so this
+   gives them the same bordered-chip treatment as the airport-mode pill
+   above, just theme-aware (color-mix off --wf-head-ink) since unlike that
+   one this sits in every theme's header, not only the dark default. */
+.trip-page__nav-link {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--wf-head-ink) 40%, transparent);
+  background: color-mix(in srgb, var(--wf-head-ink) 12%, transparent);
+  font-family: var(--wf-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wf-head-ink);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.trip-page__nav-link:hover {
+  background: color-mix(in srgb, var(--wf-head-ink) 22%, transparent);
+  border-color: color-mix(in srgb, var(--wf-head-ink) 60%, transparent);
+}
+
 .trip-page__head-main {
   display: flex;
   align-items: flex-end;
