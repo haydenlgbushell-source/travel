@@ -4,6 +4,7 @@ import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/bra
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
+import { ItemDetail } from "./ItemDetail";
 import { ItemSheet } from "./ItemSheet";
 import { ActivityPickerSheet } from "./ActivityPickerSheet";
 import type { AgencyActivity } from "../agency/activity-data";
@@ -69,6 +70,16 @@ const DAY_SWITCH_MS = 380;
 
 /** How long undo stays offered after an add. */
 const UNDO_MS = 8000;
+
+/** A swipe has to travel this far, and be mostly sideways rather than a
+ *  scroll that wandered, before it counts as "change the day". */
+const SWIPE_MIN_PX = 60;
+const SWIPE_MAX_SLOPE = 0.5;
+
+/** Bumped whenever the Travel tab changes enough to be worth a "new" dot —
+ *  a fresh string re-shows the badge to everyone, since the old key just
+ *  becomes an unread localStorage entry nobody looks at again. */
+const TRAVEL_CARD_BADGE_KEY = "wf-seen-travel-card-2026-08";
 
 /** What sits in the bottom tablist. Money and People are one tap further,
  *  behind the hamburger in the header — this is what a thumb reaches for
@@ -202,6 +213,18 @@ export function TripPage({
     return i === -1 ? 0 : i;
   });
   const [tab, setTab] = useState(0);
+  /* A small dot on the Travel tab, marking the redrawn leg card until
+     someone actually opens the tab and sees it — cleared per browser via
+     localStorage rather than per account, since there's no server-side
+     "seen" state to key this against. Fails open (no badge) if storage
+     is blocked, rather than nagging forever. */
+  const [travelCardSeen, setTravelCardSeen] = useState(() => {
+    try {
+      return localStorage.getItem(TRAVEL_CARD_BADGE_KEY) === "1";
+    } catch {
+      return true;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -220,6 +243,9 @@ export function TripPage({
      ItemSheet reads it once on open to pre-fill, same as editing does. */
   const [addTemplate, setAddTemplate] = useState<Partial<DraftItem>>();
   const [editingId, setEditingId] = useState<string | undefined>();
+  /* The read-only view a tap on the card opens — available to every role,
+     unlike editingId which only an Organiser or Editor ever reaches. */
+  const [detailId, setDetailId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
   const [notifyEnabled, setNotifyEnabled] = useState(false);
@@ -242,6 +268,7 @@ export function TripPage({
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
+  const swipeStart = useRef<{ x: number; y: number } | undefined>(undefined);
   const wikiAttempted = useRef<Set<string>>(new Set());
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -506,6 +533,7 @@ export function TripPage({
   );
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
+  const detail = detailId ? day.items.find((i) => i.id === detailId) : undefined;
 
   /* Computed once so the People tab's list and the More sheet's badge can
      never disagree — the badge used to read the example's hardcoded INBOX
@@ -540,11 +568,42 @@ export function TripPage({
     timer.current = setTimeout(() => setLoading(false), DAY_SWITCH_MS);
   }
 
+  /* Swipe left/right on the day's own content to move a day, mirroring the
+     day strip's chips without making someone reach for them. Only live on
+     the Plan tab — Money, People and the rest describe the whole trip, not
+     one day, so a sideways swipe there has nothing to change. */
+  function handleTouchStart(e: React.TouchEvent) {
+    const touch = e.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const start = swipeStart.current;
+    swipeStart.current = undefined;
+    if (!start || tab !== 0 || airport || mapOpen) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_SLOPE) return;
+
+    if (dx < 0 && dayIndex < days.length - 1) pickDay(dayIndex + 1);
+    else if (dx > 0 && dayIndex > 0) pickDay(dayIndex - 1);
+  }
+
   function pickTab(i: number) {
     setTab(i);
     setAirport(false);
     setMapOpen(false);
     toTop();
+    if (i === 1 && !travelCardSeen) {
+      setTravelCardSeen(true);
+      try {
+        localStorage.setItem(TRAVEL_CARD_BADGE_KEY, "1");
+      } catch {
+        /* Best-effort — the badge just reappears next visit. */
+      }
+    }
   }
 
   function openFromMore(label: string) {
@@ -604,22 +663,43 @@ export function TripPage({
 
   /* New items slot into the day by time rather than landing at the end, so
      the plan still reads as a sequence. A clash the group creates is kept on
-     the day, not just flashed in the sheet. */
-  function addItem(draft: DraftItem) {
+     the day, not just flashed in the sheet. The sheet's own day picker can
+     name a day other than the one that was open — when it does, the item
+     lands there instead and the view follows it, same as tapping that day's
+     chip would. */
+  function addItem(draft: DraftItem, date: string) {
     const item = buildItem(draft, !canApprove, {
       currency,
       people: Math.max(members.length, 1),
     });
-    const clash = clashAt(item.time, activeDay.items);
+    const targetIndex = days.findIndex((d) => d.date === date);
+    const target = targetIndex === -1 ? activeDay : days[targetIndex];
+    const clash = clashAt(item.time, target.items);
     const flag = clash
       ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
       : undefined;
 
-    updateDay((d) => ({
-      ...d,
-      items: [...d.items, item].sort(byTime),
-      flags: flag ? [...(d.flags ?? []), flag] : d.flags,
-    }));
+    if (targetIndex === -1 || targetIndex === dayIndex) {
+      updateDay((d) => ({
+        ...d,
+        items: [...d.items, item].sort(byTime),
+        flags: flag ? [...(d.flags ?? []), flag] : d.flags,
+      }));
+    } else {
+      setDays((prev) =>
+        prev.map((d, i) =>
+          i === targetIndex
+            ? {
+                ...d,
+                items: [...d.items, item].sort(byTime),
+                flags: flag ? [...(d.flags ?? []), flag] : d.flags,
+              }
+            : d,
+        ),
+      );
+      setDayIndex(targetIndex);
+      toTop();
+    }
     setAddOpen(false);
     setAddTemplate(undefined);
     setTab(0);
@@ -629,20 +709,45 @@ export function TripPage({
        RLS only lets an Organiser/Editor touch the whole blob — so their one
        allowed action, proposing something new, is persisted here directly. */
     if (!canApprove && !isExample) {
-      void proposeItem(event.id, activeDay.date, item).catch(() => {
+      void proposeItem(event.id, target.date, item).catch(() => {
         /* still shows locally for this session; just won't survive a
            reload or reach anyone else until retried. */
       });
     }
   }
 
-  function saveEdit(draft: DraftItem) {
+  /* Moving an item to a different day removes it from this one and appends
+     it to the target's, rather than teaching updateDay to reach across days
+     for what is otherwise a same-day edit. */
+  function saveEdit(draft: DraftItem, date: string) {
     if (!editing) return;
     const next = applyDraft(editing, draft, currency);
-    updateDay((d) => ({
-      ...d,
-      items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
-    }));
+
+    if (date === activeDay.date) {
+      updateDay((d) => ({
+        ...d,
+        items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
+      }));
+    } else {
+      const targetIndex = days.findIndex((d) => d.date === date);
+      if (targetIndex === -1) {
+        updateDay((d) => ({
+          ...d,
+          items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
+        }));
+      } else {
+        const fromIndex = dayIndex;
+        setDays((prev) =>
+          prev.map((d, i) => {
+            if (i === fromIndex) return { ...d, items: d.items.filter((it) => it.id !== next.id) };
+            if (i === targetIndex) return { ...d, items: [...d.items, next].sort(byTime) };
+            return d;
+          }),
+        );
+        setDayIndex(targetIndex);
+        toTop();
+      }
+    }
     setEditingId(undefined);
     setAdded({ id: next.id, title: next.title });
   }
@@ -781,17 +886,16 @@ export function TripPage({
           </div>
         </div>
 
-        <div className="trip-page__head-main">
-          <div>
-            <div
-              className="trip-page__dates"
-              style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
-            >
-              {eventDates}
-            </div>
-            <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
-              {eventName}
-            </div>
+        {/* The wordmark up in the head row already says the trip's name —
+            repeating it here in 30px type just to sit above the avatars was
+            the same information twice. This row is just the dates and who's
+            on the trip now, so the itinerary below starts that much sooner. */}
+        <div className="trip-page__head-main trip-page__head-main--compact">
+          <div
+            className="trip-page__dates"
+            style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
+          >
+            {eventDates}
           </div>
           <div className="trip-page__avatars">
             {members.map((member) => (
@@ -912,6 +1016,8 @@ export function TripPage({
         }
         tabIndex={0}
         className="trip-page__body"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {airport ? (
           <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
@@ -930,7 +1036,7 @@ export function TripPage({
                 resolved={resolved}
                 canApprove={canApprove}
                 onResolve={resolve}
-                onEdit={setEditingId}
+                onOpen={setDetailId}
                 onAdd={() => setAddOpen(true)}
                 onOpenMap={setMapOpenTab}
                 onReorder={reorderItem}
@@ -1000,6 +1106,7 @@ export function TripPage({
         {navEntries.map((entry, i) => {
           const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
           const Icon = entry.icon;
+          const isNew = entry.kind === "tab" && entry.tab === 1 && !travelCardSeen;
           return (
             <button
               key={entry.label}
@@ -1008,7 +1115,7 @@ export function TripPage({
               id={`wf-tab-nav-${i}`}
               aria-controls="wf-tabpanel"
               aria-selected={on}
-              aria-label={entry.label}
+              aria-label={isNew ? `${entry.label} — new` : entry.label}
               tabIndex={on ? 0 : -1}
               className="trip-page__reset trip-page__nav-item"
               onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
@@ -1029,14 +1136,23 @@ export function TripPage({
                 className="trip-page__nav-mark"
                 style={{ background: theme.accent, opacity: on ? 1 : 0 }}
               />
-              <Icon />
+              <span className="trip-page__nav-icon">
+                <Icon />
+                {isNew && (
+                  <span
+                    className="trip-page__nav-badge"
+                    style={{ background: theme.accent, borderColor: theme.bg }}
+                    aria-hidden="true"
+                  />
+                )}
+              </span>
               {entry.short}
             </button>
           );
         })}
       </div>
 
-      {added && !sheetItemOpen && (
+      {added && !sheetItemOpen && !detail && (
         <div className="undo" role="status" style={{ background: theme.ink, color: theme.bg }}>
           <span className="undo__text">
             {canApprove ? "Added" : "Sent to editors"} · {added.title}
@@ -1055,6 +1171,8 @@ export function TripPage({
       {sheetItemOpen && (
         <ItemSheet
           day={day}
+          days={days}
+          tripId={event.id}
           editing={editing}
           template={editing ? undefined : addTemplate}
           canApprove={canApprove}
@@ -1070,6 +1188,20 @@ export function TripPage({
             setAddTemplate(undefined);
             setEditingId(undefined);
           }}
+          theme={theme}
+        />
+      )}
+
+      {detail && (
+        <ItemDetail
+          item={detail}
+          canApprove={canApprove}
+          currency={currency}
+          onEdit={() => {
+            setDetailId(undefined);
+            setEditingId(detail.id);
+          }}
+          onClose={() => setDetailId(undefined)}
           theme={theme}
         />
       )}

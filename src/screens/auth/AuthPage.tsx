@@ -4,7 +4,16 @@ import "./auth.css";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Account) => void }) {
+export function AuthPage({
+  onAuthenticated,
+  banner,
+}: {
+  onAuthenticated: (account: Account) => void;
+  /** A short note shown above the title — used when something sent someone
+   *  here mid-task (joining a trip, say) so the form doesn't just look like
+   *  an unrelated sign-up wall. */
+  banner?: string;
+}) {
   const [mode, setMode] = useState<"signup" | "signin">("signin");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
@@ -107,6 +116,7 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: (account: Accou
     <div className="auth-page">
       <div className="auth-card">
         <span className="auth-wordmark">Wayfare</span>
+        {banner && <p className="auth-banner">{banner}</p>}
         <h1 className="auth-title">{isSignUp ? "Create your account" : "Welcome back"}</h1>
         <p className="auth-lede">
           {isSignUp

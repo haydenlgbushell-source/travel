@@ -35,7 +35,7 @@ function SortableItemCard({
   verdict,
   canApprove,
   onResolve,
-  onEdit,
+  onOpen,
   highlighted,
   draggable,
   theme,
@@ -45,7 +45,7 @@ function SortableItemCard({
   verdict?: Verdict;
   canApprove: boolean;
   onResolve: (verdict: Verdict | undefined) => void;
-  onEdit?: () => void;
+  onOpen: () => void;
   highlighted?: boolean;
   draggable: boolean;
   theme: Theme;
@@ -63,7 +63,7 @@ function SortableItemCard({
         verdict={verdict}
         canApprove={canApprove}
         onResolve={onResolve}
-        onEdit={onEdit}
+        onOpen={onOpen}
         highlighted={highlighted}
         dragHandleProps={draggable ? { ...attributes, ...listeners } : undefined}
         dragging={isDragging}
@@ -79,7 +79,7 @@ export function PlanTab({
   resolved,
   canApprove,
   onResolve,
-  onEdit,
+  onOpen,
   onAdd,
   onOpenMap,
   onReorder,
@@ -93,7 +93,7 @@ export function PlanTab({
   resolved: Record<string, Verdict>;
   canApprove: boolean;
   onResolve: (id: string, verdict: Verdict | undefined) => void;
-  onEdit: (id: string) => void;
+  onOpen: (id: string) => void;
   onAdd: () => void;
   onOpenMap: () => void;
   onReorder: (itemId: string, newTime: string) => void;
@@ -233,7 +233,7 @@ export function PlanTab({
                   verdict={resolved[item.id]}
                   canApprove={canApprove}
                   onResolve={(verdict) => onResolve(item.id, verdict)}
-                  onEdit={canApprove ? () => onEdit(item.id) : undefined}
+                  onOpen={() => onOpen(item.id)}
                   highlighted={item.id === highlightId}
                   draggable={canApprove && resolved[item.id] !== "declined"}
                   theme={theme}

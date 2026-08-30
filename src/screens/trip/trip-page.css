@@ -190,6 +190,19 @@
   padding-bottom: 4px;
 }
 
+/* The trip page's own header: no big title sitting in this row (the head
+   row's wordmark already carries the name), just the dates against the
+   avatars, so they line up on their own centres rather than the big
+   title's baseline. List screens still show their title here and keep the
+   base rule above. */
+.trip-page__head-main--compact {
+  align-items: center;
+}
+
+.trip-page__head-main--compact .trip-page__avatars {
+  padding-bottom: 0;
+}
+
 .trip-page__avatar {
   width: 25px;
   height: 25px;
@@ -777,6 +790,63 @@
 .fact__value {
   font-size: 14px;
   margin-top: 3px;
+}
+
+/* ---------- travel tab: real trips ---------- */
+
+.travel-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.travel-day-group__head {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+
+.travel-leg {
+  gap: 10px;
+}
+
+/* A full place name ("Sydney, NSW"), not a three-letter airport code —
+   .flight__code's 30px display type is exactly wrong for this, so a car
+   trip's route gets its own, wrapping treatment instead. */
+.leg__route {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.leg__place {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.leg__arrow {
+  font-size: 14px;
+}
+
+/* The duration/arrival chips promoted out of the fact-grid so they read as
+   the day's own data at a glance, not a label you have to stop and parse. */
+.stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.travel-leg__note {
+  font-size: 13px;
+  line-height: 1.45;
+  text-wrap: pretty;
 }
 
 .flight {
@@ -1421,6 +1491,40 @@
   gap: 8px;
 }
 
+.add-sheet__days {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.add-sheet__day {
+  flex: 0 0 auto;
+  min-width: 46px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-width: 1px;
+  border-style: solid;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.add-sheet__day-dow {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.add-sheet__day-num {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
 .add-sheet__slot {
   flex: 1;
   min-width: 0;
@@ -1501,6 +1605,11 @@
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.add-sheet__photo-upload {
+  margin-top: 2px;
 }
 
 .add-sheet__toggle {
@@ -1627,13 +1736,6 @@
   font-size: 10.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-/* ---------- item edit affordance ---------- */
-
-.item__edit {
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
 }
 
 /* ---------- empty day ---------- */
@@ -1873,6 +1975,90 @@
   text-wrap: pretty;
 }
 
+/* ---------- item detail sheet ---------- */
+
+/* Nearly the full screen, not the 74% an edit form settles for — this is
+   the one place a tap should feel like it opened the whole place up. */
+.item-detail {
+  max-height: 92svh;
+  padding: 0 0 22px;
+  gap: 0;
+}
+
+.item-detail .sheet__grabber {
+  margin-top: 14px;
+}
+
+.item-detail .sheet__head {
+  padding: 10px 18px 0;
+}
+
+.item-detail__photo {
+  position: relative;
+  height: 220px;
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+}
+
+.item-detail__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 0;
+}
+
+.item-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.item-detail__time {
+  font-size: 13px;
+}
+
+.item-detail__kind {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.item-detail__place {
+  font-size: 13.5px;
+}
+
+.item-detail__row {
+  font-size: 12.5px;
+}
+
+.item-detail__note {
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.item-detail__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.item-detail__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13.5px;
+}
+
+.item-detail__links {
+  display: flex;
+  gap: 18px;
+  padding-top: 2px;
+}
+
 /* ---------- day actions ---------- */
 
 /* Adding to the day belongs next to the day, not buried under the menu. */
@@ -1922,6 +2108,23 @@
   height: 2px;
   transform: translateX(-50%);
   transition: opacity 0.24s ease;
+}
+
+.trip-page__nav-icon {
+  position: relative;
+  display: flex;
+}
+
+/* Marks a tab with something worth a look — cleared the moment it's
+   opened, so this never lingers as a permanent decoration. */
+.trip-page__nav-badge {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1.5px solid;
 }
 
 /* ---------- trip map ---------- */

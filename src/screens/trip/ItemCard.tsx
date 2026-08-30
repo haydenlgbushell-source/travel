@@ -17,7 +17,7 @@ export function ItemCard({
   verdict,
   canApprove,
   onResolve,
-  onEdit,
+  onOpen,
   highlighted,
   dragHandleProps,
   dragging,
@@ -28,7 +28,7 @@ export function ItemCard({
   verdict?: Verdict;
   canApprove: boolean;
   onResolve: (verdict: Verdict | undefined) => void;
-  onEdit?: () => void;
+  onOpen?: () => void;
   highlighted?: boolean;
   dragHandleProps?: DragHandleProps;
   dragging?: boolean;
@@ -82,7 +82,21 @@ export function ItemCard({
           borderStyle: unresolved ? "dashed" : "solid",
           borderColor: unresolved ? "var(--wf-accent-edge)" : theme.line,
           opacity: dragging ? 0.5 : 1,
+          cursor: onOpen ? "pointer" : undefined,
         }}
+        role={onOpen ? "button" : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        onClick={onOpen}
+        onKeyDown={
+          onOpen
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen();
+                }
+              }
+            : undefined
+        }
       >
         {(item.photo || item.photoUrl) && (
           <Photo
@@ -101,6 +115,7 @@ export function ItemCard({
                 className="trip-page__reset item__drag-handle"
                 aria-label={`Reorder ${item.title}`}
                 style={{ color: theme.meta }}
+                onClick={(e) => e.stopPropagation()}
                 {...dragHandleProps}
               >
                 <svg width="12" height="18" viewBox="0 0 12 18" fill="none" aria-hidden="true">
@@ -239,7 +254,10 @@ export function ItemCard({
                   <button
                     type="button"
                     className="trip-page__reset item__pending-btn"
-                    onClick={() => onResolve("approved")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResolve("approved");
+                    }}
                     style={{ color: theme.btnInk, background: theme.accent }}
                   >
                     Add to the day
@@ -247,7 +265,10 @@ export function ItemCard({
                   <button
                     type="button"
                     className="trip-page__reset item__pending-btn"
-                    onClick={() => onResolve("declined")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResolve("declined");
+                    }}
                     style={{ color: theme.ink, border: "1px solid #D6D7D0" }}
                   >
                     Not this time
@@ -284,22 +305,13 @@ export function ItemCard({
               {item.who}
             </span>
             <span className="item__foot-spacer" />
-            {onEdit && (
-              <button
-                type="button"
-                className="trip-page__reset item__edit"
-                onClick={onEdit}
-                style={{ fontFamily: theme.fontMono, color: theme.accent }}
-              >
-                Edit
-              </button>
-            )}
             {item.mapsUrl && (
               <a
                 className="item__maps"
                 href={item.mapsUrl}
                 target="_blank"
                 rel="noreferrer noopener"
+                onClick={(e) => e.stopPropagation()}
                 style={{ fontFamily: theme.fontMono, color: theme.accent }}
               >
                 Maps ↗
