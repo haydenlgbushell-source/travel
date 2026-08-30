@@ -108,7 +108,18 @@ async function initialState(account: Account | undefined) {
     account.isAnonymous ? Promise.resolve([] as Agency[]) : loadMyAgencies().catch(() => [] as Agency[]),
   ]);
   const currentId = events.some((e) => e.id === savedId) ? savedId : undefined;
-  const screen: Screen = currentId ? "trip" : events.length > 0 ? "trips" : "setup";
+  /* An agency account's home base is the Agency console, not the personal
+     trip list — Trips/Team/Library/Brand live there as one stop rather than
+     something reached by navigating away from the ordinary flow. Resuming an
+     actually-open trip still wins, agency or personal, so nobody's dropped
+     out of what they were mid-editing on a reload. */
+  const screen: Screen = currentId
+    ? "trip"
+    : agencies.length > 0
+      ? "agency"
+      : events.length > 0
+        ? "trips"
+        : "setup";
   return { events, currentId, screen, pastTrips, agencies };
 }
 
