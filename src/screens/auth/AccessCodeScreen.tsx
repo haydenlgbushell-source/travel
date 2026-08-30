@@ -86,14 +86,14 @@ export function AccessCodeScreen({
           </>
         ) : step === "name" ? (
           <>
-            <h1 className="auth-title">What's your name?</h1>
+            <h1 className="auth-title">Join the trip</h1>
             <p className="auth-lede">
-              So the rest of the group knows who's who. You can skip this and join anonymously
-              instead.
+              No account, no password — you're in as soon as you tap Join. Add your name first if
+              you want the rest of the group to know who you are.
             </p>
             <form className="auth-form" onSubmit={handleNameSubmit} noValidate>
               <label className="auth-field">
-                <span className="auth-field__label">Your name</span>
+                <span className="auth-field__label">Your name (optional)</span>
                 <input
                   className="auth-field__input"
                   type="text"
@@ -105,10 +105,7 @@ export function AccessCodeScreen({
                 />
               </label>
               <button type="submit" className="auth-submit">
-                Continue
-              </button>
-              <button type="button" className="auth-switch" onClick={() => void join()}>
-                Skip for now
+                Join the trip
               </button>
             </form>
           </>
