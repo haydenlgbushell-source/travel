@@ -190,6 +190,19 @@
   padding-bottom: 4px;
 }
 
+/* The trip page's own header: no big title sitting in this row (the head
+   row's wordmark already carries the name), just the dates against the
+   avatars, so they line up on their own centres rather than the big
+   title's baseline. List screens still show their title here and keep the
+   base rule above. */
+.trip-page__head-main--compact {
+  align-items: center;
+}
+
+.trip-page__head-main--compact .trip-page__avatars {
+  padding-bottom: 0;
+}
+
 .trip-page__avatar {
   width: 25px;
   height: 25px;
@@ -777,6 +790,50 @@
 .fact__value {
   font-size: 14px;
   margin-top: 3px;
+}
+
+/* ---------- travel tab: real trips ---------- */
+
+.travel-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.travel-day-group__head {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+
+.travel-leg {
+  gap: 10px;
+}
+
+/* A full place name ("Sydney, NSW"), not a three-letter airport code —
+   .flight__code's 30px display type is exactly wrong for this, so a car
+   trip's route gets its own, wrapping treatment instead. */
+.leg__route {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.leg__place {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.leg__arrow {
+  font-size: 14px;
+}
+
+.travel-leg__note {
+  font-size: 13px;
+  line-height: 1.45;
+  text-wrap: pretty;
 }
 
 .flight {
