@@ -190,6 +190,19 @@
   padding-bottom: 4px;
 }
 
+/* The trip page's own header: no big title sitting in this row (the head
+   row's wordmark already carries the name), just the dates against the
+   avatars, so they line up on their own centres rather than the big
+   title's baseline. List screens still show their title here and keep the
+   base rule above. */
+.trip-page__head-main--compact {
+  align-items: center;
+}
+
+.trip-page__head-main--compact .trip-page__avatars {
+  padding-bottom: 0;
+}
+
 .trip-page__avatar {
   width: 25px;
   height: 25px;

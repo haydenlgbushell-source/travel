@@ -861,17 +861,16 @@ export function TripPage({
           </div>
         </div>
 
-        <div className="trip-page__head-main">
-          <div>
-            <div
-              className="trip-page__dates"
-              style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
-            >
-              {eventDates}
-            </div>
-            <div className="trip-page__name" style={{ fontFamily: theme.fontDisplay }}>
-              {eventName}
-            </div>
+        {/* The wordmark up in the head row already says the trip's name —
+            repeating it here in 30px type just to sit above the avatars was
+            the same information twice. This row is just the dates and who's
+            on the trip now, so the itinerary below starts that much sooner. */}
+        <div className="trip-page__head-main trip-page__head-main--compact">
+          <div
+            className="trip-page__dates"
+            style={{ fontFamily: theme.fontMono, color: theme.headMeta }}
+          >
+            {eventDates}
           </div>
           <div className="trip-page__avatars">
             {members.map((member) => (
