@@ -71,6 +71,11 @@ const DAY_SWITCH_MS = 380;
 /** How long undo stays offered after an add. */
 const UNDO_MS = 8000;
 
+/** A swipe has to travel this far, and be mostly sideways rather than a
+ *  scroll that wandered, before it counts as "change the day". */
+const SWIPE_MIN_PX = 60;
+const SWIPE_MAX_SLOPE = 0.5;
+
 /** What sits in the bottom tablist. Money and People are one tap further,
  *  behind the hamburger in the header — this is what a thumb reaches for
  *  most often. */
@@ -246,6 +251,7 @@ export function TripPage({
 
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const body = useRef<HTMLDivElement>(null);
+  const swipeStart = useRef<{ x: number; y: number } | undefined>(undefined);
   const wikiAttempted = useRef<Set<string>>(new Set());
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -543,6 +549,29 @@ export function TripPage({
     setLoading(true);
     toTop();
     timer.current = setTimeout(() => setLoading(false), DAY_SWITCH_MS);
+  }
+
+  /* Swipe left/right on the day's own content to move a day, mirroring the
+     day strip's chips without making someone reach for them. Only live on
+     the Plan tab — Money, People and the rest describe the whole trip, not
+     one day, so a sideways swipe there has nothing to change. */
+  function handleTouchStart(e: React.TouchEvent) {
+    const touch = e.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const start = swipeStart.current;
+    swipeStart.current = undefined;
+    if (!start || tab !== 0 || airport || mapOpen) return;
+
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dy) > Math.abs(dx) * SWIPE_MAX_SLOPE) return;
+
+    if (dx < 0 && dayIndex < days.length - 1) pickDay(dayIndex + 1);
+    else if (dx > 0 && dayIndex > 0) pickDay(dayIndex - 1);
   }
 
   function pickTab(i: number) {
@@ -917,6 +946,8 @@ export function TripPage({
         }
         tabIndex={0}
         className="trip-page__body"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {airport ? (
           <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
