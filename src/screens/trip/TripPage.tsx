@@ -4,6 +4,7 @@ import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/bra
 import { AirportPanel } from "./AirportPanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
+import { ItemDetail } from "./ItemDetail";
 import { ItemSheet } from "./ItemSheet";
 import { ActivityPickerSheet } from "./ActivityPickerSheet";
 import type { AgencyActivity } from "../agency/activity-data";
@@ -220,6 +221,9 @@ export function TripPage({
      ItemSheet reads it once on open to pre-fill, same as editing does. */
   const [addTemplate, setAddTemplate] = useState<Partial<DraftItem>>();
   const [editingId, setEditingId] = useState<string | undefined>();
+  /* The read-only view a tap on the card opens — available to every role,
+     unlike editingId which only an Organiser or Editor ever reaches. */
+  const [detailId, setDetailId] = useState<string | undefined>();
   const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
   const [notifyEnabled, setNotifyEnabled] = useState(false);
@@ -506,6 +510,7 @@ export function TripPage({
   );
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
   const sheetItemOpen = addOpen || editing !== undefined;
+  const detail = detailId ? day.items.find((i) => i.id === detailId) : undefined;
 
   /* Computed once so the People tab's list and the More sheet's badge can
      never disagree — the badge used to read the example's hardcoded INBOX
@@ -930,7 +935,7 @@ export function TripPage({
                 resolved={resolved}
                 canApprove={canApprove}
                 onResolve={resolve}
-                onEdit={setEditingId}
+                onOpen={setDetailId}
                 onAdd={() => setAddOpen(true)}
                 onOpenMap={setMapOpenTab}
                 onReorder={reorderItem}
@@ -1036,7 +1041,7 @@ export function TripPage({
         })}
       </div>
 
-      {added && !sheetItemOpen && (
+      {added && !sheetItemOpen && !detail && (
         <div className="undo" role="status" style={{ background: theme.ink, color: theme.bg }}>
           <span className="undo__text">
             {canApprove ? "Added" : "Sent to editors"} · {added.title}
@@ -1070,6 +1075,20 @@ export function TripPage({
             setAddTemplate(undefined);
             setEditingId(undefined);
           }}
+          theme={theme}
+        />
+      )}
+
+      {detail && (
+        <ItemDetail
+          item={detail}
+          canApprove={canApprove}
+          currency={currency}
+          onEdit={() => {
+            setDetailId(undefined);
+            setEditingId(detail.id);
+          }}
+          onClose={() => setDetailId(undefined)}
           theme={theme}
         />
       )}

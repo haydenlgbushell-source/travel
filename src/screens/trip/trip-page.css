@@ -1629,13 +1629,6 @@
   text-transform: uppercase;
 }
 
-/* ---------- item edit affordance ---------- */
-
-.item__edit {
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-}
-
 /* ---------- empty day ---------- */
 
 .empty-day {
@@ -1871,6 +1864,90 @@
   letter-spacing: 0.08em;
   line-height: 1.5;
   text-wrap: pretty;
+}
+
+/* ---------- item detail sheet ---------- */
+
+/* Nearly the full screen, not the 74% an edit form settles for — this is
+   the one place a tap should feel like it opened the whole place up. */
+.item-detail {
+  max-height: 92svh;
+  padding: 0 0 22px;
+  gap: 0;
+}
+
+.item-detail .sheet__grabber {
+  margin-top: 14px;
+}
+
+.item-detail .sheet__head {
+  padding: 10px 18px 0;
+}
+
+.item-detail__photo {
+  position: relative;
+  height: 220px;
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+}
+
+.item-detail__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px 0;
+}
+
+.item-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.item-detail__time {
+  font-size: 13px;
+}
+
+.item-detail__kind {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.item-detail__place {
+  font-size: 13.5px;
+}
+
+.item-detail__row {
+  font-size: 12.5px;
+}
+
+.item-detail__note {
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.item-detail__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.item-detail__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13.5px;
+}
+
+.item-detail__links {
+  display: flex;
+  gap: 18px;
+  padding-top: 2px;
 }
 
 /* ---------- day actions ---------- */
