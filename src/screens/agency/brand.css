@@ -116,6 +116,31 @@
   cursor: pointer;
 }
 
+.brand__logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand__logo-thumb {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wf-bg);
+  border: 1px solid var(--wf-line);
+  border-radius: 9px;
+}
+
+.brand__logo-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 .brand__reset-link {
   all: unset;
   cursor: pointer;
@@ -197,6 +222,15 @@
 }
 
 .brand__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The upload trigger is a <label>, which can't itself take :disabled — this
+   reads it off the file input it's paired with instead, so it still greys
+   out when the fieldset around it is (not the agency's owner, or a save
+   already in flight, both of which disable that input the normal way). */
+#brand-logo-file:disabled + .brand__btn--ghost {
   opacity: 0.45;
   cursor: not-allowed;
 }
