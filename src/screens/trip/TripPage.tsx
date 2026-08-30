@@ -638,22 +638,43 @@ export function TripPage({
 
   /* New items slot into the day by time rather than landing at the end, so
      the plan still reads as a sequence. A clash the group creates is kept on
-     the day, not just flashed in the sheet. */
-  function addItem(draft: DraftItem) {
+     the day, not just flashed in the sheet. The sheet's own day picker can
+     name a day other than the one that was open — when it does, the item
+     lands there instead and the view follows it, same as tapping that day's
+     chip would. */
+  function addItem(draft: DraftItem, date: string) {
     const item = buildItem(draft, !canApprove, {
       currency,
       people: Math.max(members.length, 1),
     });
-    const clash = clashAt(item.time, activeDay.items);
+    const targetIndex = days.findIndex((d) => d.date === date);
+    const target = targetIndex === -1 ? activeDay : days[targetIndex];
+    const clash = clashAt(item.time, target.items);
     const flag = clash
       ? `${item.title} at ${item.time} lands within the hour of ${clash.title} at ${clash.time}, which is booked.`
       : undefined;
 
-    updateDay((d) => ({
-      ...d,
-      items: [...d.items, item].sort(byTime),
-      flags: flag ? [...(d.flags ?? []), flag] : d.flags,
-    }));
+    if (targetIndex === -1 || targetIndex === dayIndex) {
+      updateDay((d) => ({
+        ...d,
+        items: [...d.items, item].sort(byTime),
+        flags: flag ? [...(d.flags ?? []), flag] : d.flags,
+      }));
+    } else {
+      setDays((prev) =>
+        prev.map((d, i) =>
+          i === targetIndex
+            ? {
+                ...d,
+                items: [...d.items, item].sort(byTime),
+                flags: flag ? [...(d.flags ?? []), flag] : d.flags,
+              }
+            : d,
+        ),
+      );
+      setDayIndex(targetIndex);
+      toTop();
+    }
     setAddOpen(false);
     setAddTemplate(undefined);
     setTab(0);
@@ -663,20 +684,45 @@ export function TripPage({
        RLS only lets an Organiser/Editor touch the whole blob — so their one
        allowed action, proposing something new, is persisted here directly. */
     if (!canApprove && !isExample) {
-      void proposeItem(event.id, activeDay.date, item).catch(() => {
+      void proposeItem(event.id, target.date, item).catch(() => {
         /* still shows locally for this session; just won't survive a
            reload or reach anyone else until retried. */
       });
     }
   }
 
-  function saveEdit(draft: DraftItem) {
+  /* Moving an item to a different day removes it from this one and appends
+     it to the target's, rather than teaching updateDay to reach across days
+     for what is otherwise a same-day edit. */
+  function saveEdit(draft: DraftItem, date: string) {
     if (!editing) return;
     const next = applyDraft(editing, draft, currency);
-    updateDay((d) => ({
-      ...d,
-      items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
-    }));
+
+    if (date === activeDay.date) {
+      updateDay((d) => ({
+        ...d,
+        items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
+      }));
+    } else {
+      const targetIndex = days.findIndex((d) => d.date === date);
+      if (targetIndex === -1) {
+        updateDay((d) => ({
+          ...d,
+          items: d.items.map((i) => (i.id === next.id ? next : i)).sort(byTime),
+        }));
+      } else {
+        const fromIndex = dayIndex;
+        setDays((prev) =>
+          prev.map((d, i) => {
+            if (i === fromIndex) return { ...d, items: d.items.filter((it) => it.id !== next.id) };
+            if (i === targetIndex) return { ...d, items: [...d.items, next].sort(byTime) };
+            return d;
+          }),
+        );
+        setDayIndex(targetIndex);
+        toTop();
+      }
+    }
     setEditingId(undefined);
     setAdded({ id: next.id, title: next.title });
   }
@@ -1091,6 +1137,7 @@ export function TripPage({
       {sheetItemOpen && (
         <ItemSheet
           day={day}
+          days={days}
           tripId={event.id}
           editing={editing}
           template={editing ? undefined : addTemplate}

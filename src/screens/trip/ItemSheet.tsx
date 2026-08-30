@@ -42,6 +42,7 @@ const EMPTY: DraftItem = {
  *  existing item, keeping every field it does not ask about. */
 export function ItemSheet({
   day,
+  days,
   tripId,
   editing,
   template,
@@ -53,7 +54,12 @@ export function ItemSheet({
   onClose,
   theme,
 }: {
+  /** The day this item starts on — an edit's own day, or whichever day was
+   *  open when Add was tapped. */
   day: Day;
+  /** Every day on the trip, so the sheet can offer moving the item to a
+   *  different one rather than only ever landing on `day`. */
+  days: Day[];
   /** Where an uploaded photo's storage path is scoped — see uploadItemPhoto. */
   tripId: string;
   editing?: TripItem;
@@ -67,7 +73,9 @@ export function ItemSheet({
    *  offered here too since this is where a cost actually gets typed in and
    *  people don't reliably know to go find it elsewhere first. */
   onCurrencyChange: (code: string) => void;
-  onSave: (draft: DraftItem) => void;
+  /** The date is whichever day's chip is selected, which starts as `day`'s
+   *  own but can move — the caller decides what moving days actually does. */
+  onSave: (draft: DraftItem, date: string) => void;
   onDelete?: () => void;
   onClose: () => void;
   theme: Theme;
@@ -75,6 +83,10 @@ export function ItemSheet({
   const [draft, setDraft] = useState<DraftItem>(
     editing ? draftFrom(editing, currency) : { ...EMPTY, ...template },
   );
+  /* Which day's chip is selected — starts on the day the sheet opened for,
+     moves only if someone taps a different one. */
+  const [selectedDate, setSelectedDate] = useState(day.date);
+  const activeDay = days.find((d) => d.date === selectedDate) ?? day;
   const [detailOpen, setDetailOpen] = useState(editing !== undefined || template !== undefined);
   /* A second, deeper reveal for the field people fill in least — pasting a
      website is a nice-to-have, not something the "where/cost/notes" crowd
@@ -245,8 +257,8 @@ export function ItemSheet({
      actual route and times needs a keyed flight API. */
   const carrier = draft.travel.number ? airlineFor(draft.travel.number) : undefined;
 
-  const slots = suggestSlots(day.items.filter((i) => i.id !== editing?.id));
-  const clash = draft.time ? clashAt(draft.time, day.items, editing?.id) : undefined;
+  const slots = suggestSlots(activeDay.items.filter((i) => i.id !== editing?.id));
+  const clash = draft.time ? clashAt(draft.time, activeDay.items, editing?.id) : undefined;
   const ready = draft.title.trim().length > 0 && draft.time.length > 0;
 
   const fieldStyle = {
@@ -259,7 +271,7 @@ export function ItemSheet({
 
   return (
     <Sheet
-      title={editing ? "Edit item" : `Add to ${day.fullDate.split(" ")[0]}`}
+      title={editing ? "Edit item" : `Add to ${activeDay.fullDate.split(" ")[0]}`}
       className="add-sheet"
       onClose={onClose}
       theme={theme}
@@ -390,6 +402,52 @@ export function ItemSheet({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {days.length > 1 && (
+        <div className="add-sheet__section">
+          <span className="wf-card__eyebrow" style={labelStyle}>
+            Day
+          </span>
+          <div className="add-sheet__days">
+            {days.map((d) => {
+              const on = d.date === selectedDate;
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  aria-pressed={on}
+                  className="trip-page__reset add-sheet__day"
+                  onClick={() => setSelectedDate(d.date)}
+                  style={{
+                    background: on ? theme.ink : theme.card,
+                    borderColor: on ? theme.ink : theme.line,
+                    color: on ? theme.bg : theme.ink,
+                    borderRadius: theme.chipRadius,
+                  }}
+                >
+                  <span
+                    className="add-sheet__day-dow"
+                    style={{ fontFamily: theme.fontMono, color: on ? theme.headMeta : theme.meta }}
+                  >
+                    {d.dow}
+                  </span>
+                  <span className="add-sheet__day-num" style={{ fontFamily: theme.fontDisplay }}>
+                    {d.num}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {editing && selectedDate !== day.date && (
+            <span
+              className="add-sheet__hint"
+              style={{ fontFamily: theme.fontMono, color: theme.meta }}
+            >
+              Moves to {activeDay.fullDate}
+            </span>
+          )}
         </div>
       )}
 
@@ -697,7 +755,7 @@ export function ItemSheet({
         type="button"
         className="trip-page__reset add-sheet__submit"
         disabled={!ready}
-        onClick={() => onSave(draft)}
+        onClick={() => onSave(draft, selectedDate)}
         style={{
           color: ready ? (canApprove ? theme.bg : theme.btnInk) : theme.meta,
           background: ready ? (canApprove ? theme.ink : theme.accent) : theme.line,
