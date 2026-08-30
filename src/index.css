@@ -8,8 +8,18 @@ body,
   height: 100%;
 }
 
+html {
+  /* Belt and suspenders against anything ever pushing the page wider than
+     the screen — .trip-page already clips its own children, but this stops
+     the whole document from growing a horizontal scrollbar no element was
+     ever meant to have. */
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
+  width: 100%;
+  overflow-x: hidden;
   font-family: "Instrument Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: #14171a;

@@ -1421,6 +1421,40 @@
   gap: 8px;
 }
 
+.add-sheet__days {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.add-sheet__day {
+  flex: 0 0 auto;
+  min-width: 46px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-width: 1px;
+  border-style: solid;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.add-sheet__day-dow {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.add-sheet__day-num {
+  font-size: 16px;
+  line-height: 1.1;
+}
+
 .add-sheet__slot {
   flex: 1;
   min-width: 0;
