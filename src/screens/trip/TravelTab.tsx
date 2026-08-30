@@ -1,5 +1,135 @@
 import type { Theme } from "../../theme";
-import { FLIGHTS, STAY, type Day } from "./trip-data";
+import { FLIGHTS, STAY, type Day, type TripItem } from "./trip-data";
+
+/** What the mode reads as when it isn't spelled out for you — a drive is the
+ *  default a road trip's items carry, so it gets no badge of its own; the
+ *  others are rare enough on any one trip to be worth naming. */
+const MODE_LABEL: Record<string, string> = {
+  Flight: "Flight",
+  Train: "Train",
+  Ferry: "Ferry",
+  Other: "Travel",
+};
+
+function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme }) {
+  const leg = item.travel;
+  const modeLabel = (leg && MODE_LABEL[leg.mode]) || undefined;
+
+  return (
+    <div
+      className="wf-card wf-card--pad travel-leg"
+      style={{ background: theme.card, borderColor: theme.line }}
+    >
+      <div className="wf-card__eyebrow" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+        {day.dow} {day.num}
+        {modeLabel ? ` · ${modeLabel.toUpperCase()}` : ""}
+        {leg?.carrier ? ` · ${leg.carrier}` : ""}
+        {leg?.number ? ` ${leg.number}` : ""}
+      </div>
+      <div className="stay__name" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
+        {item.title}
+      </div>
+
+      {leg && (leg.from || leg.to) && (
+        <div className="leg__route">
+          <span className="leg__place" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
+            {leg.from || "—"}
+          </span>
+          <span className="leg__arrow" style={{ color: theme.meta }}>
+            →
+          </span>
+          <span className="leg__place" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
+            {leg.to || "—"}
+          </span>
+        </div>
+      )}
+
+      {item.note && (
+        <div className="travel-leg__note" style={{ color: theme.body }}>
+          {item.note}
+        </div>
+      )}
+
+      <div className="fact-grid">
+        <div>
+          <div className="fact__label" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+            Leaves
+          </div>
+          <div className="fact__value" style={{ fontFamily: theme.fontMono, color: theme.ink }}>
+            {item.time}
+          </div>
+        </div>
+        {leg?.arrive && (
+          <div>
+            <div className="fact__label" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+              Arrives
+            </div>
+            <div className="fact__value" style={{ fontFamily: theme.fontMono, color: theme.ink }}>
+              {leg.arrive}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StayCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme }) {
+  return (
+    <div className="wf-card wf-card--pad stay" style={{ background: theme.card, borderColor: theme.line }}>
+      <div className="stay__head">
+        <div>
+          <div className="wf-card__eyebrow" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+            {day.dow} {day.num} · Stay
+          </div>
+          <div className="stay__name" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
+            {item.title}
+          </div>
+          {item.place !== "Not set" && (
+            <a
+              className="stay__address"
+              style={{ color: theme.body }}
+              href={item.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(item.place)}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {item.place}
+            </a>
+          )}
+        </div>
+        {item.bookingKind && (
+          <span
+            className="stay__status"
+            style={{ fontFamily: theme.fontMono, color: theme.btnInk, background: item.accent }}
+          >
+            {item.bookingKind}
+          </span>
+        )}
+      </div>
+
+      {item.note && (
+        <div className="travel-leg__note" style={{ color: theme.body }}>
+          {item.note}
+        </div>
+      )}
+
+      {item.booking && (
+        <div className="fact-grid">
+          {item.booking.map((fact) => (
+            <div key={fact.label}>
+              <div className="fact__label" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+                {fact.label}
+              </div>
+              <div className="fact__value" style={{ fontFamily: theme.fontMono, color: theme.ink }}>
+                {fact.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TravelTab({
   isExample,
@@ -11,16 +141,19 @@ export function TravelTab({
   theme: Theme;
 }) {
   /* The stay and the flights below are part of the authored example. A real
-     trip shows its own — every Stay and Travel item on the plan, gathered in
-     one place rather than inventing a hotel nobody booked. */
+     trip shows its own — every Stay and Travel item on the plan, grouped by
+     day so a road trip's dozen driving legs read as a itinerary rather than
+     one undifferentiated pile, gathered in one place rather than inventing
+     a hotel nobody booked. */
   if (!isExample) {
-    const legs = days.flatMap((day) =>
-      day.items
-        .filter((item) => item.kind === "Travel" || item.kind === "Stay")
-        .map((item) => ({ item, day })),
-    );
+    const dayGroups = days
+      .map((day) => ({
+        day,
+        items: day.items.filter((item) => item.kind === "Travel" || item.kind === "Stay"),
+      }))
+      .filter((group) => group.items.length > 0);
 
-    if (legs.length === 0) {
+    if (dayGroups.length === 0) {
       return (
         <div className="trip-page__stack trip-page__tab-panel">
           <div className="empty-day" style={{ borderColor: theme.line, color: theme.body }}>
@@ -41,98 +174,21 @@ export function TravelTab({
 
     return (
       <div className="trip-page__stack trip-page__tab-panel">
-        {legs.map(({ item, day }) => (
-          <div
-            key={item.id}
-            className="wf-card wf-card--pad"
-            style={{ background: theme.card, borderColor: theme.line, gap: "8px" }}
-          >
+        {dayGroups.map(({ day, items }) => (
+          <div key={day.date} className="travel-day-group">
             <div
-              className="wf-card__eyebrow"
+              className="travel-day-group__head"
               style={{ fontFamily: theme.fontMono, color: theme.meta }}
             >
-              {day.dow} {day.num} · {item.time}
-              {item.travel?.carrier ? ` · ${item.travel.carrier}` : ""}
-              {item.travel?.number ? ` ${item.travel.number}` : ""}
+              {day.dow} {day.num} · {day.label}
             </div>
-            <div className="stay__name" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
-              {item.title}
-            </div>
-
-            {item.travel && (item.travel.from || item.travel.to) ? (
-              <div className="flight__route">
-                <span
-                  className="flight__code"
-                  style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
-                >
-                  {item.travel.from || "—"}
-                </span>
-                <span className="flight__line" style={{ background: theme.line }}>
-                  <span className="flight__line-dot" style={{ background: theme.accent }} />
-                </span>
-                <span
-                  className="flight__code"
-                  style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
-                >
-                  {item.travel.to || "—"}
-                </span>
-              </div>
-            ) : (
-              item.place !== "Not set" && (
-                <div className="stay__address" style={{ color: theme.body }}>
-                  {item.place}
-                </div>
-              )
+            {items.map((item) =>
+              item.kind === "Travel" ? (
+                <TravelLegCard key={item.id} item={item} day={day} theme={theme} />
+              ) : (
+                <StayCard key={item.id} item={item} day={day} theme={theme} />
+              ),
             )}
-
-            <div className="fact-grid">
-              <div>
-                <div
-                  className="fact__label"
-                  style={{ fontFamily: theme.fontMono, color: theme.meta }}
-                >
-                  {item.travel ? "Leaves" : "From"}
-                </div>
-                <div
-                  className="fact__value"
-                  style={{ fontFamily: theme.fontMono, color: theme.ink }}
-                >
-                  {item.time}
-                </div>
-              </div>
-              {item.travel?.arrive && (
-                <div>
-                  <div
-                    className="fact__label"
-                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
-                  >
-                    Arrives
-                  </div>
-                  <div
-                    className="fact__value"
-                    style={{ fontFamily: theme.fontMono, color: theme.ink }}
-                  >
-                    {item.travel.arrive}
-                  </div>
-                </div>
-              )}
-              {item.travel?.mode && (
-                <div>
-                  <div
-                    className="fact__label"
-                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
-                  >
-                    Mode
-                  </div>
-                  <div
-                    className="fact__value"
-                    style={{ fontFamily: theme.fontMono, color: theme.ink }}
-                  >
-                    {item.travel.mode}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         ))}
       </div>
