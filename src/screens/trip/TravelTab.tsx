@@ -11,9 +11,35 @@ const MODE_LABEL: Record<string, string> = {
   Other: "Travel",
 };
 
+/** How long a leg takes, from its own departure and arrival times — the only
+ *  two data points a leg actually carries. Assumes an arrival earlier in the
+ *  clock than the departure means it lands the next day, same as a red-eye
+ *  would. Returns nothing when there's not enough to compute, or the two
+ *  times match (nothing to show). */
+function legDuration(depart: string, arrive: string): string | undefined {
+  const [dh, dm] = depart.split(":").map(Number);
+  const [ah, am] = arrive.split(":").map(Number);
+  if ([dh, dm, ah, am].some((n) => Number.isNaN(n))) return undefined;
+  let mins = ah * 60 + am - (dh * 60 + dm);
+  if (mins <= 0) mins += 24 * 60;
+  if (mins >= 24 * 60) return undefined;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme }) {
   const leg = item.travel;
   const modeLabel = (leg && MODE_LABEL[leg.mode]) || undefined;
+  const duration = leg?.arrive ? legDuration(item.time, leg.arrive) : undefined;
+  const chipStyle = {
+    fontFamily: theme.fontMono,
+    color: theme.ink,
+    background: theme.strip,
+    borderRadius: theme.chipRadius,
+  };
 
   return (
     <div
@@ -25,6 +51,7 @@ function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: 
         {modeLabel ? ` · ${modeLabel.toUpperCase()}` : ""}
         {leg?.carrier ? ` · ${leg.carrier}` : ""}
         {leg?.number ? ` ${leg.number}` : ""}
+        {item.time ? ` · Departs ${item.time}` : ""}
       </div>
       <div className="stay__name" style={{ fontFamily: theme.fontDisplay, color: theme.ink }}>
         {item.title}
@@ -44,32 +71,33 @@ function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: 
         </div>
       )}
 
-      {item.note && (
-        <div className="travel-leg__note" style={{ color: theme.body }}>
-          {item.note}
+      {(leg?.arrive || duration) && (
+        <div className="stat-row">
+          {duration && (
+            <span className="stat-chip" style={chipStyle}>
+              {duration}
+            </span>
+          )}
+          {leg?.arrive && (
+            <span className="stat-chip" style={chipStyle}>
+              Arrives {leg.arrive}
+            </span>
+          )}
         </div>
       )}
 
-      <div className="fact-grid">
-        <div>
-          <div className="fact__label" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
-            Leaves
-          </div>
-          <div className="fact__value" style={{ fontFamily: theme.fontMono, color: theme.ink }}>
-            {item.time}
-          </div>
+      {item.note && (
+        <div
+          className="travel-leg__note"
+          style={{
+            color: theme.body,
+            borderTop: `1px solid ${theme.line}`,
+            paddingTop: 10,
+          }}
+        >
+          {item.note}
         </div>
-        {leg?.arrive && (
-          <div>
-            <div className="fact__label" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
-              Arrives
-            </div>
-            <div className="fact__value" style={{ fontFamily: theme.fontMono, color: theme.ink }}>
-              {leg.arrive}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

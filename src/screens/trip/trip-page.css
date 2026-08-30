@@ -830,6 +830,19 @@
   font-size: 14px;
 }
 
+/* The duration/arrival chips promoted out of the fact-grid so they read as
+   the day's own data at a glance, not a label you have to stop and parse. */
+.stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
 .travel-leg__note {
   font-size: 13px;
   line-height: 1.45;
