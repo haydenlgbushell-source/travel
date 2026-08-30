@@ -76,6 +76,11 @@ const UNDO_MS = 8000;
 const SWIPE_MIN_PX = 60;
 const SWIPE_MAX_SLOPE = 0.5;
 
+/** Bumped whenever the Travel tab changes enough to be worth a "new" dot —
+ *  a fresh string re-shows the badge to everyone, since the old key just
+ *  becomes an unread localStorage entry nobody looks at again. */
+const TRAVEL_CARD_BADGE_KEY = "wf-seen-travel-card-2026-08";
+
 /** What sits in the bottom tablist. Money and People are one tap further,
  *  behind the hamburger in the header — this is what a thumb reaches for
  *  most often. */
@@ -208,6 +213,18 @@ export function TripPage({
     return i === -1 ? 0 : i;
   });
   const [tab, setTab] = useState(0);
+  /* A small dot on the Travel tab, marking the redrawn leg card until
+     someone actually opens the tab and sees it — cleared per browser via
+     localStorage rather than per account, since there's no server-side
+     "seen" state to key this against. Fails open (no badge) if storage
+     is blocked, rather than nagging forever. */
+  const [travelCardSeen, setTravelCardSeen] = useState(() => {
+    try {
+      return localStorage.getItem(TRAVEL_CARD_BADGE_KEY) === "1";
+    } catch {
+      return true;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [airport, setAirport] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -579,6 +596,14 @@ export function TripPage({
     setAirport(false);
     setMapOpen(false);
     toTop();
+    if (i === 1 && !travelCardSeen) {
+      setTravelCardSeen(true);
+      try {
+        localStorage.setItem(TRAVEL_CARD_BADGE_KEY, "1");
+      } catch {
+        /* Best-effort — the badge just reappears next visit. */
+      }
+    }
   }
 
   function openFromMore(label: string) {
@@ -1081,6 +1106,7 @@ export function TripPage({
         {navEntries.map((entry, i) => {
           const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
           const Icon = entry.icon;
+          const isNew = entry.kind === "tab" && entry.tab === 1 && !travelCardSeen;
           return (
             <button
               key={entry.label}
@@ -1089,7 +1115,7 @@ export function TripPage({
               id={`wf-tab-nav-${i}`}
               aria-controls="wf-tabpanel"
               aria-selected={on}
-              aria-label={entry.label}
+              aria-label={isNew ? `${entry.label} — new` : entry.label}
               tabIndex={on ? 0 : -1}
               className="trip-page__reset trip-page__nav-item"
               onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
@@ -1110,7 +1136,16 @@ export function TripPage({
                 className="trip-page__nav-mark"
                 style={{ background: theme.accent, opacity: on ? 1 : 0 }}
               />
-              <Icon />
+              <span className="trip-page__nav-icon">
+                <Icon />
+                {isNew && (
+                  <span
+                    className="trip-page__nav-badge"
+                    style={{ background: theme.accent, borderColor: theme.bg }}
+                    aria-hidden="true"
+                  />
+                )}
+              </span>
               {entry.short}
             </button>
           );
