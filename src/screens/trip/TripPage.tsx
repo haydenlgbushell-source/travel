@@ -1091,6 +1091,7 @@ export function TripPage({
       {sheetItemOpen && (
         <ItemSheet
           day={day}
+          tripId={event.id}
           editing={editing}
           template={editing ? undefined : addTemplate}
           canApprove={canApprove}

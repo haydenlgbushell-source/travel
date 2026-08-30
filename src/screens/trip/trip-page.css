@@ -1501,6 +1501,11 @@
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.add-sheet__photo-upload {
+  margin-top: 2px;
 }
 
 .add-sheet__toggle {
