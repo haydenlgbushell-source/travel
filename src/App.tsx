@@ -25,6 +25,7 @@ import {
   deletePastTrip,
   insertPastTrip,
   loadPastTrips,
+  redeemAccessCode,
   type PastTrip,
   type SharedList,
 } from "./screens/trip/trip-data";
@@ -161,6 +162,10 @@ function App() {
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
   const loadedAccountId = useRef<string | undefined>(undefined);
+  /* Set when AccessCodeScreen bounces to sign-up because anonymous joining
+     is unavailable — redeemed the moment a real account exists, so a
+     detour through sign-up still ends inside the trip they were sent. */
+  const pendingAccessCodeRef = useRef<string | undefined>(undefined);
 
   /** Resets which agency is active whenever the list itself is (re)loaded —
    *  defaulting to the first keeps today's single-agency accounts landing
@@ -195,6 +200,39 @@ function App() {
       loadedAccountId.current = acc?.id;
       setAccount(acc);
       setBootLoading(true);
+
+      if (acc && pendingAccessCodeRef.current) {
+        const code = pendingAccessCodeRef.current;
+        pendingAccessCodeRef.current = undefined;
+        redeemAccessCode(code)
+          .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
+          .then(({ events, tripId }) => {
+            setEvents(events);
+            setCurrentId(tripId);
+            setScreen("trip");
+            setPastTrips([]);
+            applyAgencies([]);
+            setBootLoading(false);
+            void saveCurrentEventId(acc.id, tripId).catch(() => {});
+          })
+          .catch(() => {
+            /* The code may have expired in the detour through sign-up —
+               land on their normal trip list rather than stranding them
+               on a blank screen over a join that didn't go through. */
+            initialState(acc)
+              .then((next) => {
+                setEvents(next.events);
+                setCurrentId(next.currentId);
+                setScreen(next.screen);
+                setPastTrips(next.pastTrips);
+                applyAgencies(next.agencies);
+                setBootLoading(false);
+              })
+              .catch(() => setBootLoading(false));
+          });
+        return;
+      }
+
       initialState(acc)
         .then((next) => {
           setEvents(next.events);
@@ -410,6 +448,12 @@ function App() {
           setAccessCode(undefined);
           setScreen(currentId ? "trip" : events.length > 0 ? "trips" : "setup");
         }}
+        onNeedsAccount={() => {
+          pendingAccessCodeRef.current = accessCode;
+          window.location.hash = "";
+          setAccessCode(undefined);
+          setScreen("auth");
+        }}
       />
     );
   }
@@ -491,10 +535,45 @@ function App() {
   if (screen === "auth") {
     return (
       <AuthPage
+        banner={
+          pendingAccessCodeRef.current
+            ? "Anonymous joining isn't available for this trip right now — create a free account and you'll land straight in it."
+            : undefined
+        }
         onAuthenticated={(acc) => {
           loadedAccountId.current = acc.id;
           setAccount(acc);
           setBootLoading(true);
+
+          if (pendingAccessCodeRef.current) {
+            const code = pendingAccessCodeRef.current;
+            pendingAccessCodeRef.current = undefined;
+            redeemAccessCode(code)
+              .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
+              .then(({ events, tripId }) => {
+                setEvents(events);
+                setCurrentId(tripId);
+                setScreen("trip");
+                setPastTrips([]);
+                applyAgencies([]);
+                setBootLoading(false);
+                void saveCurrentEventId(acc.id, tripId).catch(() => {});
+              })
+              .catch(() => {
+                initialState(acc)
+                  .then((next) => {
+                    setEvents(next.events);
+                    setCurrentId(next.currentId);
+                    setScreen(next.screen);
+                    setPastTrips(next.pastTrips);
+                    applyAgencies(next.agencies);
+                    setBootLoading(false);
+                  })
+                  .catch(() => setBootLoading(false));
+              });
+            return;
+          }
+
           initialState(acc)
             .then((next) => {
               setEvents(next.events);

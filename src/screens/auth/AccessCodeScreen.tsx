@@ -8,11 +8,17 @@ export function AccessCodeScreen({
   account,
   onJoined,
   onDecline,
+  onNeedsAccount,
 }: {
   code: string;
   account: Account | undefined;
   onJoined: (tripId: string) => void;
   onDecline: () => void;
+  /** Called instead of showing an error when anonymous joining itself is
+   *  unavailable right now (a project-level setting, not this code) —
+   *  the caller is expected to route to normal sign-up and come back to
+   *  redeem the same code once a real account exists. */
+  onNeedsAccount: () => void;
 }) {
   const [step, setStep] = useState<"loading" | "name" | "joining" | "error">("loading");
   const [error, setError] = useState<string>();
@@ -36,7 +42,14 @@ export function AccessCodeScreen({
           guestRef.current = await signInAsGuest();
         }
         setStep("name");
-      } catch {
+      } catch (err) {
+        /* Anonymous joining is switched off at the project level — not
+           something a retry or a code change fixes. Send them to make a
+           real (free) account instead of dead-ending here. */
+        if (err instanceof Error && "code" in err && (err as { code?: string }).code === "anonymous_provider_disabled") {
+          onNeedsAccount();
+          return;
+        }
         setError(
           "That link isn't valid any more — it may have expired or already reached its limit. Ask whoever sent it for a new one.",
         );
