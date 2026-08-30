@@ -18,6 +18,7 @@ import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
 import { InviteAcceptScreen } from "./screens/auth/InviteAcceptScreen";
 import { AccessCodeScreen } from "./screens/auth/AccessCodeScreen";
+import { AgencyInviteAcceptScreen } from "./screens/auth/AgencyInviteAcceptScreen";
 import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
 import {
   decodeShare,
@@ -29,7 +30,7 @@ import {
 } from "./screens/trip/trip-data";
 import { AdminPage } from "./screens/admin/AdminPage";
 import { AgencyPage } from "./screens/agency/AgencyPage";
-import { loadMyAgencies, type Agency } from "./screens/agency/agency-data";
+import { loadMyAgencies, redeemAgencyInvite, type Agency } from "./screens/agency/agency-data";
 
 type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "agency";
 
@@ -61,6 +62,16 @@ function readAccessCode(): string | undefined {
  *  the URL. */
 function readAdminRoute(): boolean {
   return /[#&]admin(?:&|$)/.test(window.location.hash);
+}
+
+/** An agency-invite token, same fragment pattern as `#invite=` — but unlike
+ *  that one this needs *no* account signed in, since the whole point is
+ *  creating a brand-new one. The token is carried through signup itself (see
+ *  auth-data.ts's signUp) rather than read again here once an account
+ *  exists, since the email-confirmation redirect drops the URL hash. */
+function readAgencyInviteToken(): string | undefined {
+  const match = /[#&]agency-invite=([^&]+)/.exec(window.location.hash);
+  return match?.[1];
 }
 
 /** Everything an account owns, read together so the screen only changes once
@@ -134,6 +145,7 @@ function App() {
   const [inviteToken, setInviteToken] = useState<string | undefined>(readInviteToken);
   const [accessCode, setAccessCode] = useState<string | undefined>(readAccessCode);
   const [adminRoute, setAdminRoute] = useState<boolean>(readAdminRoute);
+  const [agencyInviteToken, setAgencyInviteToken] = useState<string | undefined>(readAgencyInviteToken);
   /* Tracks whose data is currently loaded, so a token refresh or other
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
@@ -153,6 +165,7 @@ function App() {
       setInviteToken(readInviteToken());
       setAccessCode(readAccessCode());
       setAdminRoute(readAdminRoute());
+      setAgencyInviteToken(readAgencyInviteToken());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -390,6 +403,29 @@ function App() {
     );
   }
 
+  /* Like the access-code screen above, this needs no account going in —
+     that's the whole point, it's how a brand-new agency owner gets one. Once
+     signup succeeds, onAccountChange picks up the new session and this falls
+     away on its own (agencyInviteToken stays set, but the `!account` guard
+     stops matching) while the redemption itself happens once, from the
+     NamePage hook below, after the confirmation-email round trip. */
+  if (agencyInviteToken && !account) {
+    return (
+      <AgencyInviteAcceptScreen
+        token={agencyInviteToken}
+        onSignedUp={() => {
+          /* onAccountChange (or, for a project without email confirmation,
+             the immediate session) takes it from here — nothing to do but
+             wait for the account to appear. */
+        }}
+        onDecline={() => {
+          window.location.hash = "";
+          setAgencyInviteToken(undefined);
+        }}
+      />
+    );
+  }
+
   if (bootLoading) {
     return <div style={{ background: theme.bg, width: "100%", height: "100vh" }} />;
   }
@@ -477,6 +513,29 @@ function App() {
           if (!account) return;
           const updated = await setAccountName(account.id, name);
           setAccount(updated);
+
+          /* The one guaranteed moment to redeem an agency invite: whether
+             the `#agency-invite=` hash survived the email-confirmation
+             redirect or not (it usually doesn't — emailRedirectTo strips
+             it), the token itself rode along in the account's own metadata
+             from signUp(), and this is the first time that account has a
+             session to redeem it with. Failure here just means there was
+             nothing to redeem (an ordinary signup) — fall through to setup
+             as normal. */
+          if (agencyInviteToken) {
+            window.location.hash = "";
+            setAgencyInviteToken(undefined);
+            try {
+              await redeemAgencyInvite();
+              const list = await loadMyAgencies();
+              applyAgencies(list);
+              setScreen("agency");
+              return;
+            } catch {
+              /* Falls through to setup below. */
+            }
+          }
+
           setScreen("setup");
         }}
       />
