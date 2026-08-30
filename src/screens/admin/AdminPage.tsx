@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ThemeProvider, type Theme } from "../../theme";
 import {
   adminCreateAgency,
+  adminCreateAgencyInvite,
   adminListAccounts,
   adminListAgencies,
   adminListTrips,
@@ -71,6 +72,11 @@ export function AdminPage({
   const [confirmingRevoke, setConfirmingRevoke] = useState<string>();
   /* The account being granted an agency, and the name being typed for it. */
   const [granting, setGranting] = useState<{ account: AdminAccountRow; name: string }>();
+  /* The invite name being typed, and (once created) the link to hand off —
+     kept separate from `notice` since this one needs to stay on screen to
+     copy, not dismiss with the next unrelated action. */
+  const [invitingName, setInvitingName] = useState("");
+  const [invite, setInvite] = useState<{ name: string; link: string }>();
 
   /* The refresh after a grant or revoke resolves long after the effect that
      started the first load, so a plain `cancelled` local wouldn't cover it —
@@ -143,6 +149,26 @@ export function AdminPage({
       await adminCreateAgency(account.id, trimmed);
       return `${accountLabel(account)} now owns ${trimmed}.`;
     }, "Couldn't grant agency access.");
+  }
+
+  function createInvite(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setBusyKey("invite");
+    setNotice(undefined);
+    void adminCreateAgencyInvite(trimmed)
+      .then((token) => {
+        if (!alive.current) return;
+        const link = `${window.location.origin}${window.location.pathname}#agency-invite=${token}`;
+        setInvite({ name: trimmed, link });
+        setInvitingName("");
+      })
+      .catch(() => {
+        if (alive.current) setNotice({ text: "Couldn't create that invite.", tone: "error" });
+      })
+      .finally(() => {
+        if (alive.current) setBusyKey(undefined);
+      });
   }
 
   function revokeAgency(agency: AdminAgencyRow) {
@@ -480,6 +506,73 @@ export function AdminPage({
                 <div>
                   <h1 className="admin__title">Agencies</h1>
                 </div>
+              </div>
+
+              <div className="admin__panel">
+                <div className="admin__panel-head">
+                  <span className="admin__panel-title">Invite a new agency</span>
+                </div>
+                {invite ? (
+                  <div className="admin__panel-body">
+                    <label className="admin__field">
+                      <span className="admin__label">Link for {invite.name}</span>
+                      <input
+                        className="admin__input"
+                        readOnly
+                        value={invite.link}
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                    </label>
+                    <div className="admin__actions">
+                      <button
+                        type="button"
+                        className="admin__reset admin__btn admin__btn--primary"
+                        onClick={() => {
+                          void navigator.clipboard
+                            .writeText(invite.link)
+                            .then(() => setNotice({ text: "Link copied.", tone: "ok" }))
+                            .catch(() => setNotice({ text: "Couldn't copy — select and copy it manually.", tone: "error" }));
+                        }}
+                      >
+                        Copy link
+                      </button>
+                      <button
+                        type="button"
+                        className="admin__reset admin__btn admin__btn--ghost"
+                        onClick={() => setInvite(undefined)}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form
+                    className="admin__panel-body"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      createInvite(invitingName);
+                    }}
+                  >
+                    <label className="admin__field">
+                      <span className="admin__label">Agency name</span>
+                      <input
+                        className="admin__input"
+                        value={invitingName}
+                        onChange={(e) => setInvitingName(e.target.value)}
+                        placeholder="Northbound Travel"
+                      />
+                    </label>
+                    <div className="admin__actions">
+                      <button
+                        type="submit"
+                        className="admin__reset admin__btn admin__btn--primary"
+                        disabled={invitingName.trim().length === 0 || busy}
+                      >
+                        {busyKey === "invite" ? "Creating…" : "Create invite link"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
 
               <div className="admin__panel">

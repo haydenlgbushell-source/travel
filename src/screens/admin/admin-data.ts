@@ -131,6 +131,18 @@ export async function adminRevokeAgency(agencyId: string): Promise<number> {
   return Number(data ?? 0);
 }
 
+/** Creates a one-time signup link for a brand-new agency owner — the invited
+ *  person creates their own account and password; the admin never sees or
+ *  sets one. Returns the token, which the caller turns into a
+ *  `#agency-invite=<token>` link. Admin-gated server-side. */
+export async function adminCreateAgencyInvite(agencyName: string): Promise<string> {
+  const { data, error } = await supabase.rpc("admin_create_agency_invite", {
+    p_agency_name: agencyName,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 /* ---------- setting trips up from the console ---------- */
 
 /** Creating a trip as the admin goes through the ordinary `trips` insert —

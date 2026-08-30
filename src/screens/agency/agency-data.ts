@@ -8,6 +8,11 @@ export interface Agency {
   role: "Owner" | "Agent";
 }
 
+export interface AgencyInviteInfo {
+  agencyName: string;
+  valid: boolean;
+}
+
 export const TRIP_STATUSES = [
   "Draft",
   "Quoted",
@@ -113,6 +118,25 @@ function detailsFromRow(row: DetailsRow): TripAgencyDetails {
  *  them as an Agent — every one of them, since an Agent can be added to more
  *  than one. This just reads which agencies that's true for; it never
  *  creates one. */
+/** Reached via `#agency-invite=<token>` before anyone's signed up — anon-
+ *  reachable, same trust level as the trip-invite equivalent (leaks only a
+ *  name and whether the link still works). */
+export async function getAgencyInvite(token: string): Promise<AgencyInviteInfo | undefined> {
+  const { data, error } = await supabase.rpc("get_agency_invite", { p_token: token });
+  if (error) throw error;
+  const row = (data as { agency_name: string; valid: boolean }[] | null)?.[0];
+  if (!row) return undefined;
+  return { agencyName: row.agency_name, valid: row.valid };
+}
+
+/** Reads the invite token off the caller's own account metadata (set at
+ *  signup) rather than taking one as a parameter — see the migration for why. */
+export async function redeemAgencyInvite(): Promise<string> {
+  const { data, error } = await supabase.rpc("redeem_agency_invite");
+  if (error) throw error;
+  return data as string;
+}
+
 export async function loadMyAgencies(): Promise<Agency[]> {
   const { data, error } = await supabase.rpc("my_agencies");
   if (error) throw error;

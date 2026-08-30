@@ -56,13 +56,20 @@ export async function signUp(
   mobile: string,
   email: string,
   password: string,
+  /** Carries an agency invite token through signup and (crucially) through
+   *  the email-confirmation redirect, which drops the URL hash. Stored in
+   *  auth.users.raw_user_meta_data, where redeem_agency_invite() reads it
+   *  back via auth.uid() once a session exists. */
+  agencyInviteToken?: string,
 ): Promise<{ account: Account } | { error: SignUpError } | { confirmationPending: true }> {
   const normalisedMobile = normaliseMobile(mobile);
   const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
     options: {
-      data: { mobile: normalisedMobile },
+      data: agencyInviteToken
+        ? { mobile: normalisedMobile, agency_invite_token: agencyInviteToken }
+        : { mobile: normalisedMobile },
       /* Where the confirmation email's link sends them back to — without
          this it falls back to the project's Site URL, which for a project
          set up outside its own dashboard defaults to localhost and goes
