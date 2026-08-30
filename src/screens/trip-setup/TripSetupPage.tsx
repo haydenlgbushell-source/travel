@@ -1,16 +1,22 @@
-import { useState } from "react";
-import { THEMES, getTheme } from "../../theme";
+import { useEffect, useState } from "react";
+import { DEFAULT_THEME_KEY, THEMES, getTheme } from "../../theme";
 import { StyleCard } from "./StyleCard";
 import { PhonePreview } from "./PhonePreview";
 import "./trip-setup.css";
 import { formatDateRange, geocodePlace, type EventDetails } from "./event-data";
 import { EXAMPLE_END, EXAMPLE_START, initialsOf } from "../trip/trip-data";
+import { brandTheme, loadAgencyBranding, type AgencyBranding } from "../agency/branding";
 
 export function TripSetupPage({
   themeKey,
   onThemeKeyChange,
   editing,
   userName,
+  /** Set for a trip being built on an agency's behalf — a client trip's look
+   *  is the agency's own brand, not a style the organiser picks per trip, so
+   *  this both hides the picker and swaps the preview for the agency's own
+   *  colours and logo. */
+  agency,
   onCreate,
   onCancel,
 }: {
@@ -21,6 +27,7 @@ export function TripSetupPage({
   /** For the header avatar — absent for a guest who hasn't picked a name
    *  yet, same as everywhere else in the app that shows initials. */
   userName?: string;
+  agency?: { id: string; name: string };
   onCreate: (event: EventDetails) => void;
   onCancel?: () => void;
 }) {
@@ -30,8 +37,25 @@ export function TripSetupPage({
   const [endDate, setEndDate] = useState(editing?.endDate ?? "");
   const [useExample, setUseExample] = useState(editing?.fromExample ?? false);
   const [creating, setCreating] = useState(false);
-  const selected = getTheme(themeKey);
+  const [agencyBranding, setAgencyBranding] = useState<AgencyBranding>();
   const isEditing = editing !== undefined;
+
+  useEffect(() => {
+    if (!agency) return;
+    let cancelled = false;
+    loadAgencyBranding(agency.id).then((b) => {
+      if (!cancelled) setAgencyBranding(b);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [agency]);
+
+  /* An agency trip is never styled per-trip — it's always the agency's own
+     brand, laid over the one neutral base every agency starts from. */
+  const selected = agency
+    ? brandTheme(getTheme(DEFAULT_THEME_KEY), agencyBranding)
+    : getTheme(themeKey);
 
   /* The example is a real, authored six-day Chicago trip — its dates come
      with it rather than being whatever was typed above. */
@@ -73,7 +97,9 @@ export function TripSetupPage({
         lat: place?.lat,
         lng: place?.lng,
         fromExample: useExample,
-        themeKey,
+        /* An agency trip always renders off the neutral base plus the
+           agency's own brand overlay — never a per-trip style pick. */
+        themeKey: agency ? DEFAULT_THEME_KEY : themeKey,
         /* Not editable here — carried forward so saving changes to a
            client trip can't silently detach it from its agency. */
         agencyId: editing?.agencyId,
@@ -170,26 +196,35 @@ export function TripSetupPage({
             )}
           </section>
 
-          <section className="trip-setup__section">
-            <div className="trip-setup__section-head">
-              <span className="wf-mono trip-setup__eyebrow">Trip style</span>
-              <span className="wf-mono trip-setup__selected-name">
-                {selected.name} selected
-              </span>
-            </div>
+          {agency ? (
+            <section className="trip-setup__section">
+              <div className="trip-setup__section-head">
+                <span className="wf-mono trip-setup__eyebrow">Brand</span>
+                <span className="wf-mono trip-setup__selected-name">{agency.name}</span>
+              </div>
+            </section>
+          ) : (
+            <section className="trip-setup__section">
+              <div className="trip-setup__section-head">
+                <span className="wf-mono trip-setup__eyebrow">Trip style</span>
+                <span className="wf-mono trip-setup__selected-name">
+                  {selected.name} selected
+                </span>
+              </div>
 
-            <div className="style-grid">
-              {THEMES.map((t) => (
-                <StyleCard
-                  key={t.key}
-                  theme={t}
-                  selected={t.key === themeKey}
-                  onSelect={() => onThemeKeyChange(t.key)}
-                  eventName={previewName}
-                />
-              ))}
-            </div>
-          </section>
+              <div className="style-grid">
+                {THEMES.map((t) => (
+                  <StyleCard
+                    key={t.key}
+                    theme={t}
+                    selected={t.key === themeKey}
+                    onSelect={() => onThemeKeyChange(t.key)}
+                    eventName={previewName}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="trip-setup__actions">
             <button

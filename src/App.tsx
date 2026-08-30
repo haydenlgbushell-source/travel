@@ -639,6 +639,12 @@ function App() {
         key={`${event.id}:${event.startDate}:${event.endDate}:${event.fromExample}`}
         theme={getTheme(event.themeKey)}
         event={event}
+        /* Only set when the signed-in account actually belongs to this
+           trip's agency — a client organiser sees no library button on
+           their own trip even though it's agency-owned underneath. */
+        libraryAgencyId={
+          event.agencyId && agencies.some((a) => a.id === event.agencyId) ? event.agencyId : undefined
+        }
         accountId={account.id}
         userName={account.name}
         savedCount={pastTrips.length}
@@ -651,12 +657,18 @@ function App() {
     );
   }
 
+  const settingUpAgencyId = editing?.agencyId ?? pendingAgencyId;
+  const settingUpAgency = settingUpAgencyId
+    ? agencies.find((a) => a.id === settingUpAgencyId)
+    : undefined;
+
   return (
     <TripSetupPage
       themeKey={themeKey}
       onThemeKeyChange={setThemeKey}
       editing={editing}
       userName={account?.name}
+      agency={settingUpAgency}
       onCreate={upsertEvent}
       onCancel={
         events.length > 0

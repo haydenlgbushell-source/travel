@@ -69,6 +69,40 @@ export async function loadTripBranding(
   }
 }
 
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const LOGO_MIME_EXT: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+};
+
+export type UploadLogoError = "too-large" | "wrong-type";
+
+/** Owner-only, enforced by storage RLS on the `agency-logos` bucket (the
+ *  object path's first segment has to be this agency's id, and only that
+ *  agency's owner can write under it — see the agency_logo_storage
+ *  migration). Each upload gets its own filename rather than overwriting a
+ *  fixed one, so there's no stale-cache window where the old logo still
+ *  shows at the same URL. */
+export async function uploadAgencyLogo(
+  agencyId: string,
+  file: File,
+): Promise<{ url: string } | { error: UploadLogoError }> {
+  if (file.size > MAX_LOGO_BYTES) return { error: "too-large" };
+  const ext = LOGO_MIME_EXT[file.type];
+  if (!ext) return { error: "wrong-type" };
+
+  const path = `${agencyId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("agency-logos")
+    .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from("agency-logos").getPublicUrl(path);
+  return { url: data.publicUrl };
+}
+
 /** Owner-only, enforced in the function rather than here. Throws, unlike the
  *  loaders — a save that silently did nothing would be worse than an error. */
 export async function saveAgencyBranding(

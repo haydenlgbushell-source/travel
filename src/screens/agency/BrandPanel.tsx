@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Wordmark, type Theme } from "../../theme";
 import {
   asHex,
@@ -6,6 +6,7 @@ import {
   isHex,
   loadAgencyBranding,
   saveAgencyBranding,
+  uploadAgencyLogo,
   type AgencyBranding,
 } from "./branding";
 
@@ -104,6 +105,9 @@ export function BrandPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ text: string; tone: "ok" | "error" }>();
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,8 +130,28 @@ export function BrandPanel({
   const set = <K extends keyof AgencyBranding>(key: K, value: AgencyBranding[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  const badLogo =
-    (draft.logoUrl ?? "").trim() !== "" && !/^https:\/\//i.test((draft.logoUrl ?? "").trim());
+  async function handleLogoFile(file: File) {
+    setLogoError(undefined);
+    setUploadingLogo(true);
+    try {
+      const result = await uploadAgencyLogo(agencyId, file);
+      if ("error" in result) {
+        setLogoError(
+          result.error === "too-large"
+            ? "That file's too big — logos need to be under 2MB."
+            : "That file type isn't supported — use PNG, JPEG, SVG or WebP.",
+        );
+        return;
+      }
+      set("logoUrl", result.url);
+    } catch {
+      setLogoError("Couldn't upload that — check your connection and try again.");
+    } finally {
+      setUploadingLogo(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   const badColour =
     ((draft.accent ?? "").trim() !== "" && !isHex(draft.accent)) ||
     ((draft.headBg ?? "").trim() !== "" && !isHex(draft.headBg));
@@ -182,20 +206,38 @@ export function BrandPanel({
 
           <div className="brand__field">
             <span className="brand__label">Logo</span>
-            <input
-              className="brand__input"
-              type="url"
-              inputMode="url"
-              value={draft.logoUrl ?? ""}
-              onChange={(e) => set("logoUrl", e.target.value)}
-              placeholder="https://…/logo.svg"
-              spellCheck={false}
-            />
-            {badLogo && (
-              <span className="brand__hint brand__hint--warn">
-                The address has to start with https://
-              </span>
-            )}
+            <div className="brand__logo-row">
+              {draft.logoUrl && (
+                <span className="brand__logo-thumb">
+                  <img src={draft.logoUrl} alt="" />
+                </span>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="brand__visually-hidden"
+                id="brand-logo-file"
+                disabled={uploadingLogo}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleLogoFile(file);
+                }}
+              />
+              <label htmlFor="brand-logo-file" className="brand__btn brand__btn--ghost">
+                {uploadingLogo ? "Uploading…" : draft.logoUrl ? "Change logo" : "Upload a logo"}
+              </label>
+              {draft.logoUrl && !uploadingLogo && (
+                <button
+                  type="button"
+                  className="brand__reset-link"
+                  onClick={() => set("logoUrl", "")}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {logoError && <span className="brand__hint brand__hint--warn">{logoError}</span>}
           </div>
 
           <ColourField
@@ -220,7 +262,7 @@ export function BrandPanel({
             <button
               type="button"
               className="brand__btn brand__btn--primary"
-              disabled={saving || badColour || badLogo}
+              disabled={saving || uploadingLogo || badColour}
               onClick={() => void save()}
             >
               {saving ? "Saving…" : "Save brand"}

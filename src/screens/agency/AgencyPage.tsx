@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ThemeProvider, getTheme, Wordmark, type Theme } from "../../theme";
 import { BrandPanel } from "./BrandPanel";
+import { ActivityLibraryPanel } from "./ActivityLibraryPanel";
 import { brandTheme, loadAgencyBranding, type AgencyBranding } from "./branding";
 import "./brand.css";
 import type { EventDetails } from "../trip-setup/event-data";
@@ -22,7 +23,7 @@ import { ClientDetailsSheet } from "./ClientDetailsSheet";
 import { DuplicateTripSheet } from "./DuplicateTripSheet";
 import "../trip/trip-page.css";
 
-type Tab = "trips" | "team" | "brand";
+type Tab = "trips" | "team" | "library" | "brand";
 
 function blankDetails(tripId: string): TripAgencyDetails {
   return { tripId, status: "Draft", currency: "AUD" };
@@ -292,6 +293,7 @@ export function AgencyPage({
           <div style={{ display: "flex", gap: "6px" }}>
             {tabButton("trips", "Trips")}
             {tabButton("team", "Team")}
+            {tabButton("library", "Library")}
             {tabButton("brand", "Brand")}
           </div>
         </div>
@@ -348,7 +350,9 @@ export function AgencyPage({
             </div>
           )}
 
-          {tab === "brand" ? (
+          {tab === "library" ? (
+            <ActivityLibraryPanel agencyId={agency.id} theme={theme} />
+          ) : tab === "brand" ? (
             <BrandPanel
               agencyId={agency.id}
               agencyName={agency.name}
