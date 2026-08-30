@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
@@ -13,6 +13,7 @@ import {
   looksLikeImage,
   suggestSlots,
   toBaseAmount,
+  uploadItemPhoto,
   type Day,
   type DraftItem,
   type TripItem,
@@ -41,6 +42,7 @@ const EMPTY: DraftItem = {
  *  existing item, keeping every field it does not ask about. */
 export function ItemSheet({
   day,
+  tripId,
   editing,
   template,
   canApprove,
@@ -52,6 +54,8 @@ export function ItemSheet({
   theme,
 }: {
   day: Day;
+  /** Where an uploaded photo's storage path is scoped — see uploadItemPhoto. */
+  tripId: string;
   editing?: TripItem;
   /** Pre-fills a new item from an agency's saved activity — everything but
    *  the time, which still has to be chosen here same as any other add.
@@ -81,6 +85,9 @@ export function ItemSheet({
     () => (editing?.photoUrl ?? template?.photoUrl ?? "").trim() !== "",
   );
   const [photoStatus, setPhotoStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string>();
+  const photoFileRef = useRef<HTMLInputElement>(null);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
   const ids = {
     title: useId(),
@@ -100,6 +107,32 @@ export function ItemSheet({
 
   const set = <K extends keyof DraftItem>(key: K, value: DraftItem[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
+
+  /* Not every place has a website worth scraping — this is the other way in,
+     a photo someone on the trip actually took. Uploading replaces whatever
+     was in the field, same as a pasted website resolving to its picture. */
+  async function handlePhotoFile(file: File) {
+    setUploadError(undefined);
+    setUploadingPhoto(true);
+    try {
+      const result = await uploadItemPhoto(tripId, file);
+      if ("error" in result) {
+        setUploadError(
+          result.error === "too-large"
+            ? "That photo's too big — keep it under 5MB."
+            : "That file type isn't supported — use a JPEG, PNG or WebP.",
+        );
+      } else {
+        set("photoUrl", result.url);
+        setPhotoStatus("idle");
+      }
+    } catch {
+      setUploadError("Couldn't upload that — check your connection and try again.");
+    } finally {
+      setUploadingPhoto(false);
+      if (photoFileRef.current) photoFileRef.current.value = "";
+    }
+  }
 
   /* Pasting the hotel's website is the natural thing to do, so look up the
      picture that page advertises rather than failing quietly. */
@@ -593,8 +626,49 @@ export function ItemSheet({
                       : "No picture found there"}
                 </span>
               )}
+
+              <div className="add-sheet__photo-upload">
+                <input
+                  ref={photoFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="trip-page__visually-hidden"
+                  id={`${ids.photo}-file`}
+                  disabled={uploadingPhoto}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handlePhotoFile(file);
+                  }}
+                />
+                <label
+                  htmlFor={`${ids.photo}-file`}
+                  className="trip-page__reset add-sheet__more"
+                  style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                >
+                  {uploadingPhoto ? "Uploading…" : "Or upload a photo of your own +"}
+                </label>
+              </div>
+              {uploadError && (
+                <span
+                  className="add-sheet__hint"
+                  style={{ fontFamily: theme.fontMono, color: WARN_INK }}
+                >
+                  {uploadError}
+                </span>
+              )}
+
               {draft.photoUrl.trim() !== "" && (
-                <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
+                <>
+                  <Photo className="add-sheet__preview" url={draft.photoUrl.trim()} theme={theme} />
+                  <button
+                    type="button"
+                    className="trip-page__reset add-sheet__more"
+                    onClick={() => set("photoUrl", "")}
+                    style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                  >
+                    Remove photo
+                  </button>
+                </>
               )}
             </div>
           ) : (

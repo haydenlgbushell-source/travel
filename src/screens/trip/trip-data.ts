@@ -1427,6 +1427,39 @@ export function fromBaseAmount(amountInEuros: number | undefined, code: string):
   return String(Math.round(converted * 100) / 100);
 }
 
+const MAX_ITEM_PHOTO_BYTES = 5 * 1024 * 1024;
+const ITEM_PHOTO_MIME_EXT: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export type UploadItemPhotoError = "too-large" | "wrong-type";
+
+/** Organiser/Editor-only, enforced by storage RLS on the `trip-item-photos`
+ *  bucket (the object path's first segment has to be this trip's id, and
+ *  my_trip_role has to clear it — same shape as uploadAgencyLogo). A photo
+ *  someone actually took beats hoping a business's website has one worth
+ *  scraping. Each upload gets its own filename so there's no stale-cache
+ *  window where the old photo still shows at the same URL. */
+export async function uploadItemPhoto(
+  tripId: string,
+  file: File,
+): Promise<{ url: string } | { error: UploadItemPhotoError }> {
+  if (file.size > MAX_ITEM_PHOTO_BYTES) return { error: "too-large" };
+  const ext = ITEM_PHOTO_MIME_EXT[file.type];
+  if (!ext) return { error: "wrong-type" };
+
+  const path = `${tripId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("trip-item-photos")
+    .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from("trip-item-photos").getPublicUrl(path);
+  return { url: data.publicUrl };
+}
+
 export function draftFrom(item: TripItem, currency: string): DraftItem {
   return {
     kind: item.kind,
