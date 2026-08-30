@@ -31,6 +31,7 @@ import {
   daysForRange,
   fromBaseAmount,
   isoDate,
+  suggestSlots,
   loadTripContent,
   loadTripMembers,
   loadUserSettings,
@@ -91,6 +92,39 @@ const DESK_NAV: NavEntry[] = [
   { label: "Money", short: "Money", kind: "tab", tab: 2, icon: MoneyIcon },
   { label: "People", short: "People", kind: "tab", tab: 4, icon: PeopleIcon },
 ];
+
+/** A blank slate for a template-built item — same shape ItemSheet's own
+ *  EMPTY starts from, needed here too since applyTemplate builds items
+ *  without ever opening that sheet. */
+const EMPTY_DRAFT: DraftItem = {
+  kind: "Do",
+  title: "",
+  photoUrl: "",
+  time: "",
+  place: "",
+  note: "",
+  booked: false,
+  costEach: "",
+  travel: { mode: "Flight" },
+};
+
+/** What's shared between an agency's saved activity and a trip item's own
+ *  draft form — everything but the time, which only makes sense once it's
+ *  actually going onto a specific day. `costEach` moves from the library's
+ *  fixed base currency into whatever the trip is showing. */
+function templateFromActivity(activity: AgencyActivity, currency: string): Partial<DraftItem> {
+  return {
+    kind: activity.kind,
+    title: activity.title,
+    place: activity.place ?? "",
+    placeAddress: activity.place,
+    lat: activity.lat,
+    lng: activity.lng,
+    note: activity.note ?? "",
+    costEach: activity.costEach !== undefined ? fromBaseAmount(activity.costEach, currency) : "",
+    photoUrl: activity.photoUrl ?? "",
+  };
+}
 
 export function TripPage({
   theme: baseTheme,
@@ -531,28 +565,46 @@ export function TripPage({
     setDays((prev) => prev.map((d, i) => (i === dayIndex ? change(d) : d)));
   }
 
-  /* New items slot into the day by time rather than landing at the end, so
-     the plan still reads as a sequence. A clash the group creates is kept on
-     the day, not just flashed in the sheet. */
   /** What's left is picking a time — everything else about the activity
      carries straight over into the sheet's fields. `costEach` moves from the
      library's fixed base currency into whatever the trip is showing. */
   function pickFromLibrary(activity: AgencyActivity) {
-    setAddTemplate({
-      kind: activity.kind,
-      title: activity.title,
-      place: activity.place ?? "",
-      placeAddress: activity.place,
-      lat: activity.lat,
-      lng: activity.lng,
-      note: activity.note ?? "",
-      costEach: activity.costEach !== undefined ? fromBaseAmount(activity.costEach, currency) : "",
-      photoUrl: activity.photoUrl ?? "",
-    });
+    setAddTemplate(templateFromActivity(activity, currency));
     setLibraryOpen(false);
     setAddOpen(true);
   }
 
+  /** A whole template's activities land on the active day in one go, each
+     given the next open slot in turn rather than all piling onto the same
+     time — the same suggestSlots the sheet itself offers, just walked
+     forward once per item so each new addition sees the ones before it. */
+  function applyTemplate(activitiesToAdd: AgencyActivity[]) {
+    let priorItems = activeDay.items;
+    const built = activitiesToAdd.map((activity) => {
+      const time = suggestSlots(priorItems)[0]?.time ?? "09:00";
+      const item = buildItem(
+        { ...EMPTY_DRAFT, ...templateFromActivity(activity, currency), time },
+        !canApprove,
+        { currency, people: Math.max(members.length, 1) },
+      );
+      priorItems = [...priorItems, item];
+      return item;
+    });
+
+    updateDay((d) => ({ ...d, items: [...d.items, ...built].sort(byTime) }));
+    setLibraryOpen(false);
+    setTab(0);
+
+    if (!canApprove && !isExample) {
+      for (const item of built) {
+        void proposeItem(event.id, activeDay.date, item).catch(() => {});
+      }
+    }
+  }
+
+  /* New items slot into the day by time rather than landing at the end, so
+     the plan still reads as a sequence. A clash the group creates is kept on
+     the day, not just flashed in the sheet. */
   function addItem(draft: DraftItem) {
     const item = buildItem(draft, !canApprove, {
       currency,
@@ -1026,6 +1078,7 @@ export function TripPage({
         <ActivityPickerSheet
           agencyId={libraryAgencyId}
           onPick={pickFromLibrary}
+          onApplyTemplate={applyTemplate}
           onClose={() => setLibraryOpen(false)}
           theme={theme}
         />
