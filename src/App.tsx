@@ -218,7 +218,11 @@ function App() {
           .catch(() => {
             /* The code may have expired in the detour through sign-up —
                land on their normal trip list rather than stranding them
-               on a blank screen over a join that didn't go through. */
+               on a blank screen over a join that didn't go through, but
+               say so — they just made an account for a trip they still
+               can't reach, and silently dropping them on an empty list
+               gives no reason to try again with a fresh link. */
+            setSaveError("That link isn't valid any more — it may have expired or already been used.");
             initialState(acc)
               .then((next) => {
                 setEvents(next.events);
@@ -540,6 +544,7 @@ function App() {
             ? "Anonymous joining isn't available for this trip right now — create a free account and you'll land straight in it."
             : undefined
         }
+        initialMode={pendingAccessCodeRef.current ? "signup" : undefined}
         onAuthenticated={(acc) => {
           loadedAccountId.current = acc.id;
           setAccount(acc);
@@ -560,6 +565,7 @@ function App() {
                 void saveCurrentEventId(acc.id, tripId).catch(() => {});
               })
               .catch(() => {
+                setSaveError("That link isn't valid any more — it may have expired or already been used.");
                 initialState(acc)
                   .then((next) => {
                     setEvents(next.events);

@@ -246,7 +246,12 @@ export function TripPage({
   /* The read-only view a tap on the card opens — available to every role,
      unlike editingId which only an Organiser or Editor ever reaches. */
   const [detailId, setDetailId] = useState<string | undefined>();
-  const [added, setAdded] = useState<{ id: string; title: string } | undefined>();
+  /* `wasAdd` splits two things this used to conflate: highlighting the
+     item that was just touched (fine after an edit too) and the "Added ·
+     Undo" toast, whose Undo deletes the item outright — right for
+     reversing a fresh add, wrong for "undo" on an edit, which would
+     silently destroy something that already existed. */
+  const [added, setAdded] = useState<{ id: string; title: string; wasAdd: boolean } | undefined>();
   const [weather, setWeather] = useState<Record<string, string>>({});
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   /* Drives what the tab bar renders, not just how it looks — see DESK_NAV. */
@@ -703,7 +708,7 @@ export function TripPage({
     setAddOpen(false);
     setAddTemplate(undefined);
     setTab(0);
-    setAdded({ id: item.id, title: item.title });
+    setAdded({ id: item.id, title: item.title, wasAdd: true });
 
     /* A Contributor's write can't go through the generic autosave above —
        RLS only lets an Organiser/Editor touch the whole blob — so their one
@@ -749,7 +754,7 @@ export function TripPage({
       }
     }
     setEditingId(undefined);
-    setAdded({ id: next.id, title: next.title });
+    setAdded({ id: next.id, title: next.title, wasAdd: false });
   }
 
   function removeItem(id: string) {
@@ -1152,7 +1157,7 @@ export function TripPage({
         })}
       </div>
 
-      {added && !sheetItemOpen && !detail && (
+      {added?.wasAdd && !sheetItemOpen && !detail && (
         <div className="undo" role="status" style={{ background: theme.ink, color: theme.bg }}>
           <span className="undo__text">
             {canApprove ? "Added" : "Sent to editors"} · {added.title}
