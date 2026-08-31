@@ -84,19 +84,13 @@ export function ItemCard({
           opacity: dragging ? 0.5 : 1,
           cursor: onOpen ? "pointer" : undefined,
         }}
-        role={onOpen ? "button" : undefined}
-        tabIndex={onOpen ? 0 : undefined}
+        /* No role="button" here — the card contains several real buttons
+           and a link (drag handle, approve/decline, Maps), and a button
+           can't nest other interactive elements without breaking how a
+           screen reader announces them. onClick still opens it for mouse
+           and touch; the title below is the real, keyboard-reachable
+           trigger. */
         onClick={onOpen}
-        onKeyDown={
-          onOpen
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen();
-                }
-              }
-            : undefined
-        }
       >
         {(item.photo || item.photoUrl) && (
           <Photo
@@ -131,9 +125,23 @@ export function ItemCard({
             <span className="item__time" style={{ fontFamily: theme.fontMono }}>
               {item.time}
             </span>
-            <span className="item__title" style={{ color: theme.ink }}>
-              {item.title}
-            </span>
+            {onOpen ? (
+              <button
+                type="button"
+                className="trip-page__reset item__title"
+                style={{ color: theme.ink, cursor: "pointer", textAlign: "left" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
+                }}
+              >
+                {item.title}
+              </button>
+            ) : (
+              <span className="item__title" style={{ color: theme.ink }}>
+                {item.title}
+              </span>
+            )}
             <span
               className="item__pin"
               style={{

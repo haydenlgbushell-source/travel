@@ -1460,6 +1460,24 @@ export async function uploadItemPhoto(
   return { url: data.publicUrl };
 }
 
+const ITEM_PHOTO_URL_RE = /\/storage\/v1\/object\/public\/trip-item-photos\/(.+)$/;
+
+/** Cleans up a photo this app actually uploaded — never a pasted website
+ *  URL, which isn't this app's object to delete. Called wherever a photo
+ *  is replaced or its item is removed, so an edited or deleted item
+ *  doesn't leave its old upload behind forever. Best-effort: a failed
+ *  delete just leaves one more orphaned object, never blocks the edit
+ *  that triggered it. */
+export async function deleteItemPhotoIfOwned(url: string | undefined): Promise<void> {
+  const match = url ? ITEM_PHOTO_URL_RE.exec(url) : null;
+  if (!match) return;
+  try {
+    await supabase.storage.from("trip-item-photos").remove([match[1]]);
+  } catch {
+    /* best-effort — see above */
+  }
+}
+
 export function draftFrom(item: TripItem, currency: string): DraftItem {
   return {
     kind: item.kind,

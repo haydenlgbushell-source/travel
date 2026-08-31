@@ -175,6 +175,49 @@ function App() {
     setActiveAgencyId(list[0]?.id);
   }
 
+  /** Redeems whatever access code is waiting from a client-link join,
+   *  once there's finally an account to redeem it against — shared by the
+   *  boot-time session listener and AuthPage's own onAuthenticated, the
+   *  two places an account can first appear. Returns whether there was
+   *  one to redeem, so each caller knows whether to fall through to its
+   *  normal boot instead. */
+  function redeemPendingAccessCode(acc: Account): boolean {
+    if (!pendingAccessCodeRef.current) return false;
+    const code = pendingAccessCodeRef.current;
+    pendingAccessCodeRef.current = undefined;
+    redeemAccessCode(code)
+      .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
+      .then(({ events, tripId }) => {
+        setEvents(events);
+        setCurrentId(tripId);
+        setScreen("trip");
+        setPastTrips([]);
+        applyAgencies([]);
+        setBootLoading(false);
+        void saveCurrentEventId(acc.id, tripId).catch(() => {});
+      })
+      .catch(() => {
+        /* The code may have expired in the detour through sign-up — land
+           on their normal trip list rather than stranding them on a blank
+           screen over a join that didn't go through, but say so — they
+           just made an account for a trip they still can't reach, and
+           silently dropping them on an empty list gives no reason to try
+           again with a fresh link. */
+        setSaveError("That link isn't valid any more — it may have expired or already been used.");
+        initialState(acc)
+          .then((next) => {
+            setEvents(next.events);
+            setCurrentId(next.currentId);
+            setScreen(next.screen);
+            setPastTrips(next.pastTrips);
+            applyAgencies(next.agencies);
+            setBootLoading(false);
+          })
+          .catch(() => setBootLoading(false));
+      });
+    return true;
+  }
+
   useEffect(() => {
     const onHashChange = () => {
       setShared(readShareLink());
@@ -201,41 +244,7 @@ function App() {
       setAccount(acc);
       setBootLoading(true);
 
-      if (acc && pendingAccessCodeRef.current) {
-        const code = pendingAccessCodeRef.current;
-        pendingAccessCodeRef.current = undefined;
-        redeemAccessCode(code)
-          .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
-          .then(({ events, tripId }) => {
-            setEvents(events);
-            setCurrentId(tripId);
-            setScreen("trip");
-            setPastTrips([]);
-            applyAgencies([]);
-            setBootLoading(false);
-            void saveCurrentEventId(acc.id, tripId).catch(() => {});
-          })
-          .catch(() => {
-            /* The code may have expired in the detour through sign-up —
-               land on their normal trip list rather than stranding them
-               on a blank screen over a join that didn't go through, but
-               say so — they just made an account for a trip they still
-               can't reach, and silently dropping them on an empty list
-               gives no reason to try again with a fresh link. */
-            setSaveError("That link isn't valid any more — it may have expired or already been used.");
-            initialState(acc)
-              .then((next) => {
-                setEvents(next.events);
-                setCurrentId(next.currentId);
-                setScreen(next.screen);
-                setPastTrips(next.pastTrips);
-                applyAgencies(next.agencies);
-                setBootLoading(false);
-              })
-              .catch(() => setBootLoading(false));
-          });
-        return;
-      }
+      if (acc && redeemPendingAccessCode(acc)) return;
 
       initialState(acc)
         .then((next) => {
@@ -550,35 +559,7 @@ function App() {
           setAccount(acc);
           setBootLoading(true);
 
-          if (pendingAccessCodeRef.current) {
-            const code = pendingAccessCodeRef.current;
-            pendingAccessCodeRef.current = undefined;
-            redeemAccessCode(code)
-              .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
-              .then(({ events, tripId }) => {
-                setEvents(events);
-                setCurrentId(tripId);
-                setScreen("trip");
-                setPastTrips([]);
-                applyAgencies([]);
-                setBootLoading(false);
-                void saveCurrentEventId(acc.id, tripId).catch(() => {});
-              })
-              .catch(() => {
-                setSaveError("That link isn't valid any more — it may have expired or already been used.");
-                initialState(acc)
-                  .then((next) => {
-                    setEvents(next.events);
-                    setCurrentId(next.currentId);
-                    setScreen(next.screen);
-                    setPastTrips(next.pastTrips);
-                    applyAgencies(next.agencies);
-                    setBootLoading(false);
-                  })
-                  .catch(() => setBootLoading(false));
-              });
-            return;
-          }
+          if (redeemPendingAccessCode(acc)) return;
 
           initialState(acc)
             .then((next) => {

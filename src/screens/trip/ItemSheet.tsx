@@ -8,6 +8,7 @@ import {
   TRAVEL_MODES,
   airlineFor,
   clashAt,
+  deleteItemPhotoIfOwned,
   draftFrom,
   fromBaseAmount,
   looksLikeImage,
@@ -126,6 +127,7 @@ export function ItemSheet({
   async function handlePhotoFile(file: File) {
     setUploadError(undefined);
     setUploadingPhoto(true);
+    const previousPhotoUrl = draft.photoUrl;
     try {
       const result = await uploadItemPhoto(tripId, file);
       if ("error" in result) {
@@ -137,6 +139,9 @@ export function ItemSheet({
       } else {
         set("photoUrl", result.url);
         setPhotoStatus("idle");
+        /* The one this replaces was this app's own upload, not something
+           worth keeping around now nothing points at it. */
+        void deleteItemPhotoIfOwned(previousPhotoUrl);
       }
     } catch {
       setUploadError("Couldn't upload that — check your connection and try again.");
@@ -656,7 +661,7 @@ export function ItemSheet({
           {photoOpen ? (
             <div className="add-sheet__field">
               <label htmlFor={ids.photo} className="wf-card__eyebrow" style={labelStyle}>
-                Website
+                Photo
               </label>
               <input
                 id={ids.photo}
@@ -685,27 +690,34 @@ export function ItemSheet({
                 </span>
               )}
 
-              <div className="add-sheet__photo-upload">
-                <input
-                  ref={photoFileRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="trip-page__visually-hidden"
-                  id={`${ids.photo}-file`}
-                  disabled={uploadingPhoto}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handlePhotoFile(file);
-                  }}
-                />
-                <label
-                  htmlFor={`${ids.photo}-file`}
-                  className="trip-page__reset add-sheet__more"
-                  style={{ fontFamily: theme.fontMono, color: theme.accent }}
-                >
-                  {uploadingPhoto ? "Uploading…" : "Or upload a photo of your own +"}
-                </label>
-              </div>
+              {/* Storage RLS on trip-item-photos only accepts an
+                  Organiser/Editor's own upload — a Contributor pasting a
+                  website URL still works fine (that's a plain text field,
+                  no storage write), so only the upload control itself is
+                  hidden from them rather than the whole photo section. */}
+              {canApprove && (
+                <div className="add-sheet__photo-upload">
+                  <input
+                    ref={photoFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="trip-page__visually-hidden"
+                    id={`${ids.photo}-file`}
+                    disabled={uploadingPhoto}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handlePhotoFile(file);
+                    }}
+                  />
+                  <label
+                    htmlFor={`${ids.photo}-file`}
+                    className="trip-page__reset add-sheet__more"
+                    style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                  >
+                    {uploadingPhoto ? "Uploading…" : "Or upload one directly +"}
+                  </label>
+                </div>
+              )}
               {uploadError && (
                 <span
                   className="add-sheet__hint"
@@ -721,7 +733,10 @@ export function ItemSheet({
                   <button
                     type="button"
                     className="trip-page__reset add-sheet__more"
-                    onClick={() => set("photoUrl", "")}
+                    onClick={() => {
+                      void deleteItemPhotoIfOwned(draft.photoUrl);
+                      set("photoUrl", "");
+                    }}
                     style={{ fontFamily: theme.fontMono, color: theme.meta }}
                   >
                     Remove photo

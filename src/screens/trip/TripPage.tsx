@@ -24,6 +24,7 @@ import {
   DEFAULT_CURRENCY,
   applyDraft,
   buildItem,
+  deleteItemPhotoIfOwned,
   byTime,
   clashAt,
   archive,
@@ -758,9 +759,13 @@ export function TripPage({
   }
 
   function removeItem(id: string) {
+    /* Cleans up the item's own upload, not one it merely linked to — a
+       pasted website's photo was never this app's object to delete. */
+    const removed = activeDay.items.find((i) => i.id === id);
     updateDay((d) => ({ ...d, items: d.items.filter((i) => i.id !== id) }));
     setEditingId(undefined);
     setAdded(undefined);
+    if (removed?.photoUrl) void deleteItemPhotoIfOwned(removed.photoUrl);
   }
 
   function reorderItem(id: string, newTime: string) {
@@ -1050,7 +1055,7 @@ export function TripPage({
                 theme={theme}
               />
             )}
-            {tab === 1 && <TravelTab isExample={isExample} days={days} theme={theme} />}
+            {tab === 1 && <TravelTab days={days} theme={theme} />}
             {tab === 2 && (
               <MoneyTab
                 days={days}
