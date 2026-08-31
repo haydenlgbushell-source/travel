@@ -7,14 +7,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function AuthPage({
   onAuthenticated,
   banner,
+  initialMode,
 }: {
   onAuthenticated: (account: Account) => void;
   /** A short note shown above the title — used when something sent someone
    *  here mid-task (joining a trip, say) so the form doesn't just look like
    *  an unrelated sign-up wall. */
   banner?: string;
+  /** Overrides the default "sign in" landing — needed wherever `banner`
+   *  explains why someone landed here to *create* an account (an
+   *  anonymous-join detour, say); without it the page opens on "Welcome
+   *  back" directly under a banner telling them to sign up. */
+  initialMode?: "signup" | "signin";
 }) {
-  const [mode, setMode] = useState<"signup" | "signin">("signin");
+  const [mode, setMode] = useState<"signup" | "signin">(initialMode ?? "signin");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -188,7 +194,7 @@ export function AuthPage({
             </span>
           )}
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && <div className="auth-error" role="alert">{error}</div>}
 
           <button type="submit" className="auth-submit" disabled={busy}>
             {busy ? "Please wait…" : isSignUp ? "Create account" : "Sign in"}
