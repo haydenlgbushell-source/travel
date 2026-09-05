@@ -59,7 +59,15 @@ export function AuthPage({
   const [mode, setMode] = useState<"signup" | "signin" | "reset">(initialMode ?? "signin");
   const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const [mobile, setMobile] = useState("");
-  const fullMobile = `${dialCode} ${mobile}`;
+  /* email_for_mobile matches accounts.mobile exactly, with no normalisation
+     of its own — so the digit string this produces has to come out
+     identically every time, regardless of whether someone types the
+     national trunk prefix ("0412 345 678") or leaves it off ("412 345
+     678"), the way plenty of people do once a separate country-code picker
+     is already sitting right there. Stripping it here, once, before the
+     dial code goes on the front, is what makes both spellings resolve to
+     the same account rather than two different ones. */
+  const fullMobile = `${dialCode} ${mobile.replace(/^0+/, "")}`;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
