@@ -1,9 +1,12 @@
+import { useState } from "react";
 import type { Theme } from "../../theme";
 import { locatedItems, mapsLink, type Day } from "./trip-data";
 import { TripMap } from "./TripMap";
 
-/** Every place across the trip in one view, grouped by day underneath —
- *  the day maps show one day at a time, this is the whole picture. */
+/** Every place across the trip in one view. A day pill row lets the map
+ *  itself be narrowed to a single day's pins instead of the whole trip —
+ *  replaces the old per-day maps at the foot of each day's plan, which
+ *  duplicated this same view over and over down the page. */
 export function MapTab({
   days,
   center,
@@ -13,8 +16,11 @@ export function MapTab({
   center?: { lat: number; lng: number };
   theme: Theme;
 }) {
+  const [dayFilter, setDayFilter] = useState<Day | undefined>(undefined);
   const located = locatedItems(days);
   const pinNumber = new Map(located.map((entry, i) => [entry.item.id, i + 1]));
+  const shown = dayFilter ? located.filter((entry) => entry.day === dayFilter) : located;
+  const visibleDays = dayFilter ? [dayFilter] : days;
 
   if (located.length === 0) {
     return (
@@ -51,20 +57,57 @@ export function MapTab({
           className="day-head__weather"
           style={{ fontFamily: theme.fontMono, color: theme.body }}
         >
-          {located.length} places
+          {shown.length} places
         </span>
+      </div>
+
+      <div className="map-day-toggle">
+        <button
+          type="button"
+          className="trip-page__reset map-day-toggle__pill"
+          aria-pressed={dayFilter === undefined}
+          onClick={() => setDayFilter(undefined)}
+          style={{
+            fontFamily: theme.fontMono,
+            background: dayFilter === undefined ? theme.ink : theme.card,
+            color: dayFilter === undefined ? theme.bg : theme.body,
+            borderColor: dayFilter === undefined ? theme.ink : theme.line,
+          }}
+        >
+          All days
+        </button>
+        {days.map((day) => {
+          const on = dayFilter === day;
+          return (
+            <button
+              key={day.date}
+              type="button"
+              className="trip-page__reset map-day-toggle__pill"
+              aria-pressed={on}
+              onClick={() => setDayFilter(on ? undefined : day)}
+              style={{
+                fontFamily: theme.fontMono,
+                background: on ? theme.ink : theme.card,
+                color: on ? theme.bg : theme.body,
+                borderColor: on ? theme.ink : theme.line,
+              }}
+            >
+              {day.dow} {day.num}
+            </button>
+          );
+        })}
       </div>
 
       <div className="map-canvas" style={{ borderColor: theme.line }}>
         <TripMap
-          pins={located.map((entry) => ({ item: entry.item, number: pinNumber.get(entry.item.id) ?? 0 }))}
+          pins={shown.map((entry) => ({ item: entry.item, number: pinNumber.get(entry.item.id) ?? 0 }))}
           center={center}
-          height={220}
+          height={dayFilter ? 300 : 220}
         />
       </div>
 
-      {days.map((day) => {
-        const items = located.filter((entry) => entry.day === day);
+      {visibleDays.map((day) => {
+        const items = shown.filter((entry) => entry.day === day);
         if (items.length === 0) return null;
         return (
           <div key={day.date} className="map-group">

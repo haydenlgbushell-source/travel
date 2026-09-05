@@ -18,8 +18,6 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
 import { dayTotal, money, timeForPosition, type Day, type TripItem } from "./trip-data";
-import { TripMap } from "./TripMap";
-import { useIsDesktop } from "../../lib/useIsDesktop";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -81,9 +79,7 @@ export function PlanTab({
   onResolve,
   onOpen,
   onAdd,
-  onOpenMap,
   onReorder,
-  center,
   highlightId,
   currency,
   theme,
@@ -95,18 +91,11 @@ export function PlanTab({
   onResolve: (id: string, verdict: Verdict | undefined) => void;
   onOpen: (id: string) => void;
   onAdd: () => void;
-  onOpenMap: () => void;
   onReorder: (itemId: string, newTime: string) => void;
-  center?: { lat: number; lng: number };
   highlightId?: string;
   currency: string;
   theme: Theme;
 }) {
-  /* The day map is a 130px strip on a phone because that is all the room
-     there is. On a desktop it gets a size worth looking at — passed as the
-     component's own prop, since TripMap sets its height inline and CSS could
-     only beat that with !important. */
-  const mapHeight = useIsDesktop() ? 300 : 130;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -242,36 +231,6 @@ export function PlanTab({
             </div>
           </SortableContext>
         </DndContext>
-      )}
-
-      {live.length > 0 && (
-        <div className="day-map" style={{ background: theme.card, borderColor: theme.line }}>
-          <div className="day-map__canvas">
-            <TripMap
-              pins={live.map((item, i) => ({ item, number: i + 1 }))}
-              center={center}
-              height={mapHeight}
-            />
-          </div>
-          <button
-            type="button"
-            className="trip-page__reset day-map__foot"
-            onClick={onOpenMap}
-          >
-            <span
-              className="day-map__area"
-              style={{ fontFamily: theme.fontMono, color: theme.meta }}
-            >
-              {day.mapArea ? `Day map · ${day.mapArea}` : "Day map"}
-            </span>
-            <span
-              className="day-map__open"
-              style={{ fontFamily: theme.fontMono, color: theme.accent }}
-            >
-              Open route ↗
-            </span>
-          </button>
-        </div>
       )}
     </div>
   );

@@ -684,41 +684,6 @@
   text-transform: uppercase;
 }
 
-/* ---------- plan: day map ---------- */
-
-.day-map {
-  display: block;
-  width: 100%;
-  border-width: 1px;
-  border-style: solid;
-  border-radius: 14px;
-  overflow: hidden;
-}
-
-.day-map__canvas {
-  height: 130px;
-  position: relative;
-}
-
-.day-map__foot {
-  padding: 11px 14px 12px;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid #edede6;
-}
-
-.day-map__area {
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.day-map__open {
-  font-size: 10.5px;
-}
-
 /* ---------- shared card ---------- */
 
 .wf-card {
@@ -2128,6 +2093,20 @@
 }
 
 /* ---------- trip map ---------- */
+
+.map-day-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.map-day-toggle__pill {
+  padding: 6px 12px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 999px;
+  font-size: 11px;
+}
 
 .map-canvas {
   position: relative;

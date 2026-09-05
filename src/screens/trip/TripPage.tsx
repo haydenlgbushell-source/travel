@@ -1048,9 +1048,7 @@ export function TripPage({
                 onResolve={resolve}
                 onOpen={setDetailId}
                 onAdd={() => setAddOpen(true)}
-                onOpenMap={setMapOpenTab}
                 onReorder={reorderItem}
-                center={mapCenter}
                 currency={currency}
                 theme={theme}
               />
