@@ -2122,20 +2122,6 @@
 
 /* ---------- trip map ---------- */
 
-.map-day-toggle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.map-day-toggle__pill {
-  padding: 6px 12px;
-  border-width: 1px;
-  border-style: solid;
-  border-radius: 999px;
-  font-size: 11px;
-}
-
 .map-canvas {
   position: relative;
   border-width: 1px;

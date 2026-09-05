@@ -1,26 +1,27 @@
-import { useState } from "react";
 import type { Theme } from "../../theme";
 import { locatedItems, mapsLink, type Day } from "./trip-data";
 import { TripMap } from "./TripMap";
 
-/** Every place across the trip in one view. A day pill row lets the map
- *  itself be narrowed to a single day's pins instead of the whole trip —
- *  replaces the old per-day maps at the foot of each day's plan, which
- *  duplicated this same view over and over down the page. */
+/** The active day's places on the map — filtered by the same day strip
+ *  Plan and Stay & travel already use, rather than a second, own day picker
+ *  repeating those exact same chips (which is what this used to be: a
+ *  pill row duplicating the day strip a scroll above it). Pin numbers stay
+ *  keyed off the whole trip regardless, so an item's number doesn't change
+ *  as the day strip moves. */
 export function MapTab({
   days,
+  activeDay,
   center,
   theme,
 }: {
   days: Day[];
+  activeDay: Day;
   center?: { lat: number; lng: number };
   theme: Theme;
 }) {
-  const [dayFilter, setDayFilter] = useState<Day | undefined>(undefined);
   const located = locatedItems(days);
   const pinNumber = new Map(located.map((entry, i) => [entry.item.id, i + 1]));
-  const shown = dayFilter ? located.filter((entry) => entry.day === dayFilter) : located;
-  const visibleDays = dayFilter ? [dayFilter] : days;
+  const shown = located.filter((entry) => entry.day === activeDay);
 
   if (located.length === 0) {
     return (
@@ -44,13 +45,13 @@ export function MapTab({
             className="day-head__date"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}
           >
-            Whole trip
+            {activeDay.fullDate}
           </div>
           <div
             className="day-head__label"
             style={{ fontFamily: theme.fontDisplay, color: theme.ink }}
           >
-            Trip map
+            {activeDay.label}
           </div>
         </div>
         <span
@@ -61,107 +62,60 @@ export function MapTab({
         </span>
       </div>
 
-      <div className="map-day-toggle">
-        <button
-          type="button"
-          className="trip-page__reset map-day-toggle__pill"
-          aria-pressed={dayFilter === undefined}
-          onClick={() => setDayFilter(undefined)}
-          style={{
-            fontFamily: theme.fontMono,
-            background: dayFilter === undefined ? theme.ink : theme.card,
-            color: dayFilter === undefined ? theme.bg : theme.body,
-            borderColor: dayFilter === undefined ? theme.ink : theme.line,
-          }}
-        >
-          All days
-        </button>
-        {days.map((day) => {
-          const on = dayFilter === day;
-          return (
-            <button
-              key={day.date}
-              type="button"
-              className="trip-page__reset map-day-toggle__pill"
-              aria-pressed={on}
-              onClick={() => setDayFilter(on ? undefined : day)}
-              style={{
-                fontFamily: theme.fontMono,
-                background: on ? theme.ink : theme.card,
-                color: on ? theme.bg : theme.body,
-                borderColor: on ? theme.ink : theme.line,
-              }}
-            >
-              {day.dow} {day.num}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="map-canvas" style={{ borderColor: theme.line }}>
         <TripMap
           pins={shown.map((entry) => ({ item: entry.item, number: pinNumber.get(entry.item.id) ?? 0 }))}
           center={center}
-          height={dayFilter ? 300 : 220}
+          height={300}
         />
       </div>
 
-      {visibleDays.map((day) => {
-        const items = shown.filter((entry) => entry.day === day);
-        if (items.length === 0) return null;
-        return (
-          <div key={day.date} className="map-group">
-            <span
-              className="wf-card__eyebrow"
-              style={{ fontFamily: theme.fontMono, color: theme.meta }}
-            >
-              {day.dow} {day.num} · {day.label}
-            </span>
-            <div
-              className="map-list"
-              style={{ background: theme.card, borderColor: theme.line }}
-            >
-              {items.map((entry) => (
-                <a
-                  key={entry.item.id}
-                  className="map-row"
-                  href={mapsLink(entry.item)}
-                  target="_blank"
-                  rel="noreferrer noopener"
+      {shown.length > 0 && (
+        <div className="map-group">
+          <div
+            className="map-list"
+            style={{ background: theme.card, borderColor: theme.line }}
+          >
+            {shown.map((entry) => (
+              <a
+                key={entry.item.id}
+                className="map-row"
+                href={mapsLink(entry.item)}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <span
+                  className="map-row__pin"
+                  style={{
+                    fontFamily: theme.fontMono,
+                    background: entry.item.accent,
+                    color: theme.btnInk,
+                  }}
                 >
-                  <span
-                    className="map-row__pin"
-                    style={{
-                      fontFamily: theme.fontMono,
-                      background: entry.item.accent,
-                      color: theme.btnInk,
-                    }}
-                  >
-                    {pinNumber.get(entry.item.id)}
-                  </span>
-                  <span className="map-row__body">
-                    <span className="map-row__title" style={{ color: theme.ink }}>
-                      {entry.item.title}
-                    </span>
-                    <span
-                      className="map-row__place"
-                      style={{ fontFamily: theme.fontMono, color: theme.body }}
-                    >
-                      {entry.item.place}
-                    </span>
+                  {pinNumber.get(entry.item.id)}
+                </span>
+                <span className="map-row__body">
+                  <span className="map-row__title" style={{ color: theme.ink }}>
+                    {entry.item.title}
                   </span>
                   <span
-                    className="map-row__link"
-                    style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                    className="map-row__place"
+                    style={{ fontFamily: theme.fontMono, color: theme.body }}
                   >
-                    Maps ↗
+                    {entry.item.place}
                   </span>
-                </a>
-              ))}
-            </div>
+                </span>
+                <span
+                  className="map-row__link"
+                  style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                >
+                  Maps ↗
+                </span>
+              </a>
+            ))}
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }

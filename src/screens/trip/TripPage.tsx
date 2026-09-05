@@ -590,11 +590,16 @@ export function TripPage({
 
   function pickDay(i: number) {
     if (i === dayIndex) return;
-    clearTimeout(timer.current);
     setDayIndex(i);
+    /* On the map, the day strip's job is exactly to narrow which day's pins
+       show — same chips Plan already uses, so there's no second day picker
+       of the map's own any more. Switching days here should re-filter the
+       map in place, not bounce back out to Plan the way it does everywhere
+       else the strip is tapped. */
+    if (mapOpen) return;
+    clearTimeout(timer.current);
     setTab(0);
     setAirport(false);
-    setMapOpen(false);
     setAdded(undefined);
     setLoading(true);
     toTop();
@@ -1069,7 +1074,7 @@ export function TripPage({
         {airport ? (
           <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
         ) : mapOpen ? (
-          <MapTab days={days} center={mapCenter} theme={theme} />
+          <MapTab days={days} activeDay={day} center={mapCenter} theme={theme} />
         ) : (
           <>
             {tab === 0 && (
