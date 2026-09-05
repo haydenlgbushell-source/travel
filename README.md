@@ -65,3 +65,21 @@ npm run dev
 ```sh
 npm run build
 ```
+
+## Deploy
+
+Two live, pinned services — not resolved by name search, since the account
+behind each has several other similarly-named projects:
+
+- **Netlify**: site `wayfare-app`, id `6fea33b5-67f5-43d2-b209-52b993e8499e`
+  (<https://app.netlify.com/projects/wayfare-app>), linked via
+  `.netlify/state.json`. `netlify deploy`/`netlify build` from this
+  directory resolve to it automatically; no `--site-id` needed.
+- **Supabase**: project **Wayfare**, ref `elvctcbnnohjxiqonpbo`
+  (ap-southeast-2), linked via `supabase/config.toml` — see
+  `supabase/README.md`.
+
+Deploys here are pushed via API rather than a git webhook, so merging to
+`main` alone does not build a new deploy — trigger one from the Netlify
+dashboard ("Trigger deploy" → "Deploy site") or `netlify deploy --site-id
+6fea33b5-67f5-43d2-b209-52b993e8499e` after building.
