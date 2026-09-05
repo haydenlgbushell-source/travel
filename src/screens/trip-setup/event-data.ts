@@ -16,6 +16,10 @@ export interface EventDetails {
   destination?: string;
   lat?: number;
   lng?: number;
+  /** The destination's country, as geocoding resolved it — drives the
+   *  Info tab's emergency number and travel-advice link for a real trip,
+   *  which used to only ever appear on the authored Chicago example. */
+  country?: string;
   /** Whether this event was seeded with the Chicago example itinerary. */
   fromExample?: boolean;
   /** Set when a travel agent created this on a client's behalf — null for
@@ -36,6 +40,7 @@ interface TripRow {
   destination: string | null;
   lat: number | null;
   lng: number | null;
+  country: string | null;
   from_example: boolean;
   agency_id?: string | null;
   theme_key: string;
@@ -53,6 +58,7 @@ export function eventFromTripRow(row: TripRow): EventDetails {
     destination: row.destination ?? undefined,
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,
+    country: row.country ?? undefined,
     fromExample: row.from_example,
     agencyId: row.agency_id ?? undefined,
     themeKey: row.theme_key,
@@ -68,7 +74,9 @@ export function eventFromTripRow(row: TripRow): EventDetails {
 export async function loadEvents(): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id, theme_key")
+    .select(
+      "id, name, dates, start_date, end_date, destination, lat, lng, country, from_example, agency_id, theme_key",
+    )
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as TripRow[]).map(eventFromTripRow);
@@ -98,6 +106,7 @@ export async function upsertEvent(
     destination: event.destination ?? null,
     lat: event.lat ?? null,
     lng: event.lng ?? null,
+    country: event.country ?? null,
     from_example: event.fromExample ?? false,
     agency_id: event.agencyId ?? null,
     theme_key: event.themeKey,
@@ -161,6 +170,10 @@ export interface GeocodedPlace {
   label: string;
   lat: number;
   lng: number;
+  /** The country Photon resolved the place to, in English — absent for a
+   *  hit with no country of its own (open ocean, a disputed territory
+   *  Photon doesn't tag). */
+  country?: string;
 }
 
 interface PhotonResponse {
@@ -202,5 +215,5 @@ export async function geocodePlace(place: string): Promise<GeocodedPlace | undef
   const [lng, lat] = hit.geometry.coordinates;
   const p = hit.properties;
   const parts = [p.name, p.city ?? p.state, p.country].filter(Boolean);
-  return { label: parts.join(", ") || query, lat, lng };
+  return { label: parts.join(", ") || query, lat, lng, country: p.country };
 }

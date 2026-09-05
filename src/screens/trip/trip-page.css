@@ -1227,6 +1227,12 @@
   gap: 11px;
 }
 
+.search-sheet__results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 
 
 
@@ -1575,6 +1581,28 @@
 
 .add-sheet__photo-upload {
   margin-top: 2px;
+}
+
+.add-sheet__documents {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.add-sheet__document {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.add-sheet__document a {
+  text-decoration: underline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .add-sheet__toggle {

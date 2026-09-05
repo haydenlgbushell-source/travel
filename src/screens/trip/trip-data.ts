@@ -28,6 +28,14 @@ export interface BookingFact {
   value: string;
 }
 
+/** A confirmation kept with the item itself — a boarding pass, an e-ticket,
+ *  a booking PDF — rather than the destination's own copy left behind in an
+ *  inbox that may not have signal on the day it's actually needed. */
+export interface TripDocument {
+  name: string;
+  url: string;
+}
+
 export type ItemKind = "Eat" | "Stay" | "Do" | "Travel";
 
 export type TravelMode = "Flight" | "Drive" | "Train" | "Ferry" | "Other";
@@ -50,6 +58,39 @@ export interface TravelLeg {
   toLng?: number;
   /** Arrival time. The item's own `time` is the departure. */
   arrive?: string;
+  /** The actual scheduled flight/journey time in minutes, typed off the
+   *  ticket rather than derived from `time`/`arrive` — those are two local
+   *  clock times with no timezone attached, so subtracting them silently
+   *  gives the wrong answer on almost every international leg (a
+   *  Sydney–Los Angeles flight reads as landing *before* it departs).
+   *  Preferred over the computed figure wherever it's set. */
+  durationMinutes?: number;
+}
+
+/** "3h 25m", "45m", "3h" → minutes. Accepts a bare number of minutes too
+ *  ("205"), and is forgiving of spacing/case since this is typed, not
+ *  chosen from a list. Returns nothing for anything it can't parse cleanly,
+ *  rather than guessing — an unrecognised value is the same as leaving the
+ *  field blank. */
+export function parseDuration(input: string): number | undefined {
+  const text = input.trim().toLowerCase();
+  if (text === "") return undefined;
+  if (/^\d+$/.test(text)) return Number.parseInt(text, 10);
+  const match = /^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?$/.exec(text);
+  if (!match || (match[1] === undefined && match[2] === undefined)) return undefined;
+  const hours = match[1] ? Number.parseInt(match[1], 10) : 0;
+  const mins = match[2] ? Number.parseInt(match[2], 10) : 0;
+  return hours * 60 + mins;
+}
+
+/** The reverse of parseDuration, matching how the rest of the app already
+ *  writes a length of time (see legDuration in TravelTab.tsx). */
+export function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 /** Enough of the IATA list to name the carriers people actually fly, looked
@@ -76,6 +117,19 @@ const AIRLINES: Record<string, string> = {
 export function airlineFor(flightNumber: string): string | undefined {
   const match = /^([A-Z][A-Z0-9]|[0-9][A-Z])\s*(\d{1,4})$/i.exec(flightNumber.trim());
   return match ? AIRLINES[match[1].toUpperCase()] : undefined;
+}
+
+/** A live flight-status page for the number as typed — no key, no account,
+ *  just today's actual gate, delay and tracking data rather than the static
+ *  time someone entered when they booked. FlightRadar24 keys its pages off
+ *  the bare IATA-style number (spaces and the odd punctuation stripped), so
+ *  this needs no carrier lookup of its own to build a working link. Absent
+ *  for anything that doesn't look like a flight number. */
+export function flightTrackingUrl(flightNumber: string | undefined): string | undefined {
+  if (!flightNumber) return undefined;
+  const slug = flightNumber.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!/^[a-z0-9]{3,8}$/.test(slug)) return undefined;
+  return `https://www.flightradar24.com/data/flights/${slug}`;
 }
 
 export const ITEM_KINDS: ItemKind[] = ["Eat", "Stay", "Do", "Travel"];
@@ -130,6 +184,8 @@ export interface TripItem {
   suggestedBy?: string;
   /** Set on Travel items — a journey has two ends, which `place` can't hold. */
   travel?: TravelLeg;
+  /** Confirmations kept with the item — see TripDocument. */
+  documents?: TripDocument[];
 }
 
 export interface Day {
@@ -1020,6 +1076,62 @@ export function mapsLink(item: TripItem): string {
 /** Where the group is staying, and who to call if a phone is dead. */
 export const EMERGENCY_NUMBER = "911";
 
+/** Emergency numbers for the destinations Australians actually fly to most —
+ *  deliberately not a full list of every country on earth: a wrong guess is
+ *  worse than no guess, so an unlisted country gets no number at all rather
+ *  than one carried over from a neighbour. Keyed by the English name Photon
+ *  (see geocodePlace) resolves to, lowercased. */
+const EMERGENCY_NUMBERS: Record<string, string> = {
+  australia: "000",
+  "new zealand": "111",
+  "united states": "911",
+  "united states of america": "911",
+  canada: "911",
+  "united kingdom": "999",
+  ireland: "112",
+  fiji: "911",
+  indonesia: "112",
+  thailand: "191",
+  vietnam: "113",
+  singapore: "999",
+  malaysia: "999",
+  philippines: "911",
+  japan: "110",
+  "south korea": "112",
+  china: "110",
+  india: "112",
+  "hong kong": "999",
+  "united arab emirates": "999",
+  "south africa": "10111",
+  france: "112",
+  germany: "112",
+  italy: "112",
+  spain: "112",
+  greece: "112",
+  portugal: "112",
+  netherlands: "112",
+  switzerland: "112",
+  austria: "112",
+};
+
+/** The emergency number for a destination, or nothing when it isn't one of
+ *  the handful this app actually knows — see EMERGENCY_NUMBERS. */
+export function emergencyNumberFor(country: string | undefined): string | undefined {
+  if (!country) return undefined;
+  return EMERGENCY_NUMBERS[country.trim().toLowerCase()];
+}
+
+/** A site-restricted search rather than a hand-built deep link into
+ *  Smartraveller's own site structure — that structure (region, then
+ *  country slug) isn't something this can safely reconstruct for an
+ *  arbitrary destination, and a wrong guess would be a dead link on exactly
+ *  the page someone might actually need. This always lands somewhere real:
+ *  Smartraveller's own advice page for the destination if Google indexes
+ *  one, its site search otherwise. */
+export function travelAdviceUrl(destination: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`site:smartraveller.gov.au ${destination}`)}`;
+}
+
 export const STAY = {
   name: "Hotel Julian, The Loop",
   address: "168 N Michigan Ave, Chicago, IL 60601",
@@ -1402,6 +1514,8 @@ export interface DraftItem {
   costEach: string;
   /** Only filled in for Travel items. */
   travel: TravelLeg;
+  /** Confirmations attached so far — see TripDocument. */
+  documents: TripDocument[];
 }
 
 /** "You" alone, "All five" for the whole group — the item cards say who
@@ -1478,6 +1592,55 @@ export async function deleteItemPhotoIfOwned(url: string | undefined): Promise<v
   }
 }
 
+const MAX_ITEM_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const ITEM_DOCUMENT_MIME_EXT: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export type UploadItemDocumentError = "too-large" | "wrong-type";
+
+/** Organiser/Editor-only, enforced by storage RLS on the `trip-item-documents`
+ *  bucket — same shape as uploadItemPhoto, but for the confirmation itself
+ *  (a boarding pass, an e-ticket PDF) rather than a picture of the place,
+ *  and kept in a bucket of its own so the two never get mixed up in a
+ *  listing. Kept alongside the item's original name (not just its storage
+ *  path) since "boarding-pass.pdf" is what actually tells someone what
+ *  they're opening. */
+export async function uploadItemDocument(
+  tripId: string,
+  file: File,
+): Promise<{ document: TripDocument } | { error: UploadItemDocumentError }> {
+  if (file.size > MAX_ITEM_DOCUMENT_BYTES) return { error: "too-large" };
+  const ext = ITEM_DOCUMENT_MIME_EXT[file.type];
+  if (!ext) return { error: "wrong-type" };
+
+  const path = `${tripId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("trip-item-documents")
+    .upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from("trip-item-documents").getPublicUrl(path);
+  return { document: { name: file.name, url: data.publicUrl } };
+}
+
+const ITEM_DOCUMENT_URL_RE = /\/storage\/v1\/object\/public\/trip-item-documents\/(.+)$/;
+
+/** Same reasoning as deleteItemPhotoIfOwned — best-effort, and only ever
+ *  removes something this app actually put in the bucket. */
+export async function deleteItemDocument(url: string): Promise<void> {
+  const match = ITEM_DOCUMENT_URL_RE.exec(url);
+  if (!match) return;
+  try {
+    await supabase.storage.from("trip-item-documents").remove([match[1]]);
+  } catch {
+    /* best-effort — see above */
+  }
+}
+
 export function draftFrom(item: TripItem, currency: string): DraftItem {
   return {
     kind: item.kind,
@@ -1491,6 +1654,7 @@ export function draftFrom(item: TripItem, currency: string): DraftItem {
     booked: item.booking !== undefined,
     costEach: fromBaseAmount(item.costEach, currency),
     travel: item.travel ?? { mode: "Flight" },
+    documents: item.documents ?? [],
   };
 }
 
@@ -1511,6 +1675,7 @@ function cleanLeg(leg: TravelLeg): TravelLeg {
     toLat: leg.toLat,
     toLng: leg.toLng,
     arrive: text(leg.arrive),
+    durationMinutes: leg.durationMinutes,
   };
 }
 
@@ -1528,6 +1693,7 @@ function fields(draft: DraftItem, currency: string) {
     lng: draft.lng,
     costEach: toBaseAmount(draft.costEach, currency),
     travel: draft.kind === "Travel" ? cleanLeg(draft.travel) : undefined,
+    documents: draft.documents.length > 0 ? draft.documents : undefined,
     meta: draft.booked ? "Booked" : "Nothing booked yet",
     accent: draft.booked ? GREEN : AMBER,
     bookingKind: draft.booked ? "Confirmed" : undefined,
