@@ -55,6 +55,7 @@ import {
   saveNotifyEnabled,
   saveTripContent,
   StaleRevisionError,
+  summarizeChangesSince,
   type Day,
   type DraftItem,
   type PastTrip,
@@ -217,6 +218,9 @@ export function TripPage({
      cleared by reloading, so the local, now-behind copy can't keep trying
      to overwrite the newer one. */
   const [contentConflict, setContentConflict] = useState(false);
+  /* A one-line "what changed" summary, shown once per load when this
+     browser has seen the trip's content before — see summarizeChangesSince. */
+  const [changesSummary, setChangesSummary] = useState<string | undefined>();
   /* The example opens on its second day, where the authored plan is richest.
      A real trip opens on today if the trip is running, otherwise day one. */
   const [dayIndex, setDayIndex] = useState(() => {
@@ -311,10 +315,17 @@ export function TripPage({
     ])
       .then(([saved, membership]) => {
         if (cancelled) return;
-        setDays(saved?.days ? reconcileDays(saved.days, seed) : seed);
+        const nextDays = saved?.days ? reconcileDays(saved.days, seed) : seed;
+        setDays(nextDays);
         setResolved((saved?.resolved as Record<string, Verdict>) ?? {});
         contentRevision.current = saved?.revision ?? 1;
         setContentConflict(false);
+        /* Only meaningful for a trip with real, previously-loaded content —
+           the example never changes, and a trip nobody's saved to yet has
+           nothing to compare against either. */
+        if (!isExample && saved) {
+          setChangesSummary(summarizeChangesSince(accountId, event.id, nextDays, saved.resolved));
+        }
         if (membership) {
           setMembers(membership.members);
           setRole(membership.myRole);
@@ -873,6 +884,41 @@ export function TripPage({
             }}
           >
             Reload latest
+          </button>
+        </div>
+      )}
+      {changesSummary && (
+        <div
+          role="status"
+          className="trip-page__banner"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "10px 14px",
+            background: theme.ink,
+            color: theme.bg,
+            fontFamily: theme.fontMono,
+            fontSize: "12px",
+          }}
+        >
+          <span>{changesSummary}</span>
+          <button
+            type="button"
+            onClick={() => setChangesSummary(undefined)}
+            style={{
+              background: "none",
+              border: `1px solid ${theme.bg}`,
+              borderRadius: "6px",
+              padding: "4px 10px",
+              color: "inherit",
+              font: "inherit",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Dismiss
           </button>
         </div>
       )}

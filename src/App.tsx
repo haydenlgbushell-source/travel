@@ -19,7 +19,14 @@ import { NamePage } from "./screens/auth/NamePage";
 import { InviteAcceptScreen } from "./screens/auth/InviteAcceptScreen";
 import { AccessCodeScreen } from "./screens/auth/AccessCodeScreen";
 import { AgencyInviteAcceptScreen } from "./screens/auth/AgencyInviteAcceptScreen";
-import { clearSession, onAccountChange, setAccountName, type Account } from "./screens/auth/auth-data";
+import { ResetPasswordScreen } from "./screens/auth/ResetPasswordScreen";
+import {
+  clearSession,
+  onAccountChange,
+  onPasswordRecovery,
+  setAccountName,
+  type Account,
+} from "./screens/auth/auth-data";
 import {
   decodeShare,
   deletePastTrip,
@@ -158,6 +165,10 @@ function App() {
   const [accessCode, setAccessCode] = useState<string | undefined>(readAccessCode);
   const [adminRoute, setAdminRoute] = useState<boolean>(readAdminRoute);
   const [agencyInviteToken, setAgencyInviteToken] = useState<string | undefined>(readAgencyInviteToken);
+  /* Set the moment a password-reset link's session lands — takes over the
+     screen until a new password is actually set, same as an access code or
+     invite token detours ahead of the ordinary boot sequence below. */
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   /* Tracks whose data is currently loaded, so a token refresh or other
      no-identity-change auth event doesn't reset navigation state out from
      under whatever the person is doing — only a real sign-in/out should. */
@@ -229,6 +240,12 @@ function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  /* A recovery link's session fires this once, on top of whatever
+     onAccountChange below does with that same session — the account boots
+     normally in the background, it just waits behind this screen until
+     there's a new password. */
+  useEffect(() => onPasswordRecovery(() => setPasswordRecovery(true)), []);
 
   /** Supabase reports the persisted session (or its absence) as soon as this
    *  subscribes, then again on every real sign-in/out — a page reload picks
@@ -469,6 +486,14 @@ function App() {
         }}
       />
     );
+  }
+
+  /* Ahead of the bootLoading gate for the same reason accessCode is above —
+     the recovery session is already establishing itself and running the
+     normal boot in the background (see onAccountChange), but nothing else
+     should be usable until a new password is actually set. */
+  if (passwordRecovery) {
+    return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   }
 
   /* Like the access-code screen above, this needs no account going in —
