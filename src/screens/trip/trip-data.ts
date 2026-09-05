@@ -1810,6 +1810,83 @@ export async function saveTripContent(tripId: string, state: SavedState): Promis
   return data as number;
 }
 
+interface SeenSnapshot {
+  items: Record<string, { title: string; verdict?: string }>;
+}
+
+function seenSnapshotKey(accountId: string, tripId: string): string {
+  return `wf-seen-content-${accountId}-${tripId}`;
+}
+
+function snapshotOf(days: Day[], resolved: Record<string, string>): SeenSnapshot {
+  const items: SeenSnapshot["items"] = {};
+  for (const day of days) {
+    for (const item of day.items) {
+      items[item.id] = { title: item.title, verdict: resolved[item.id] };
+    }
+  }
+  return { items };
+}
+
+/** Compares a trip's freshly loaded content against what this browser last
+ *  saw for this account, and returns a one-line summary of what changed —
+ *  items added, approved or declined since. Returns nothing when there's no
+ *  prior snapshot to compare against (this browser's first-ever look at the
+ *  trip) or when nothing changed. Always records the fresh content as the
+ *  new snapshot, so the same change is never reported twice — including
+ *  when the change was this account's own edit on another device, which
+ *  reads no differently from here than a collaborator's would. */
+export function summarizeChangesSince(
+  accountId: string,
+  tripId: string,
+  days: Day[],
+  resolved: Record<string, string>,
+): string | undefined {
+  const key = seenSnapshotKey(accountId, tripId);
+  const next = snapshotOf(days, resolved);
+
+  let previous: SeenSnapshot | undefined;
+  try {
+    const raw = localStorage.getItem(key);
+    previous = raw ? (JSON.parse(raw) as SeenSnapshot) : undefined;
+  } catch {
+    previous = undefined;
+  }
+
+  try {
+    localStorage.setItem(key, JSON.stringify(next));
+  } catch {
+    /* Best-effort — worst case the banner shows again, or not at all, next
+       time; either way nothing here depends on the write succeeding. */
+  }
+
+  if (!previous) return undefined;
+
+  const addedTitles: string[] = [];
+  let approvedCount = 0;
+  let declinedCount = 0;
+  for (const [id, item] of Object.entries(next.items)) {
+    const before = previous.items[id];
+    if (!before) {
+      addedTitles.push(item.title);
+      continue;
+    }
+    if (item.verdict === "approved" && before.verdict !== "approved") approvedCount += 1;
+    if (item.verdict === "declined" && before.verdict !== "declined") declinedCount += 1;
+  }
+  const removedCount = Object.keys(previous.items).filter((id) => !(id in next.items)).length;
+
+  const parts: string[] = [];
+  if (addedTitles.length === 1) parts.push(`"${addedTitles[0]}" was added`);
+  else if (addedTitles.length > 1) parts.push(`${addedTitles.length} items added`);
+  if (approvedCount > 0) parts.push(`${approvedCount} approved`);
+  if (declinedCount > 0) parts.push(`${declinedCount} declined`);
+  if (removedCount > 0) parts.push(`${removedCount} removed`);
+
+  if (parts.length === 0) return undefined;
+  return `Since you were last here: ${parts.join(", ")}.`;
+}
+
 /* ---------- saved trips ---------- */
 
 export interface SavedPlace {

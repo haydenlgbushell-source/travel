@@ -1,6 +1,7 @@
 import { useEffect, useRef, type HTMLAttributes } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
+import { PaperclipIcon } from "./NavIcons";
 import type { TripItem } from "./trip-data";
 
 export type Verdict = "approved" | "declined";
@@ -312,6 +313,15 @@ export function ItemCard({
             >
               {item.who}
             </span>
+            {(item.documents?.length ?? 0) > 0 && (
+              <span
+                className="item__foot-meta item__doc-badge"
+                style={{ fontFamily: theme.fontMono, color: theme.body }}
+              >
+                <PaperclipIcon />
+                {item.documents?.length}
+              </span>
+            )}
             <span className="item__foot-spacer" />
             {item.mapsUrl && (
               <a

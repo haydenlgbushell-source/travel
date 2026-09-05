@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { isValidPhoneNumber } from "libphonenumber-js/mobile";
-import { signIn, signUp, type Account } from "./auth-data";
+import { requestPasswordReset, signIn, signUp, type Account } from "./auth-data";
 import "./auth.css";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,7 +56,7 @@ export function AuthPage({
    *  back" directly under a banner telling them to sign up. */
   initialMode?: "signup" | "signin";
 }) {
-  const [mode, setMode] = useState<"signup" | "signin">(initialMode ?? "signin");
+  const [mode, setMode] = useState<"signup" | "signin" | "reset">(initialMode ?? "signin");
   const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const [mobile, setMobile] = useState("");
   const fullMobile = `${dialCode} ${mobile}`;
@@ -66,15 +66,46 @@ export function AuthPage({
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const isSignUp = mode === "signup";
+  const isReset = mode === "reset";
 
-  function switchMode(next: "signup" | "signin") {
+  function switchMode(next: "signup" | "signin" | "reset") {
     setMode(next);
     setError(undefined);
     setConfirmationPending(false);
+    setResetSent(false);
     setPassword("");
     setConfirmPassword("");
+  }
+
+  async function handleResetRequest(e: FormEvent) {
+    e.preventDefault();
+    setError(undefined);
+
+    if (mobile.trim() === "") {
+      setError("Enter a mobile number.");
+      return;
+    }
+    if (!isValidPhoneNumber(fullMobile)) {
+      setError("That doesn't look like a valid number for the country selected.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await requestPasswordReset(fullMobile);
+      if ("error" in result) {
+        setError("No account with that mobile number.");
+        return;
+      }
+      setResetSent(true);
+    } catch {
+      setError("Something went wrong on our end — try again in a moment.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -160,6 +191,78 @@ export function AuthPage({
     );
   }
 
+  if (resetSent) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <span className="auth-wordmark">Wayfare</span>
+          <h1 className="auth-title">Check your email</h1>
+          <p className="auth-lede">
+            If that mobile number has an account, we've sent a link to its email address — open
+            it to set a new password, then come back here and sign in.
+          </p>
+          <button type="button" className="auth-submit" onClick={() => switchMode("signin")}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isReset) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <span className="auth-wordmark">Wayfare</span>
+          <h1 className="auth-title">Reset your password</h1>
+          <p className="auth-lede">
+            Enter the mobile number on your account and we'll email you a link to set a new
+            password.
+          </p>
+
+          <form className="auth-form" onSubmit={handleResetRequest} noValidate>
+            <label className="auth-field">
+              <span className="auth-field__label">Mobile number</span>
+              <div className="auth-field__phone">
+                <select
+                  className="auth-field__dial-code"
+                  aria-label="Country code"
+                  value={dialCode}
+                  onChange={(e) => setDialCode(e.target.value)}
+                >
+                  {DIAL_CODES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="auth-field__input"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  autoFocus
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                />
+              </div>
+            </label>
+
+            {error && <div className="auth-error" role="alert">{error}</div>}
+
+            <button type="submit" className="auth-submit" disabled={busy}>
+              {busy ? "Please wait…" : "Send reset link"}
+            </button>
+          </form>
+
+          <button type="button" className="auth-switch" onClick={() => switchMode("signin")}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -223,6 +326,15 @@ export function AuthPage({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {!isSignUp && (
+              <button
+                type="button"
+                className="auth-forgot"
+                onClick={() => switchMode("reset")}
+              >
+                Forgot password?
+              </button>
+            )}
           </label>
 
           {isSignUp && (

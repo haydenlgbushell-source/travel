@@ -668,6 +668,12 @@
   font-size: 10.5px;
 }
 
+.item__doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .item__foot-spacer {
   flex: 1;
 }

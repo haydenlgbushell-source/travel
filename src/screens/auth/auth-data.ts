@@ -128,6 +128,50 @@ export async function signIn(
   return { account: await fetchAccount(data.user.id, data.user.email ?? email, false) };
 }
 
+export type ResetRequestError = "not-found";
+
+/** Sends a password-reset email for whichever account this mobile number
+ *  belongs to — the same mobile → email lookup signIn already uses, since
+ *  mobile is the only thing anyone signing in ever types. The email itself,
+ *  and where its link lands, is entirely Supabase Auth's own — this just
+ *  triggers it. */
+export async function requestPasswordReset(
+  mobile: string,
+): Promise<{ ok: true } | { error: ResetRequestError }> {
+  const { data: email, error: lookupError } = await supabase.rpc("email_for_mobile", {
+    p_mobile: normaliseMobile(mobile),
+  });
+  if (lookupError) throw lookupError;
+  if (!email) return { error: "not-found" };
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+  return { ok: true };
+}
+
+/** Sets a new password on whatever session is currently active. Only ever
+ *  called from the recovery detour a reset link's session triggers (see
+ *  onPasswordRecovery) — calling it any other time would just change the
+ *  password on whichever account happens to be signed in. */
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+}
+
+/** Fires once a password-reset link's session lands — the one moment the
+ *  app needs to detour into "set a new password" before anything else, same
+ *  as an access code or an invite token gets its own detour above the
+ *  ordinary boot sequence. Doesn't fire again on an ordinary reload once
+ *  that's done. */
+export function onPasswordRecovery(callback: () => void): () => void {
+  const { data } = supabase.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") callback();
+  });
+  return () => data.subscription.unsubscribe();
+}
+
 /** For a client opening an access-code link with no account of their own —
  *  requires "Allow anonymous sign-ins" enabled on the Supabase project. */
 export async function signInAsGuest(): Promise<Account> {

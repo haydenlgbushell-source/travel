@@ -74,6 +74,26 @@ export function SearchIcon() {
   );
 }
 
+/** Sized for an inline badge (an item card's attachment count), not the
+ *  18×18 nav icons above. */
+export function PaperclipIcon() {
+  return (
+    <svg
+      width="11"
+      height="14"
+      viewBox="0 0 11 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9.5 4.5v5.8a3.7 3.7 0 0 1-7.4 0V3.3a2.3 2.3 0 0 1 4.6 0v6.4a0.9 0.9 0 0 1-1.8 0V4.5" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon() {
   return (
     <svg
