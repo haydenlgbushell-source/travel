@@ -92,6 +92,34 @@
   outline-offset: 1px;
 }
 
+.auth-field__phone {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-field__dial-code {
+  flex: 0 0 auto;
+  width: 112px;
+  min-height: 46px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  color: #14171a;
+  background: #fdfdfc;
+  border: 1px solid #d6d7d0;
+  border-radius: 11px;
+}
+
+.auth-field__dial-code:focus-visible {
+  outline: 2px solid oklch(0.52 0.13 285);
+  outline-offset: 1px;
+}
+
+.auth-field__phone .auth-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .auth-error {
   font-size: 13px;
   color: oklch(0.5 0.16 25);

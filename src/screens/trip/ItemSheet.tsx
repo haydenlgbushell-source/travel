@@ -8,12 +8,16 @@ import {
   TRAVEL_MODES,
   airlineFor,
   clashAt,
+  deleteItemDocument,
   deleteItemPhotoIfOwned,
   draftFrom,
+  formatDuration,
   fromBaseAmount,
   looksLikeImage,
+  parseDuration,
   suggestSlots,
   toBaseAmount,
+  uploadItemDocument,
   uploadItemPhoto,
   type Day,
   type DraftItem,
@@ -36,6 +40,7 @@ const EMPTY: DraftItem = {
   booked: false,
   costEach: "",
   travel: { mode: "Flight" },
+  documents: [],
 };
 
 /** Two required answers — what and when — and everything else optional. A
@@ -102,6 +107,15 @@ export function ItemSheet({
   const [uploadError, setUploadError] = useState<string>();
   const photoFileRef = useRef<HTMLInputElement>(null);
   const [placeStatus, setPlaceStatus] = useState<"idle" | "looking" | "found" | "none">("idle");
+  /* Typed free-form ("3h 25m") rather than bound to travel.durationMinutes
+     directly, so a still-incomplete value being typed doesn't wipe out a
+     good one already saved — see handleDurationChange. */
+  const [durationText, setDurationText] = useState(() =>
+    draft.travel.durationMinutes !== undefined ? formatDuration(draft.travel.durationMinutes) : "",
+  );
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [documentError, setDocumentError] = useState<string>();
+  const documentFileRef = useRef<HTMLInputElement>(null);
   const ids = {
     title: useId(),
     time: useId(),
@@ -109,10 +123,12 @@ export function ItemSheet({
     note: useId(),
     cost: useId(),
     photo: useId(),
+    document: useId(),
     flightNo: useId(),
     from: useId(),
     to: useId(),
     arrive: useId(),
+    duration: useId(),
   };
 
   const setTravel = (patch: Partial<DraftItem["travel"]>) =>
@@ -149,6 +165,48 @@ export function ItemSheet({
       setUploadingPhoto(false);
       if (photoFileRef.current) photoFileRef.current.value = "";
     }
+  }
+
+  /* A boarding pass or booking PDF, kept with the item rather than only in
+     whoever booked it's own inbox — the one place on the trip everyone can
+     actually find it again. Several can pile up on one item (an outbound and
+     a return boarding pass on the same flight item, say), so this appends
+     rather than replacing. */
+  async function handleDocumentFile(file: File) {
+    setDocumentError(undefined);
+    setUploadingDocument(true);
+    try {
+      const result = await uploadItemDocument(tripId, file);
+      if ("error" in result) {
+        setDocumentError(
+          result.error === "too-large"
+            ? "That file's too big — keep it under 10MB."
+            : "That file type isn't supported — use a PDF, JPEG, PNG or WebP.",
+        );
+      } else {
+        setDraft((d) => ({ ...d, documents: [...d.documents, result.document] }));
+      }
+    } catch {
+      setDocumentError("Couldn't upload that — check your connection and try again.");
+    } finally {
+      setUploadingDocument(false);
+      if (documentFileRef.current) documentFileRef.current.value = "";
+    }
+  }
+
+  function removeDocument(url: string) {
+    setDraft((d) => ({ ...d, documents: d.documents.filter((doc) => doc.url !== url) }));
+    void deleteItemDocument(url);
+  }
+
+  /* Commits a parseable value straight away; an unparseable one (someone
+     mid-typing "3h 2", say) is kept on screen without overwriting whatever
+     duration was there before — nothing is lost to a value that isn't
+     finished yet. */
+  function handleDurationChange(text: string) {
+    setDurationText(text);
+    const parsed = parseDuration(text);
+    if (parsed !== undefined || text.trim() === "") setTravel({ durationMinutes: parsed });
   }
 
   /* Pasting the hotel's website is the natural thing to do, so look up the
@@ -522,6 +580,27 @@ export function ItemSheet({
             />
           </div>
         )}
+
+        {draft.kind === "Travel" && draft.travel.arrive && (
+          <div className="add-sheet__field">
+            <label htmlFor={ids.duration} className="wf-card__eyebrow" style={labelStyle}>
+              Actual flight/journey time
+            </label>
+            <input
+              id={ids.duration}
+              className="add-sheet__input"
+              value={durationText}
+              onChange={(e) => handleDurationChange(e.target.value)}
+              placeholder="e.g. 14h 25m, off the ticket"
+              style={{ ...fieldStyle, fontFamily: theme.fontMono }}
+            />
+            <span className="add-sheet__hint" style={{ fontFamily: theme.fontMono, color: theme.meta }}>
+              {durationText.trim() === ""
+                ? "Departs/arrives are local clock times — across time zones, the gap between them isn't how long the trip actually takes. Type the real duration off the ticket."
+                : ""}
+            </span>
+          </div>
+        )}
       </div>
 
       {clash && (
@@ -657,6 +736,66 @@ export function ItemSheet({
             </span>
             <span style={{ color: theme.ink }}>Already booked</span>
           </button>
+
+          <div className="add-sheet__field">
+            <span className="wf-card__eyebrow" style={labelStyle}>
+              Documents
+            </span>
+            {draft.documents.length > 0 && (
+              <div className="add-sheet__documents">
+                {draft.documents.map((doc) => (
+                  <div key={doc.url} className="add-sheet__document">
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      style={{ color: theme.ink }}
+                    >
+                      {doc.name}
+                    </a>
+                    <button
+                      type="button"
+                      className="trip-page__reset add-sheet__more"
+                      onClick={() => removeDocument(doc.url)}
+                      style={{ fontFamily: theme.fontMono, color: theme.meta }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {canApprove && (
+              <div className="add-sheet__photo-upload">
+                <input
+                  ref={documentFileRef}
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp"
+                  className="trip-page__visually-hidden"
+                  id={`${ids.document}-file`}
+                  disabled={uploadingDocument}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleDocumentFile(file);
+                  }}
+                />
+                <label
+                  htmlFor={`${ids.document}-file`}
+                  className="trip-page__reset add-sheet__more"
+                  style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                >
+                  {uploadingDocument
+                    ? "Uploading…"
+                    : "Attach a boarding pass, e-ticket or confirmation +"}
+                </label>
+              </div>
+            )}
+            {documentError && (
+              <span className="add-sheet__hint" style={{ fontFamily: theme.fontMono, color: WARN_INK }}>
+                {documentError}
+              </span>
+            )}
+          </div>
 
           {photoOpen ? (
             <div className="add-sheet__field">

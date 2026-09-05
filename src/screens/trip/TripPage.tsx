@@ -11,9 +11,19 @@ import type { AgencyActivity } from "../agency/activity-data";
 import { MapTab } from "./MapTab";
 import { MoneyTab } from "./MoneyTab";
 import { MoreSheet } from "./MoreSheet";
-import { HamburgerIcon, InfoIcon, MapIcon, MoneyIcon, PeopleIcon, PlanIcon, TravelIcon } from "./NavIcons";
+import {
+  HamburgerIcon,
+  InfoIcon,
+  MapIcon,
+  MoneyIcon,
+  PeopleIcon,
+  PlanIcon,
+  SearchIcon,
+  TravelIcon,
+} from "./NavIcons";
 import { PeopleTab } from "./PeopleTab";
 import { PlanTab } from "./PlanTab";
+import { SearchSheet } from "./SearchSheet";
 import { TravelTab } from "./TravelTab";
 import type { Verdict } from "./ItemCard";
 import type { EventDetails } from "../trip-setup/event-data";
@@ -24,6 +34,7 @@ import {
   DEFAULT_CURRENCY,
   applyDraft,
   buildItem,
+  deleteItemDocument,
   deleteItemPhotoIfOwned,
   byTime,
   clashAt,
@@ -118,6 +129,7 @@ const EMPTY_DRAFT: DraftItem = {
   booked: false,
   costEach: "",
   travel: { mode: "Flight" },
+  documents: [],
 };
 
 /** What's shared between an agency's saved activity and a trip item's own
@@ -232,6 +244,7 @@ export function TripPage({
   const [moreOpen, setMoreOpen] = useState(false);
   const [voted, setVoted] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [role, setRole] = useState<Role>("Editor");
   /* Real trips: whether the membership fetch above found Organiser/Editor.
      Example trip: whatever the "View as" demo switcher is set to. Either
@@ -561,6 +574,20 @@ export function TripPage({
     body.current?.scrollTo({ top: 0 });
   }
 
+  /* A search result names a day and an item — land on that day's Plan tab
+     with the item's own detail open, same as tapping a suggestion in the
+     People tab's inbox already does, rather than just switching days and
+     leaving whoever searched to spot the item among the rest themselves. */
+  function jumpToItem(targetDayIndex: number, itemId: string) {
+    setSearchOpen(false);
+    setDayIndex(targetDayIndex);
+    setTab(0);
+    setAirport(false);
+    setMapOpen(false);
+    setDetailId(itemId);
+    toTop();
+  }
+
   function pickDay(i: number) {
     if (i === dayIndex) return;
     clearTimeout(timer.current);
@@ -766,6 +793,7 @@ export function TripPage({
     setEditingId(undefined);
     setAdded(undefined);
     if (removed?.photoUrl) void deleteItemPhotoIfOwned(removed.photoUrl);
+    removed?.documents?.forEach((doc) => void deleteItemDocument(doc.url));
   }
 
   function reorderItem(id: string, newTime: string) {
@@ -879,6 +907,15 @@ export function TripPage({
             >
               {theme.countdown}
             </span>
+            <button
+              type="button"
+              className="trip-page__reset trip-page__hamburger"
+              aria-label="Search this trip"
+              onClick={() => setSearchOpen(true)}
+              style={{ color: theme.headInk }}
+            >
+              <SearchIcon />
+            </button>
             <button
               type="button"
               aria-pressed={airport}
@@ -1074,6 +1111,8 @@ export function TripPage({
                 onSaveTrip={() => onSaveTrip(archive(eventName, eventDates, days, resolved))}
                 onOpenPast={onOpenPast}
                 eventName={eventName}
+                destination={event.destination}
+                country={event.country}
                 days={days}
                 resolved={resolved}
                 isExample={isExample}
@@ -1222,6 +1261,10 @@ export function TripPage({
           onClose={() => setLibraryOpen(false)}
           theme={theme}
         />
+      )}
+
+      {searchOpen && (
+        <SearchSheet days={days} onJump={jumpToItem} onClose={() => setSearchOpen(false)} theme={theme} />
       )}
 
       {sheetOpen && (

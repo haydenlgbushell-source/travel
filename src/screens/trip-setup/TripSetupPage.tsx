@@ -96,6 +96,7 @@ export function TripSetupPage({
         destination: place?.label ?? (destination.trim() || undefined),
         lat: place?.lat,
         lng: place?.lng,
+        country: place?.country,
         fromExample: useExample,
         /* An agency trip always renders off the neutral base plus the
            agency's own brand overlay — never a per-trip style pick. */

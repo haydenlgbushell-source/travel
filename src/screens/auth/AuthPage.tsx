@@ -4,6 +4,41 @@ import "./auth.css";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Common dial codes, not every one ITU assigns — enough that most people
+ *  find their own rather than hunting. Defaults to Australia rather than
+ *  the US: the placeholder that used to sit in this field regardless of who
+ *  was typing was itself the whole problem this fixes. */
+const DIAL_CODES: { code: string; label: string }[] = [
+  { code: "+61", label: "Australia +61" },
+  { code: "+64", label: "New Zealand +64" },
+  { code: "+1", label: "US/Canada +1" },
+  { code: "+44", label: "UK +44" },
+  { code: "+353", label: "Ireland +353" },
+  { code: "+91", label: "India +91" },
+  { code: "+86", label: "China +86" },
+  { code: "+81", label: "Japan +81" },
+  { code: "+82", label: "South Korea +82" },
+  { code: "+65", label: "Singapore +65" },
+  { code: "+60", label: "Malaysia +60" },
+  { code: "+66", label: "Thailand +66" },
+  { code: "+62", label: "Indonesia +62" },
+  { code: "+63", label: "Philippines +63" },
+  { code: "+84", label: "Vietnam +84" },
+  { code: "+852", label: "Hong Kong +852" },
+  { code: "+971", label: "UAE +971" },
+  { code: "+27", label: "South Africa +27" },
+  { code: "+49", label: "Germany +49" },
+  { code: "+33", label: "France +33" },
+  { code: "+34", label: "Spain +34" },
+  { code: "+39", label: "Italy +39" },
+  { code: "+31", label: "Netherlands +31" },
+  { code: "+41", label: "Switzerland +41" },
+  { code: "+46", label: "Sweden +46" },
+  { code: "+55", label: "Brazil +55" },
+  { code: "+52", label: "Mexico +52" },
+];
+const DEFAULT_DIAL_CODE = "+61";
+
 export function AuthPage({
   onAuthenticated,
   banner,
@@ -21,7 +56,9 @@ export function AuthPage({
   initialMode?: "signup" | "signin";
 }) {
   const [mode, setMode] = useState<"signup" | "signin">(initialMode ?? "signin");
+  const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const [mobile, setMobile] = useState("");
+  const fullMobile = `${dialCode} ${mobile}`;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,7 +80,7 @@ export function AuthPage({
     e.preventDefault();
     setError(undefined);
 
-    if (mobile.replace(/[^\d]/g, "").length < 7) {
+    if (mobile.replace(/[^\d]/g, "").length < 5) {
       setError("Enter a mobile number.");
       return;
     }
@@ -63,7 +100,7 @@ export function AuthPage({
     setBusy(true);
     try {
       if (isSignUp) {
-        const result = await signUp(mobile, email, password);
+        const result = await signUp(fullMobile, email, password);
         if ("error" in result) {
           setError(
             result.error === "mobile-taken"
@@ -80,7 +117,7 @@ export function AuthPage({
         }
         onAuthenticated(result.account);
       } else {
-        const result = await signIn(mobile, password);
+        const result = await signIn(fullMobile, password);
         if ("error" in result) {
           setError(
             result.error === "not-found"
@@ -133,15 +170,29 @@ export function AuthPage({
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <label className="auth-field">
             <span className="auth-field__label">Mobile number</span>
-            <input
-              className="auth-field__input"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="+1 312-555-0114"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-            />
+            <div className="auth-field__phone">
+              <select
+                className="auth-field__dial-code"
+                aria-label="Country code"
+                value={dialCode}
+                onChange={(e) => setDialCode(e.target.value)}
+              >
+                {DIAL_CODES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="auth-field__input"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel-national"
+                placeholder="412 345 678"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+              />
+            </div>
           </label>
 
           {isSignUp && (

@@ -1,7 +1,7 @@
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
-import { looksLikeImage, money, type TripItem } from "./trip-data";
+import { flightTrackingUrl, formatDuration, looksLikeImage, money, type TripItem } from "./trip-data";
 
 const WARN_INK = "oklch(0.52 0.13 60)";
 const NO_BOOKING_INK = "oklch(0.5 0.13 60)";
@@ -27,6 +27,8 @@ export function ItemDetail({
 }) {
   const labelStyle = { fontFamily: theme.fontMono, color: theme.meta };
   const website = item.photoUrl && !looksLikeImage(item.photoUrl) ? item.photoUrl : undefined;
+  const trackingUrl =
+    item.travel?.mode === "Flight" ? flightTrackingUrl(item.travel.number) : undefined;
 
   return (
     <Sheet title={item.title} className="item-detail" onClose={onClose} theme={theme}>
@@ -73,6 +75,9 @@ export function ItemDetail({
           <div className="item-detail__row" style={{ fontFamily: theme.fontMono, color: theme.body }}>
             {item.travel.carrier ? `${item.travel.carrier} · ` : ""}
             {item.travel.number}
+            {item.travel.durationMinutes !== undefined
+              ? ` · ${formatDuration(item.travel.durationMinutes)}`
+              : ""}
           </div>
         )}
 
@@ -188,6 +193,29 @@ export function ItemDetail({
               Website ↗
             </a>
           )}
+          {trackingUrl && (
+            <a
+              className="item__maps"
+              href={trackingUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            >
+              Track this flight ↗
+            </a>
+          )}
+          {item.documents?.map((doc) => (
+            <a
+              key={doc.url}
+              className="item__maps"
+              href={doc.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            >
+              {doc.name} ↗
+            </a>
+          ))}
         </div>
 
         {canApprove && onEdit && (

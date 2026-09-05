@@ -1,5 +1,5 @@
 import type { Theme } from "../../theme";
-import type { Day, TripItem } from "./trip-data";
+import { flightTrackingUrl, formatDuration, type Day, type TripItem } from "./trip-data";
 
 /** What the mode reads as when it isn't spelled out for you. */
 const MODE_LABEL: Record<string, string> = {
@@ -10,29 +10,33 @@ const MODE_LABEL: Record<string, string> = {
   Other: "Travel",
 };
 
-/** How long a leg takes, from its own departure and arrival times — the only
- *  two data points a leg actually carries. Assumes an arrival earlier in the
- *  clock than the departure means it lands the next day, same as a red-eye
- *  would. Returns nothing when there's not enough to compute, or the two
- *  times match (nothing to show). */
-function legDuration(depart: string, arrive: string): string | undefined {
+/** How long a leg takes. The real figure — typed off the ticket, in
+ *  `durationMinutes` — always wins when it's there. Failing that, this
+ *  falls back to subtracting the two local clock times, which is only ever
+ *  right for a leg that stays in one time zone: a Sydney–Los Angeles
+ *  flight's 06:00 landing minus its 14:00 departure reads as a negative
+ *  trip, "corrected" by adding a day, and comes out roughly a full day
+ *  short of the real ~13-hour flight. The `~` on the fallback is the only
+ *  thing telling the two apart, so it stays even where the true answer
+ *  would happen to match. Returns nothing when there's not enough to
+ *  compute at all. */
+function legDuration(depart: string, arrive: string, durationMinutes?: number): string | undefined {
+  if (durationMinutes !== undefined) return formatDuration(durationMinutes);
+
   const [dh, dm] = depart.split(":").map(Number);
   const [ah, am] = arrive.split(":").map(Number);
   if ([dh, dm, ah, am].some((n) => Number.isNaN(n))) return undefined;
   let mins = ah * 60 + am - (dh * 60 + dm);
   if (mins <= 0) mins += 24 * 60;
   if (mins >= 24 * 60) return undefined;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
+  return `~${formatDuration(mins)}`;
 }
 
 function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme }) {
   const leg = item.travel;
   const modeLabel = (leg && MODE_LABEL[leg.mode]) || undefined;
-  const duration = leg?.arrive ? legDuration(item.time, leg.arrive) : undefined;
+  const duration = leg?.arrive ? legDuration(item.time, leg.arrive, leg.durationMinutes) : undefined;
+  const trackingUrl = leg?.mode === "Flight" ? flightTrackingUrl(leg.number) : undefined;
   const chipStyle = {
     fontFamily: theme.fontMono,
     color: theme.ink,
@@ -95,6 +99,34 @@ function TravelLegCard({ item, day, theme }: { item: TripItem; day: Day; theme: 
           }}
         >
           {item.note}
+        </div>
+      )}
+
+      {(trackingUrl || (item.documents?.length ?? 0) > 0) && (
+        <div className="item-detail__links">
+          {trackingUrl && (
+            <a
+              className="item__maps"
+              href={trackingUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            >
+              Track this flight ↗
+            </a>
+          )}
+          {item.documents?.map((doc) => (
+            <a
+              key={doc.url}
+              className="item__maps"
+              href={doc.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            >
+              {doc.name} ↗
+            </a>
+          ))}
         </div>
       )}
     </div>

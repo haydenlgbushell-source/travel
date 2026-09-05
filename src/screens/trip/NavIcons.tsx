@@ -65,6 +65,15 @@ export function PeopleIcon() {
   );
 }
 
+export function SearchIcon() {
+  return (
+    <svg {...COMMON} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
+      <circle cx="10.8" cy="10.8" r="6.8" />
+      <path d="m20 20-4.6-4.6" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon() {
   return (
     <svg

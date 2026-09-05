@@ -58,6 +58,7 @@ interface TripRow {
   destination: string | null;
   lat: number | null;
   lng: number | null;
+  country: string | null;
   from_example: boolean;
   agency_id?: string | null;
   theme_key: string;
@@ -153,7 +154,9 @@ export async function loadMyAgencies(): Promise<Agency[]> {
 export async function loadAgencyTrips(agencyId: string): Promise<EventDetails[]> {
   const { data, error } = await supabase
     .from("trips")
-    .select("id, name, dates, start_date, end_date, destination, lat, lng, from_example, agency_id, theme_key")
+    .select(
+      "id, name, dates, start_date, end_date, destination, lat, lng, country, from_example, agency_id, theme_key",
+    )
     .eq("agency_id", agencyId)
     .order("created_at", { ascending: false });
   if (error) throw error;
