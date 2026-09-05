@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js/mobile";
 import { signIn, signUp, type Account } from "./auth-data";
 import "./auth.css";
 
@@ -80,8 +81,12 @@ export function AuthPage({
     e.preventDefault();
     setError(undefined);
 
-    if (mobile.replace(/[^\d]/g, "").length < 5) {
+    if (mobile.trim() === "") {
       setError("Enter a mobile number.");
+      return;
+    }
+    if (!isValidPhoneNumber(fullMobile)) {
+      setError("That doesn't look like a valid number for the country selected.");
       return;
     }
     if (isSignUp && !EMAIL_RE.test(email.trim())) {
@@ -188,7 +193,6 @@ export function AuthPage({
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel-national"
-                placeholder="412 345 678"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
               />
