@@ -1,0 +1,6 @@
+# Pins this repo to the one live Supabase project — the account has several
+# other projects, so anything that resolves "which project" by name alone
+# (a person skimming a list, an agent searching by name) can land on the
+# wrong one. `supabase link` reads this file the same way; anything else
+# that needs the project should read it from here too rather than search.
+project_id = "elvctcbnnohjxiqonpbo"
