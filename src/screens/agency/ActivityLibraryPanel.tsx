@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Theme } from "../../theme";
-import { ACCENT, AMBER, GREEN, type ItemKind } from "../trip/trip-data";
+import {
+  ACCENT,
+  AMBER,
+  CURRENCIES,
+  fromBaseAmount,
+  GREEN,
+  money,
+  toBaseAmount,
+  type ItemKind,
+} from "../trip/trip-data";
 import {
   deleteAgencyActivity,
   deleteAgencyTemplate,
@@ -32,6 +41,12 @@ function KindBadge({ kind }: { kind: ItemKind }) {
   );
 }
 
+/** Same default a new client trip's own details start on (see AgencyPage's
+ *  blankDetails) — there's no per-agency currency preference stored
+ *  anywhere else, so this is what both the entry form and the library
+ *  cards' display fall back to. */
+const LIBRARY_CURRENCY = "AUD";
+
 const EMPTY_ACTIVITY_DRAFT = {
   country: "",
   city: "",
@@ -40,6 +55,7 @@ const EMPTY_ACTIVITY_DRAFT = {
   place: "",
   note: "",
   costEach: "",
+  currency: LIBRARY_CURRENCY,
   photoUrl: "",
 };
 
@@ -135,7 +151,7 @@ export function ActivityLibraryPanel({
         title: activityDraft.title,
         place: activityDraft.place || undefined,
         note: activityDraft.note || undefined,
-        costEach: activityDraft.costEach.trim() ? Number(activityDraft.costEach) : undefined,
+        costEach: toBaseAmount(activityDraft.costEach, activityDraft.currency),
         photoUrl: activityDraft.photoUrl || undefined,
       });
       setActivityDraft(EMPTY_ACTIVITY_DRAFT);
@@ -383,16 +399,42 @@ export function ActivityLibraryPanel({
 
           <div className="library__form-row">
             <div className="library__field">
-              <span className="library__label">Cost each</span>
-              <input
-                className="library__input"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Optional"
-                value={activityDraft.costEach}
-                onChange={(e) => setActivityDraft((d) => ({ ...d, costEach: e.target.value }))}
-              />
+              <span className="library__label">Cost each, in</span>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <select
+                  className="library__input"
+                  style={{ flex: "0 0 auto", width: "auto" }}
+                  value={activityDraft.currency}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    /* Re-express what's already typed in the new currency
+                       rather than leaving the same digits under a
+                       different label — see ItemSheet's own cost field,
+                       which this mirrors. */
+                    const base = toBaseAmount(activityDraft.costEach, activityDraft.currency);
+                    setActivityDraft((d) => ({
+                      ...d,
+                      currency: next,
+                      costEach: base !== undefined ? fromBaseAmount(base, next) : d.costEach,
+                    }));
+                  }}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="library__input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Optional"
+                  value={activityDraft.costEach}
+                  onChange={(e) => setActivityDraft((d) => ({ ...d, costEach: e.target.value }))}
+                />
+              </div>
             </div>
             <div className="library__field">
               <span className="library__label">Photo URL</span>
@@ -582,7 +624,12 @@ export function ActivityLibraryPanel({
                             <span className="library__card-title">{a.title}</span>
                             {(a.place || a.costEach !== undefined) && (
                               <span className="library__card-meta">
-                                {[a.place, a.costEach !== undefined ? `€${a.costEach} each` : undefined]
+                                {[
+                                  a.place,
+                                  a.costEach !== undefined
+                                    ? `${money(a.costEach, LIBRARY_CURRENCY)} each`
+                                    : undefined,
+                                ]
                                   .filter(Boolean)
                                   .join(" · ")}
                               </span>

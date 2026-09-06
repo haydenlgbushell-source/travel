@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Theme } from "../../theme";
+import { Sheet } from "../trip/Sheet";
 import { TRIP_STATUSES, type TripAgencyDetails, type TripStatus } from "./agency-data";
 import "../trip/trip-page.css";
 
@@ -83,39 +84,10 @@ export function ClientDetailsSheet({
   }
 
   return (
-    <div
-      className="sheet-scrim"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 40,
-        background: "oklch(0.2 0 0 / 0.45)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: theme.card,
-          color: theme.ink,
-          width: "100%",
-          maxWidth: "520px",
-          maxHeight: "88vh",
-          overflowY: "auto",
-          borderTopLeftRadius: theme.frameRadius,
-          borderTopRightRadius: theme.frameRadius,
-          padding: "18px 16px 22px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}
-      >
-        <div>
-          <div style={{ ...labelStyle }}>Client file</div>
-          <div style={{ fontFamily: theme.fontDisplay, fontSize: "20px" }}>{tripName}</div>
+    <Sheet title="Client file" onClose={onClose} theme={theme}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ fontFamily: theme.fontDisplay, fontSize: "20px", color: theme.ink }}>
+          {tripName}
         </div>
 
         {field(
@@ -277,16 +249,8 @@ export function ClientDetailsSheet({
           >
             {saving ? "Saving…" : "Save"}
           </button>
-          <button
-            type="button"
-            className="trip-page__reset trip-card__action"
-            onClick={onClose}
-            style={{ fontFamily: theme.fontMono, color: theme.body, padding: "0 14px" }}
-          >
-            Cancel
-          </button>
         </div>
       </div>
-    </div>
+    </Sheet>
   );
 }
