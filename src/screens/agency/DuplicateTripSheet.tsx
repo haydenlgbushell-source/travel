@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Theme } from "../../theme";
+import { Sheet } from "../trip/Sheet";
 import type { EventDetails } from "../trip-setup/event-data";
 import "../trip/trip-page.css";
 
@@ -83,36 +84,10 @@ export function DuplicateTripSheet({
   } as const;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 40,
-        background: "oklch(0.2 0 0 / 0.45)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: theme.card,
-          color: theme.ink,
-          width: "100%",
-          maxWidth: "520px",
-          borderTopLeftRadius: theme.frameRadius,
-          borderTopRightRadius: theme.frameRadius,
-          padding: "18px 16px 22px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}
-      >
-        <div>
-          <div style={labelStyle}>Reuse this itinerary</div>
-          <div style={{ fontFamily: theme.fontDisplay, fontSize: "20px" }}>{source.name}</div>
+    <Sheet title="Reuse this itinerary" onClose={onClose} theme={theme}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ fontFamily: theme.fontDisplay, fontSize: "20px", color: theme.ink }}>
+          {source.name}
         </div>
 
         <label style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -174,16 +149,8 @@ export function DuplicateTripSheet({
           >
             {busy ? "Copying…" : "Create the copy"}
           </button>
-          <button
-            type="button"
-            className="trip-page__reset trip-card__action"
-            onClick={onClose}
-            style={{ fontFamily: theme.fontMono, color: theme.body, padding: "0 14px" }}
-          >
-            Cancel
-          </button>
         </div>
       </div>
-    </div>
+    </Sheet>
   );
 }
