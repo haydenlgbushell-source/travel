@@ -1,44 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { isValidPhoneNumber } from "libphonenumber-js/mobile";
 import { requestPasswordReset, signIn, signUp, type Account } from "./auth-data";
+import { combineMobile, DEFAULT_DIAL_CODE, DIAL_CODES } from "./dial-codes";
 import "./auth.css";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Common dial codes, not every one ITU assigns — enough that most people
- *  find their own rather than hunting. Defaults to Australia rather than
- *  the US: the placeholder that used to sit in this field regardless of who
- *  was typing was itself the whole problem this fixes. */
-const DIAL_CODES: { code: string; label: string }[] = [
-  { code: "+61", label: "Australia +61" },
-  { code: "+64", label: "New Zealand +64" },
-  { code: "+1", label: "US/Canada +1" },
-  { code: "+44", label: "UK +44" },
-  { code: "+353", label: "Ireland +353" },
-  { code: "+91", label: "India +91" },
-  { code: "+86", label: "China +86" },
-  { code: "+81", label: "Japan +81" },
-  { code: "+82", label: "South Korea +82" },
-  { code: "+65", label: "Singapore +65" },
-  { code: "+60", label: "Malaysia +60" },
-  { code: "+66", label: "Thailand +66" },
-  { code: "+62", label: "Indonesia +62" },
-  { code: "+63", label: "Philippines +63" },
-  { code: "+84", label: "Vietnam +84" },
-  { code: "+852", label: "Hong Kong +852" },
-  { code: "+971", label: "UAE +971" },
-  { code: "+27", label: "South Africa +27" },
-  { code: "+49", label: "Germany +49" },
-  { code: "+33", label: "France +33" },
-  { code: "+34", label: "Spain +34" },
-  { code: "+39", label: "Italy +39" },
-  { code: "+31", label: "Netherlands +31" },
-  { code: "+41", label: "Switzerland +41" },
-  { code: "+46", label: "Sweden +46" },
-  { code: "+55", label: "Brazil +55" },
-  { code: "+52", label: "Mexico +52" },
-];
-const DEFAULT_DIAL_CODE = "+61";
 
 export function AuthPage({
   onAuthenticated,
@@ -59,15 +25,7 @@ export function AuthPage({
   const [mode, setMode] = useState<"signup" | "signin" | "reset">(initialMode ?? "signin");
   const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const [mobile, setMobile] = useState("");
-  /* email_for_mobile matches accounts.mobile exactly, with no normalisation
-     of its own — so the digit string this produces has to come out
-     identically every time, regardless of whether someone types the
-     national trunk prefix ("0412 345 678") or leaves it off ("412 345
-     678"), the way plenty of people do once a separate country-code picker
-     is already sitting right there. Stripping it here, once, before the
-     dial code goes on the front, is what makes both spellings resolve to
-     the same account rather than two different ones. */
-  const fullMobile = `${dialCode} ${mobile.replace(/^0+/, "")}`;
+  const fullMobile = combineMobile(dialCode, mobile);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

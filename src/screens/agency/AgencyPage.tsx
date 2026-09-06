@@ -21,6 +21,7 @@ import {
 } from "./agency-data";
 import { ClientDetailsSheet } from "./ClientDetailsSheet";
 import { DuplicateTripSheet } from "./DuplicateTripSheet";
+import { combineMobile, DEFAULT_DIAL_CODE, DIAL_CODES } from "../auth/dial-codes";
 import "../trip/trip-page.css";
 
 type Tab = "trips" | "team" | "library" | "brand";
@@ -71,6 +72,7 @@ export function AgencyPage({
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<EventDetails>();
   const [duplicating, setDuplicating] = useState<EventDetails>();
+  const [newAgentDialCode, setNewAgentDialCode] = useState(DEFAULT_DIAL_CODE);
   const [newAgentMobile, setNewAgentMobile] = useState("");
   const [teamBusy, setTeamBusy] = useState(false);
   const [teamNote, setTeamNote] = useState<string>();
@@ -123,12 +125,11 @@ export function AgencyPage({
   }
 
   async function addAgent() {
-    const mobile = newAgentMobile.trim();
-    if (!mobile) return;
+    if (!newAgentMobile.trim()) return;
     setTeamBusy(true);
     setTeamNote(undefined);
     try {
-      const who = await addAgencyAgent(agency.id, mobile);
+      const who = await addAgencyAgent(agency.id, combineMobile(newAgentDialCode, newAgentMobile));
       if (!alive.current) return;
       setNewAgentMobile("");
       setTeamNote(`Added ${who}.`);
@@ -408,10 +409,22 @@ export function AgencyPage({
                 <div className="wf-card wf-card--pad" style={{ background: theme.card, borderColor: theme.line, gap: "8px" }}>
                   <span style={labelStyle}>Add a colleague by mobile</span>
                   <div style={{ display: "flex", gap: "8px" }}>
+                    <select
+                      style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}
+                      aria-label="Country code"
+                      value={newAgentDialCode}
+                      onChange={(e) => setNewAgentDialCode(e.target.value)}
+                    >
+                      {DIAL_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       style={fieldStyle}
                       inputMode="tel"
-                      placeholder="0400 000 000"
+                      placeholder="400 000 000"
                       value={newAgentMobile}
                       onChange={(e) => setNewAgentMobile(e.target.value)}
                     />
