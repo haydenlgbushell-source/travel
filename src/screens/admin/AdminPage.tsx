@@ -5,23 +5,28 @@ import {
   adminCreateAgencyInvite,
   adminListAccounts,
   adminListAgencies,
+  adminListAuditLog,
   adminListTrips,
+  adminLogAction,
+  adminResendConfirmation,
   adminRevokeAgency,
   adminSetTripAgency,
   type AdminAccountRow,
   type AdminAgencyRow,
+  type AdminAuditLogRow,
   type AdminTripRow,
 } from "./admin-data";
 import { NewTripPanel } from "./NewTripPanel";
 import "./admin.css";
 
-type Section = "overview" | "trips" | "agencies" | "accounts";
+type Section = "overview" | "trips" | "agencies" | "accounts" | "activity";
 
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "trips", label: "Trips" },
   { id: "agencies", label: "Agencies" },
   { id: "accounts", label: "Accounts" },
+  { id: "activity", label: "Activity" },
 ];
 
 function formatDate(iso: string): string {
@@ -29,6 +34,26 @@ function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
+
+function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  grant_agency: "Granted agency access",
+  revoke_agency: "Revoked agency access",
+  create_agency_invite: "Created an agency invite",
+  move_trip: "Moved a trip",
+  resend_confirmation: "Resent a confirmation email",
+};
 
 /** A display name for an account that never comes back empty — the table
  *  reads badly with a blank first column. */
@@ -58,6 +83,7 @@ export function AdminPage({
   const [accounts, setAccounts] = useState<AdminAccountRow[]>();
   const [trips, setTrips] = useState<AdminTripRow[]>();
   const [agencies, setAgencies] = useState<AdminAgencyRow[]>();
+  const [auditLog, setAuditLog] = useState<AdminAuditLogRow[]>();
   const [notice, setNotice] = useState<Notice>();
   /* Which single thing is in flight, keyed by what it acts on — one global
      `busy` disabled every select and every button on the page while one row
@@ -91,15 +117,17 @@ export function AdminPage({
 
   const load = useCallback(async () => {
     try {
-      const [acc, trp, ag] = await Promise.all([
+      const [acc, trp, ag, log] = await Promise.all([
         adminListAccounts(),
         adminListTrips(),
         adminListAgencies(),
+        adminListAuditLog().catch(() => [] as AdminAuditLogRow[]),
       ]);
       if (!alive.current) return;
       setAccounts(acc);
       setTrips(trp);
       setAgencies(ag);
+      setAuditLog(log);
     } catch {
       if (!alive.current) return;
       /* Fall back to empty lists rather than leaving these undefined — the
@@ -108,6 +136,7 @@ export function AdminPage({
       setAccounts((prev) => prev ?? []);
       setTrips((prev) => prev ?? []);
       setAgencies((prev) => prev ?? []);
+      setAuditLog((prev) => prev ?? []);
       setNotice({ text: "Couldn't load admin data.", tone: "error" });
     }
   }, []);
@@ -147,6 +176,7 @@ export function AdminPage({
     setGranting(undefined);
     void run(`grant:${account.id}`, async () => {
       await adminCreateAgency(account.id, trimmed);
+      void adminLogAction("grant_agency", `${accountLabel(account)} → ${trimmed}`);
       return `${accountLabel(account)} now owns ${trimmed}.`;
     }, "Couldn't grant agency access.");
   }
@@ -162,6 +192,7 @@ export function AdminPage({
         const link = `${window.location.origin}${window.location.pathname}#agency-invite=${token}`;
         setInvite({ name: trimmed, link });
         setInvitingName("");
+        void adminLogAction("create_agency_invite", trimmed);
       })
       .catch(() => {
         if (alive.current) setNotice({ text: "Couldn't create that invite.", tone: "error" });
@@ -175,6 +206,7 @@ export function AdminPage({
     setConfirmingRevoke(undefined);
     void run(`agency:${agency.id}`, async () => {
       const detached = await adminRevokeAgency(agency.id);
+      void adminLogAction("revoke_agency", agency.name);
       return detached > 0
         ? `Revoked ${agency.name}. ${detached} ${detached === 1 ? "trip" : "trips"} stayed, as ordinary trips.`
         : `Revoked ${agency.name}.`;
@@ -185,10 +217,22 @@ export function AdminPage({
     void run(`trip:${trip.id}`, async () => {
       await adminSetTripAgency(trip.id, nextAgencyId || undefined);
       const agency = agencies?.find((a) => a.id === nextAgencyId);
+      void adminLogAction(
+        "move_trip",
+        `"${trip.name}" → ${nextAgencyId ? (agency?.name ?? "that agency") : "Personal"}`,
+      );
       return nextAgencyId
         ? `Moved "${trip.name}" to ${agency?.name ?? "that agency"}.`
         : `"${trip.name}" is no longer an agency trip.`;
     }, "Couldn't move that trip — the database refused the change.");
+  }
+
+  function resendConfirmation(account: AdminAccountRow) {
+    void run(`resend:${account.id}`, async () => {
+      await adminResendConfirmation(account.email);
+      void adminLogAction("resend_confirmation", account.email);
+      return `Resent the confirmation email to ${account.email}.`;
+    }, "Couldn't resend that confirmation email.");
   }
 
   const loaded = accounts !== undefined && trips !== undefined && agencies !== undefined;
@@ -770,6 +814,16 @@ export function AdminPage({
                             </td>
                             <td className="admin__cell-mono">{formatDate(a.createdAt)}</td>
                             <td className="admin__cell-actions">
+                              {!a.isAnonymous && !a.emailConfirmedAt && (
+                                <button
+                                  type="button"
+                                  className="admin__reset admin__link admin__link--muted"
+                                  disabled={busyKey === `resend:${a.id}`}
+                                  onClick={() => resendConfirmation(a)}
+                                >
+                                  {busyKey === `resend:${a.id}` ? "Sending…" : "Resend confirmation"}
+                                </button>
+                              )}
                               {a.isAnonymous ? (
                                 <span className="admin__hint">
                                   Guests can't hold agency access
@@ -811,6 +865,58 @@ export function AdminPage({
                 {loaded && visibleAccounts.length === 0 && (
                   <div className="admin__empty">
                     {accounts.length === 0 ? "No accounts yet." : "Nothing matches that search."}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {section === "activity" && (
+            <>
+              <div className="admin__head">
+                <div>
+                  <h1 className="admin__title">Activity</h1>
+                </div>
+              </div>
+
+              <div className="admin__panel">
+                <div className="admin__panel-head">
+                  <span className="admin__panel-title">
+                    Admin actions{auditLog ? ` · ${auditLog.length}` : ""}
+                  </span>
+                </div>
+                <div className="admin__table-wrap">
+                  <table className="admin__table">
+                    <thead>
+                      <tr>
+                        <th>When</th>
+                        <th>Who</th>
+                        <th>Action</th>
+                        <th>Detail</th>
+                      </tr>
+                    </thead>
+                    {auditLog ? (
+                      <tbody>
+                        {auditLog.map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="admin__cell-mono">{formatDateTime(entry.createdAt)}</td>
+                            <td className="admin__cell-mono">{entry.actorLabel}</td>
+                            <td className="admin__cell-name">
+                              {ACTION_LABEL[entry.action] ?? entry.action}
+                            </td>
+                            <td className="admin__cell-mono">{entry.detail ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    ) : (
+                      skeletonRows(4)
+                    )}
+                  </table>
+                </div>
+                {auditLog && auditLog.length === 0 && (
+                  <div className="admin__empty">
+                    Nothing logged yet — grants, revokes, invites, trip reassignments and resent
+                    confirmations all show up here as they happen.
                   </div>
                 )}
               </div>

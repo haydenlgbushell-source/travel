@@ -97,10 +97,16 @@ export function ActivityLibraryPanel({
   const [addingActivity, setAddingActivity] = useState(false);
   const [activityDraft, setActivityDraft] = useState<ActivityDraft>(EMPTY_ACTIVITY_DRAFT);
   const [savingActivity, setSavingActivity] = useState(false);
+  /* Set while the open form is editing an existing activity rather than
+     building a new one — saveActivity below branches on this to call
+     saveAgencyActivity with an id (update in place) instead of without one
+     (insert). */
+  const [editingActivityId, setEditingActivityId] = useState<string>();
 
   const [addingTemplate, setAddingTemplate] = useState(false);
   const [templateDraft, setTemplateDraft] = useState<TemplateDraft>(EMPTY_TEMPLATE_DRAFT);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string>();
 
   const [busyId, setBusyId] = useState<string>();
 
@@ -139,23 +145,53 @@ export function ActivityLibraryPanel({
   const knownCountries = [...new Set((activities ?? []).map((a) => a.country))].sort();
   const knownCities = [...new Set((activities ?? []).map((a) => a.city))].sort();
 
-  async function addActivity() {
+  /** Opens the form pre-filled with an existing activity's own fields,
+   *  rather than only ever offering a blank one — changing a price or photo
+   *  used to mean deleting the whole entry and retyping it from scratch.
+   *  costEach has no currency of its own in storage (see AgencyActivity's
+   *  own doc comment); re-expressed in LIBRARY_CURRENCY here so it opens on
+   *  the same figure the card itself displays. */
+  function startEditActivity(a: AgencyActivity) {
+    setActivityDraft({
+      country: a.country,
+      city: a.city,
+      kind: a.kind,
+      title: a.title,
+      place: a.place ?? "",
+      note: a.note ?? "",
+      costEach: a.costEach !== undefined ? fromBaseAmount(a.costEach, LIBRARY_CURRENCY) : "",
+      currency: LIBRARY_CURRENCY,
+      photoUrl: a.photoUrl ?? "",
+    });
+    setEditingActivityId(a.id);
+    setAddingActivity(true);
+  }
+
+  function closeActivityForm() {
+    setAddingActivity(false);
+    setActivityDraft(EMPTY_ACTIVITY_DRAFT);
+    setEditingActivityId(undefined);
+  }
+
+  async function saveActivity() {
     if (!activityDraft.title.trim() || !activityDraft.country.trim() || !activityDraft.city.trim()) return;
     setSavingActivity(true);
     try {
-      await saveAgencyActivity({
-        agencyId,
-        country: activityDraft.country,
-        city: activityDraft.city,
-        kind: activityDraft.kind,
-        title: activityDraft.title,
-        place: activityDraft.place || undefined,
-        note: activityDraft.note || undefined,
-        costEach: toBaseAmount(activityDraft.costEach, activityDraft.currency),
-        photoUrl: activityDraft.photoUrl || undefined,
-      });
-      setActivityDraft(EMPTY_ACTIVITY_DRAFT);
-      setAddingActivity(false);
+      await saveAgencyActivity(
+        {
+          agencyId,
+          country: activityDraft.country,
+          city: activityDraft.city,
+          kind: activityDraft.kind,
+          title: activityDraft.title,
+          place: activityDraft.place || undefined,
+          note: activityDraft.note || undefined,
+          costEach: toBaseAmount(activityDraft.costEach, activityDraft.currency),
+          photoUrl: activityDraft.photoUrl || undefined,
+        },
+        editingActivityId,
+      );
+      closeActivityForm();
       await load();
     } catch {
       if (alive.current) setError("Couldn't save that activity — check your connection and try again.");
@@ -176,20 +212,39 @@ export function ActivityLibraryPanel({
     }
   }
 
-  async function addTemplate() {
+  function startEditTemplate(t: AgencyActivityTemplate) {
+    setTemplateDraft({
+      country: t.country,
+      city: t.city,
+      name: t.name,
+      activityIds: t.activityIds,
+    });
+    setEditingTemplateId(t.id);
+    setAddingTemplate(true);
+  }
+
+  function closeTemplateForm() {
+    setAddingTemplate(false);
+    setTemplateDraft(EMPTY_TEMPLATE_DRAFT);
+    setEditingTemplateId(undefined);
+  }
+
+  async function saveTemplate() {
     if (!templateDraft.name.trim() || !templateDraft.country.trim() || !templateDraft.city.trim()) return;
     if (templateDraft.activityIds.length === 0) return;
     setSavingTemplate(true);
     try {
-      await saveAgencyTemplate({
-        agencyId,
-        country: templateDraft.country,
-        city: templateDraft.city,
-        name: templateDraft.name,
-        activityIds: templateDraft.activityIds,
-      });
-      setTemplateDraft(EMPTY_TEMPLATE_DRAFT);
-      setAddingTemplate(false);
+      await saveAgencyTemplate(
+        {
+          agencyId,
+          country: templateDraft.country,
+          city: templateDraft.city,
+          name: templateDraft.name,
+          activityIds: templateDraft.activityIds,
+        },
+        editingTemplateId,
+      );
+      closeTemplateForm();
       await load();
     } catch {
       if (alive.current) setError("Couldn't save that template — check your connection and try again.");
@@ -291,7 +346,7 @@ export function ActivityLibraryPanel({
           <button
             type="button"
             className="library__add-btn"
-            onClick={() => setAddingActivity((v) => !v)}
+            onClick={() => (addingActivity ? closeActivityForm() : setAddingActivity(true))}
           >
             {addingActivity ? "Close" : "+ Save an activity"}
           </button>
@@ -299,7 +354,7 @@ export function ActivityLibraryPanel({
           <button
             type="button"
             className="library__add-btn"
-            onClick={() => setAddingTemplate((v) => !v)}
+            onClick={() => (addingTemplate ? closeTemplateForm() : setAddingTemplate(true))}
           >
             {addingTemplate ? "Close" : "+ Create template"}
           </button>
@@ -308,7 +363,9 @@ export function ActivityLibraryPanel({
 
       {view === "activities" && addingActivity && (
         <div className="library__form">
-          <span className="library__form-title">Save an activity</span>
+          <span className="library__form-title">
+            {editingActivityId ? "Edit activity" : "Save an activity"}
+          </span>
 
           <div className="library__kind-picker">
             {LIBRARY_KINDS.map((k) => {
@@ -458,18 +515,11 @@ export function ActivityLibraryPanel({
                 !activityDraft.country.trim() ||
                 !activityDraft.city.trim()
               }
-              onClick={() => void addActivity()}
+              onClick={() => void saveActivity()}
             >
-              {savingActivity ? "Saving…" : "Save to library"}
+              {savingActivity ? "Saving…" : editingActivityId ? "Save changes" : "Save to library"}
             </button>
-            <button
-              type="button"
-              className="library__btn--text"
-              onClick={() => {
-                setAddingActivity(false);
-                setActivityDraft(EMPTY_ACTIVITY_DRAFT);
-              }}
-            >
+            <button type="button" className="library__btn--text" onClick={closeActivityForm}>
               Cancel
             </button>
           </div>
@@ -478,7 +528,9 @@ export function ActivityLibraryPanel({
 
       {view === "templates" && addingTemplate && (
         <div className="library__form">
-          <span className="library__form-title">Create a template</span>
+          <span className="library__form-title">
+            {editingTemplateId ? "Edit template" : "Create a template"}
+          </span>
 
           <div className="library__field">
             <span className="library__label">Template name</span>
@@ -570,18 +622,11 @@ export function ActivityLibraryPanel({
                 !templateDraft.city.trim() ||
                 templateDraft.activityIds.length === 0
               }
-              onClick={() => void addTemplate()}
+              onClick={() => void saveTemplate()}
             >
-              {savingTemplate ? "Saving…" : "Save template"}
+              {savingTemplate ? "Saving…" : editingTemplateId ? "Save changes" : "Save template"}
             </button>
-            <button
-              type="button"
-              className="library__btn--text"
-              onClick={() => {
-                setAddingTemplate(false);
-                setTemplateDraft(EMPTY_TEMPLATE_DRAFT);
-              }}
-            >
+            <button type="button" className="library__btn--text" onClick={closeTemplateForm}>
               Cancel
             </button>
           </div>
@@ -639,6 +684,14 @@ export function ActivityLibraryPanel({
                         </div>
                         {a.note && <span className="library__card-meta">{a.note}</span>}
                         <div className="library__card-actions">
+                          <button
+                            type="button"
+                            className="library__card-action"
+                            disabled={busyId === a.id}
+                            onClick={() => startEditActivity(a)}
+                          >
+                            Edit
+                          </button>
                           <button
                             type="button"
                             className="library__card-action library__card-action--danger"
@@ -704,6 +757,14 @@ export function ActivityLibraryPanel({
                           </div>
                         )}
                         <div className="library__card-actions">
+                          <button
+                            type="button"
+                            className="library__card-action"
+                            disabled={busyId === t.id}
+                            onClick={() => startEditTemplate(t)}
+                          >
+                            Edit
+                          </button>
                           <button
                             type="button"
                             className="library__card-action library__card-action--danger"
