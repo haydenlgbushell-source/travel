@@ -186,3 +186,63 @@ export async function adminSetTripAgency(
   });
   if (error) throw error;
 }
+
+/* ---------- unconfirmed accounts ---------- */
+
+/** Re-sends the confirmation email GoTrue already sent at signup — public
+ *  on the anon key (rate-limited, not admin-gated by Supabase itself), so
+ *  this needs no RPC of its own. The one thing an admin can actually do for
+ *  an account stuck "Unconfirmed": nudge the email along, not force it
+ *  through — nothing here bypasses proving the address is real. */
+export async function adminResendConfirmation(email: string): Promise<void> {
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+  if (error) throw error;
+}
+
+/* ---------- audit log ---------- */
+
+export interface AdminAuditLogRow {
+  id: string;
+  actorAccountId: string;
+  actorLabel: string;
+  action: string;
+  detail?: string;
+  createdAt: string;
+}
+
+interface AuditLogRpcRow {
+  id: string;
+  actor_account_id: string;
+  actor_mobile: string | null;
+  actor_name: string | null;
+  action: string;
+  detail: string | null;
+  created_at: string;
+}
+
+/** Records one admin action against the caller's own account — admin_log_action
+ *  checks is_admin and stamps auth.uid() as the actor server-side, so this
+ *  can't be used to log something as having been done by someone else.
+ *  Best-effort: a logging failure shouldn't undo or fail the action it was
+ *  recording, so callers fire this and move on rather than awaiting it into
+ *  their own error handling. */
+export async function adminLogAction(action: string, detail?: string): Promise<void> {
+  const { error } = await supabase.rpc("admin_log_action", {
+    p_action: action,
+    p_detail: detail ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function adminListAuditLog(): Promise<AdminAuditLogRow[]> {
+  const { data, error } = await supabase.rpc("admin_list_audit_log");
+  if (error) throw error;
+  return (data as AuditLogRpcRow[]).map((r) => ({
+    id: r.id,
+    actorAccountId: r.actor_account_id,
+    actorLabel: r.actor_name ?? r.actor_mobile ?? "Admin",
+    action: r.action,
+    detail: r.detail ?? undefined,
+    createdAt: r.created_at,
+  }));
+}

@@ -103,6 +103,24 @@ export async function uploadAgencyLogo(
   return { url: data.publicUrl };
 }
 
+const AGENCY_LOGO_URL_RE = /\/storage\/v1\/object\/public\/agency-logos\/(.+)$/;
+
+/** Cleans up a logo this app actually uploaded — same reasoning as
+ *  deleteItemPhotoIfOwned for trip-item-photos: called wherever a logo is
+ *  replaced or removed, so the bucket doesn't quietly accumulate an orphan
+ *  every time someone changes their mind about a logo. Best-effort: a
+ *  failed delete just leaves one more orphaned object, never blocks the
+ *  edit that triggered it. */
+export async function deleteAgencyLogoIfOwned(url: string | undefined): Promise<void> {
+  const match = url ? AGENCY_LOGO_URL_RE.exec(url) : null;
+  if (!match) return;
+  try {
+    await supabase.storage.from("agency-logos").remove([match[1]]);
+  } catch {
+    /* best-effort — see above */
+  }
+}
+
 /** Owner-only, enforced in the function rather than here. Throws, unlike the
  *  loaders — a save that silently did nothing would be worse than an error. */
 export async function saveAgencyBranding(

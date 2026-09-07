@@ -3,6 +3,7 @@ import { Wordmark, type Theme } from "../../theme";
 import {
   asHex,
   brandTheme,
+  deleteAgencyLogoIfOwned,
   isHex,
   loadAgencyBranding,
   saveAgencyBranding,
@@ -133,6 +134,7 @@ export function BrandPanel({
   async function handleLogoFile(file: File) {
     setLogoError(undefined);
     setUploadingLogo(true);
+    const previousLogoUrl = draft.logoUrl;
     try {
       const result = await uploadAgencyLogo(agencyId, file);
       if ("error" in result) {
@@ -144,6 +146,9 @@ export function BrandPanel({
         return;
       }
       set("logoUrl", result.url);
+      /* The one this replaces — whether it was ever saved or just uploaded
+         a moment ago — isn't worth keeping around now nothing points at it. */
+      void deleteAgencyLogoIfOwned(previousLogoUrl);
     } catch {
       setLogoError("Couldn't upload that — check your connection and try again.");
     } finally {
@@ -231,7 +236,10 @@ export function BrandPanel({
                 <button
                   type="button"
                   className="brand__reset-link"
-                  onClick={() => set("logoUrl", "")}
+                  onClick={() => {
+                    void deleteAgencyLogoIfOwned(draft.logoUrl);
+                    set("logoUrl", "");
+                  }}
                 >
                   Remove
                 </button>
@@ -271,7 +279,10 @@ export function BrandPanel({
               type="button"
               className="brand__btn brand__btn--ghost"
               disabled={saving}
-              onClick={() => setDraft({})}
+              onClick={() => {
+                void deleteAgencyLogoIfOwned(draft.logoUrl);
+                setDraft({});
+              }}
             >
               Clear all
             </button>
