@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { ThemeProvider, Wordmark, type Theme } from "../../theme";
 import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/branding";
-import { AirportPanel } from "./AirportPanel";
+import { OfflinePanel } from "./OfflinePanel";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
 import { ItemDetail } from "./ItemDetail";
@@ -64,6 +64,7 @@ import {
 } from "./trip-data";
 import { useIsDesktop } from "../../lib/useIsDesktop";
 import { fetchWeather } from "./weather";
+import { countdownLabel, todayISO } from "./countdown";
 import {
   notifyPermission,
   requestNotifyPermission,
@@ -74,8 +75,8 @@ import "./trip-page.css";
 /** Strip rules (day selector, tabs, bottom bar) sit a shade darker than card
  *  borders in the design. */
 const STRIP_LINE = "#E1E1DA";
-const AIRPORT_BORDER = "#3A3F42";
-const AIRPORT_OFF_INK = "#C3C7C0";
+const OFFLINE_BORDER = "#3A3F42";
+const OFFLINE_OFF_INK = "#C3C7C0";
 const DAY_META_ON = "#9DA39B";
 
 /** How long the day switch shows skeletons before the plan lands. */
@@ -243,7 +244,21 @@ export function TripPage({
     }
   });
   const [loading, setLoading] = useState(false);
-  const [airport, setAirport] = useState(false);
+  /* The countdown is derived from the date, so a session left open
+     overnight would otherwise still claim yesterday's number. Re-reading
+     the date each minute is enough for a day-granularity clock, and only
+     re-renders on the minute the day actually turns over. */
+  const [today, setToday] = useState(todayISO);
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setToday((current) => {
+        const now = todayISO();
+        return now === current ? current : now;
+      });
+    }, 60_000);
+    return () => clearInterval(tick);
+  }, []);
+  const [offlineMode, setOffline] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [voted, setVoted] = useState(false);
@@ -280,6 +295,7 @@ export function TripPage({
      A personal trip never asks. */
   const [branding, setBranding] = useState<AgencyBranding>();
   const theme = brandTheme(baseTheme, branding);
+  const countdown = countdownLabel(event.startDate, event.endDate, theme, today);
   /* The header's brand slot falls back to the *style's* own name
      ("Postcard", "Meridian") when nobody has set anything else — which
      means every unbranded trip showed the look it was drawn in as if that
@@ -593,7 +609,7 @@ export function TripPage({
     setSearchOpen(false);
     setDayIndex(targetDayIndex);
     setTab(0);
-    setAirport(false);
+    setOffline(false);
     setMapOpen(false);
     setDetailId(itemId);
     toTop();
@@ -610,7 +626,7 @@ export function TripPage({
     if (mapOpen) return;
     clearTimeout(timer.current);
     setTab(0);
-    setAirport(false);
+    setOffline(false);
     setAdded(undefined);
     setLoading(true);
     toTop();
@@ -629,7 +645,7 @@ export function TripPage({
   function handleTouchEnd(e: React.TouchEvent) {
     const start = swipeStart.current;
     swipeStart.current = undefined;
-    if (!start || tab !== 0 || airport || mapOpen) return;
+    if (!start || tab !== 0 || offlineMode || mapOpen) return;
 
     const touch = e.changedTouches[0];
     const dx = touch.clientX - start.x;
@@ -642,7 +658,7 @@ export function TripPage({
 
   function pickTab(i: number) {
     setTab(i);
-    setAirport(false);
+    setOffline(false);
     setMapOpen(false);
     toTop();
     if (i === 1 && !travelCardSeen) {
@@ -657,7 +673,7 @@ export function TripPage({
 
   function openFromMore(label: string) {
     setTab(label === "Money" ? 2 : 4);
-    setAirport(false);
+    setOffline(false);
     setMapOpen(false);
     setMoreOpen(false);
     toTop();
@@ -665,7 +681,7 @@ export function TripPage({
 
   function setMapOpenTab() {
     setMapOpen(true);
-    setAirport(false);
+    setOffline(false);
     toTop();
   }
 
@@ -952,12 +968,14 @@ export function TripPage({
             </button>
           </div>
           <div className="trip-page__head-actions">
-            <span
-              className="trip-page__countdown"
-              style={{ fontFamily: theme.fontMono, color: "oklch(0.78 0.13 60)" }}
-            >
-              {theme.countdown}
-            </span>
+            {countdown && (
+              <span
+                className="trip-page__countdown"
+                style={{ fontFamily: theme.fontMono, color: "oklch(0.78 0.13 60)" }}
+              >
+                {countdown}
+              </span>
+            )}
             <button
               type="button"
               className="trip-page__reset trip-page__hamburger"
@@ -969,17 +987,17 @@ export function TripPage({
             </button>
             <button
               type="button"
-              aria-pressed={airport}
-              className="trip-page__reset trip-page__airport"
-              onClick={() => setAirport((on) => !on)}
+              aria-pressed={offlineMode}
+              className="trip-page__reset trip-page__offline"
+              onClick={() => setOffline((on) => !on)}
               style={{
                 fontFamily: theme.fontMono,
-                color: airport ? theme.ink : AIRPORT_OFF_INK,
-                background: airport ? theme.bg : "transparent",
-                borderColor: AIRPORT_BORDER,
+                color: offlineMode ? theme.ink : OFFLINE_OFF_INK,
+                background: offlineMode ? theme.bg : "transparent",
+                borderColor: OFFLINE_BORDER,
               }}
             >
-              Airport
+              Offline
             </button>
           </div>
         </div>
@@ -1105,20 +1123,20 @@ export function TripPage({
       <div
         ref={body}
         id="wf-tabpanel"
-        role={airport || mapOpen ? undefined : "tabpanel"}
+        role={offlineMode || mapOpen ? undefined : "tabpanel"}
         /* Labelled by the tab that is actually selected. This used to name
            `wf-tab-${tab}` while the buttons carried `wf-tab-nav-${i}` — two
            different schemes, so the panel was labelled by nothing at all. */
         aria-labelledby={
-          airport || mapOpen ? undefined : `wf-tab-nav-${selectedNavIndex}`
+          offlineMode || mapOpen ? undefined : `wf-tab-nav-${selectedNavIndex}`
         }
         tabIndex={0}
         className="trip-page__body"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {airport ? (
-          <AirportPanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
+        {offlineMode ? (
+          <OfflinePanel day={day} resolved={resolved} isExample={isExample} theme={theme} />
         ) : mapOpen ? (
           <MapTab days={days} activeDay={day} center={mapCenter} theme={theme} />
         ) : (
@@ -1202,7 +1220,7 @@ export function TripPage({
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
         {navEntries.map((entry, i) => {
-          const on = entry.kind === "map" ? mapOpen && !airport : tab === entry.tab && !airport && !mapOpen;
+          const on = entry.kind === "map" ? mapOpen && !offlineMode : tab === entry.tab && !offlineMode && !mapOpen;
           const Icon = entry.icon;
           const isNew = entry.kind === "tab" && entry.tab === 1 && !travelCardSeen;
           return (

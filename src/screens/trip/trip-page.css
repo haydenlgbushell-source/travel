@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Airport mode and the countdown are the fixed, short side of the row —
+  /* Offline mode and the countdown are the fixed, short side of the row —
      they hold their size rather than yielding to a long trip name. */
   flex-shrink: 0;
 }
@@ -126,7 +126,7 @@
   text-transform: uppercase;
 }
 
-.trip-page__airport {
+.trip-page__offline {
   min-height: 32px;
   display: flex;
   align-items: center;
@@ -140,7 +140,7 @@
 
 /* Admin and Agency, in the trip list's header — plain header-meta text
    there used to read as a caption rather than something to tap, so this
-   gives them the same bordered-chip treatment as the airport-mode pill
+   gives them the same bordered-chip treatment as the offline-mode pill
    above, just theme-aware (color-mix off --wf-head-ink) since unlike that
    one this sits in every theme's header, not only the dark default. */
 .trip-page__nav-link {
@@ -283,9 +283,9 @@
   animation: wf-fade 0.28s ease both;
 }
 
-/* ---------- airport mode ---------- */
+/* ---------- offline mode ---------- */
 
-.airport {
+.offline {
   border-radius: 14px;
   padding: 16px 16px 18px;
   display: flex;
@@ -294,23 +294,23 @@
   animation: wf-fade 0.3s ease both;
 }
 
-.airport__head {
+.offline__head {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
 
-.airport__title {
+.offline__title {
   font-size: 21px;
 }
 
-.airport__sub {
+.offline__sub {
   font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.airport__rows {
+.offline__rows {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -319,7 +319,7 @@
   overflow: hidden;
 }
 
-.airport__row {
+.offline__row {
   background: #1a1e21;
   padding: 12px 14px;
   display: grid;
@@ -328,33 +328,33 @@
   align-items: baseline;
 }
 
-.airport__time {
+.offline__time {
   font-size: 14px;
 }
 
-.airport__item {
+.offline__item {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.airport__item-title {
+.offline__item-title {
   font-size: 13.5px;
   font-weight: 500;
 }
 
-.airport__place {
+.offline__place {
   font-size: 10.5px;
   color: #a8ada5;
 }
 
-.airport__ref {
+.offline__ref {
   font-size: 11px;
   letter-spacing: 0.06em;
 }
 
-.airport__contacts {
+.offline__contacts {
   display: flex;
   flex-direction: column;
   gap: 5px;

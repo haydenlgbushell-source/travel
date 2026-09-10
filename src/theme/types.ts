@@ -10,7 +10,13 @@ export interface Theme {
   logoUrl?: string;
   typeNote: string;
   strapline: string;
+  /** Shown while the trip is running. */
   countdown: string;
+  /** Shown before it starts. `{n}` is the number of days, `{s}` the plural
+   *  "s" — "In {n} day{s}" reads correctly at 1 and at 5. */
+  countdownAway: string;
+  /** Shown once it's over. */
+  countdownDone: string;
   dayTitle: string;
   tag: string;
   bookingLabel: string;
