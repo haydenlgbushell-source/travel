@@ -1,4 +1,5 @@
 import type { Theme } from "../../theme";
+import { MapPinIcon } from "./NavIcons";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
 import { flightTrackingUrl, formatDuration, looksLikeImage, money, type TripItem } from "./trip-data";
@@ -177,9 +178,10 @@ export function ItemDetail({
               href={item.mapsUrl}
               target="_blank"
               rel="noreferrer noopener"
-              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
             >
-              Open in Maps ↗
+              <MapPinIcon />
+              Open in Maps
             </a>
           )}
           {website && (
@@ -188,7 +190,7 @@ export function ItemDetail({
               href={website}
               target="_blank"
               rel="noreferrer noopener"
-              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
             >
               Website ↗
             </a>
@@ -199,7 +201,7 @@ export function ItemDetail({
               href={trackingUrl}
               target="_blank"
               rel="noreferrer noopener"
-              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
             >
               Track this flight ↗
             </a>
@@ -211,7 +213,7 @@ export function ItemDetail({
               href={doc.url}
               target="_blank"
               rel="noreferrer noopener"
-              style={{ fontFamily: theme.fontMono, color: theme.accent }}
+              style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
             >
               {doc.name} ↗
             </a>
@@ -223,7 +225,7 @@ export function ItemDetail({
             type="button"
             className="trip-page__reset add-sheet__more"
             onClick={onEdit}
-            style={{ fontFamily: theme.fontMono, color: theme.accent }}
+            style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
           >
             Edit this item
           </button>
