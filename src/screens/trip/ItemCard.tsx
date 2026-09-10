@@ -1,7 +1,7 @@
 import { useEffect, useRef, type HTMLAttributes } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
-import { PaperclipIcon } from "./NavIcons";
+import { MapPinIcon, PaperclipIcon } from "./NavIcons";
 import type { TripItem } from "./trip-data";
 
 export type Verdict = "approved" | "declined";
@@ -330,9 +330,14 @@ export function ItemCard({
                 target="_blank"
                 rel="noreferrer noopener"
                 onClick={(e) => e.stopPropagation()}
-                style={{ fontFamily: theme.fontMono, color: theme.accent }}
+                /* Every card in a day carries one of these, so "Maps" on its
+                   own tells a screen reader nothing about which place is
+                   about to open — name the item, and say it leaves the app. */
+                aria-label={`Open ${item.title} in Maps (opens in a new tab)`}
+                style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
               >
-                Maps ↗
+                <MapPinIcon />
+                Maps
               </a>
             )}
           </div>

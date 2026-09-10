@@ -94,6 +94,27 @@ export function PaperclipIcon() {
   );
 }
 
+/** Small inline pin for the "Maps" link on a card — sized to sit on the
+ *  same line as 10.5px mono label text, like PaperclipIcon above. */
+export function MapPinIcon() {
+  return (
+    <svg
+      width="10"
+      height="13"
+      viewBox="0 0 10 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 12.2s4-4.4 4-7.2a4 4 0 0 0-8 0c0 2.8 4 7.2 4 7.2Z" />
+      <circle cx="5" cy="4.9" r="1.4" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon() {
   return (
     <svg
