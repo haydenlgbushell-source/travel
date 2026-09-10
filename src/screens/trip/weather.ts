@@ -1,4 +1,16 @@
 import type { Day } from "./trip-data";
+import { todayISO } from "./countdown";
+
+/** Open-Meteo forecasts today plus 15 days. Asking for a range that runs
+ *  past that is rejected outright — it does not answer with the part it
+ *  can and drop the rest — so a trip further out than a fortnight used to
+ *  lose its forecast entirely, including the days that were in range. */
+const FORECAST_DAYS = 15;
+
+function addDays(date: string, days: number): string {
+  const t = Date.parse(`${date}T00:00:00Z`);
+  return new Date(t + days * 86_400_000).toISOString().slice(0, 10);
+}
 
 export interface Coords {
   lat: number;
@@ -70,9 +82,17 @@ export async function fetchWeather(
 ): Promise<Record<string, string>> {
   if (days.length === 0) return {};
 
+  /* Only the days the forecast can actually answer for. A trip beyond the
+     window contributes nothing rather than poisoning the whole request,
+     and its day headers stay as they were until it comes into range. */
+  const today = todayISO();
+  const windowEnd = addDays(today, FORECAST_DAYS);
+  const inWindow = days.filter((d) => d.date >= today && d.date <= windowEnd);
+  if (inWindow.length === 0) return {};
+
   /* One entry per distinct place, each remembering which dates it covers. */
   const places = new Map<string, { coords: Coords; dates: string[] }>();
-  for (const day of days) {
+  for (const day of inWindow) {
     const at = dayCoords(day, coords);
     if (!at) continue;
     const key = keyOf(at);
@@ -86,9 +106,9 @@ export async function fetchWeather(
   const latitudes = entries.map((p) => p.coords.lat.toFixed(4)).join(",");
   const longitudes = entries.map((p) => p.coords.lng.toFixed(4)).join(",");
 
-  /* The window is the whole trip; each location is then read back for the
-     dates that belong to it. */
-  const dates = days.map((d) => d.date).sort();
+  /* The span of the days being asked about, each location then read back
+     for the dates that belong to it. */
+  const dates = inWindow.map((d) => d.date).sort();
   const startDate = dates[0];
   const endDate = dates[dates.length - 1];
 
