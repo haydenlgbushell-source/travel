@@ -7,6 +7,7 @@ import {
   isHex,
   loadAgencyBranding,
   saveAgencyBranding,
+  saveErrorText,
   uploadAgencyLogo,
   type AgencyBranding,
 } from "./branding";
@@ -168,11 +169,12 @@ export function BrandPanel({
       await saveAgencyBranding(agencyId, draft);
       onSaved(draft);
       setStatus({ text: "Saved", tone: "ok" });
-    } catch {
-      setStatus({
-        text: "Couldn't save that — check your connection and try again.",
-        tone: "error",
-      });
+    } catch (error) {
+      /* "Check your connection" was the answer to every failure, including
+         the two that have nothing to do with the connection — a colour the
+         table refuses, and an Agent who isn't the Owner. Both look from
+         here like a save that quietly didn't stick, so they say so. */
+      setStatus({ text: saveErrorText(error), tone: "error" });
     } finally {
       setSaving(false);
     }

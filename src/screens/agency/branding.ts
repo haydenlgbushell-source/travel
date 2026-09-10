@@ -137,6 +137,31 @@ export async function saveAgencyBranding(
   if (error) throw error;
 }
 
+/** Supabase hands back a PostgrestError, which is a plain object rather
+ *  than an Error, so the message has to be dug out either way. */
+function messageOf(error: unknown): string {
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const { message } = error as { message?: unknown };
+    if (typeof message === "string") return message;
+  }
+  return "";
+}
+
+/** What actually went wrong, in the words of the person it happened to. */
+export function saveErrorText(error: unknown): string {
+  const message = messageOf(error);
+  if (/not agency owner/i.test(message)) {
+    return "Only the agency's owner can change its brand — ask them to make this change.";
+  }
+  if (/agency_branding_colour_format/i.test(message)) {
+    return "Those colours need to be plain 6-digit hex, like #1A2B3C.";
+  }
+  if (/agency_branding_logo_https/i.test(message)) {
+    return "A logo has to be an https link.";
+  }
+  return "Couldn't save that — check your connection and try again.";
+}
+
 /* ---------- colour ---------- */
 
 export function isHex(value: string | undefined): value is string {
