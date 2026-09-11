@@ -115,6 +115,18 @@ export function MapPinIcon() {
   );
 }
 
+/** iOS Safari's own Share glyph — drawn to match, since the intro guide is
+ *  telling someone to go tap this exact icon in the browser chrome. */
+export function ShareIcon() {
+  return (
+    <svg {...COMMON} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v11.2" />
+      <path d="M8.2 6.8 12 3l3.8 3.8" />
+      <path d="M5.5 11v7A1.5 1.5 0 0 0 7 19.5h10a1.5 1.5 0 0 0 1.5-1.5v-7" />
+    </svg>
+  );
+}
+
 export function HamburgerIcon() {
   return (
     <svg

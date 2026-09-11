@@ -13,6 +13,7 @@ export function MoreSheet({
   onToggleNotify,
   userName,
   onOpenTrips,
+  onOpenIntro,
   onSignOut,
   theme,
 }: {
@@ -28,6 +29,9 @@ export function MoreSheet({
   onToggleNotify: () => void;
   userName?: string;
   onOpenTrips: () => void;
+  /** Reopens the first-open click-through — the only way back to it once
+   *  someone's dismissed the automatic one. */
+  onOpenIntro: () => void;
   onSignOut: () => void;
   theme: Theme;
 }) {
@@ -102,6 +106,19 @@ export function MoreSheet({
         <span className="more-sheet__row">
           <span className="more-sheet__label" style={{ color: theme.ink }}>
             Your trips
+          </span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className="trip-page__reset more-sheet__item"
+        onClick={onOpenIntro}
+        style={{ background: theme.card, borderColor: theme.line }}
+      >
+        <span className="more-sheet__row">
+          <span className="more-sheet__label" style={{ color: theme.ink }}>
+            How to use this trip
           </span>
         </span>
       </button>

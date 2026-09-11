@@ -2115,6 +2115,113 @@
   padding-top: 2px;
 }
 
+/* ---------- intro guide ---------- */
+
+.intro {
+  max-height: 86svh;
+  gap: 18px;
+}
+
+.intro__body {
+  min-height: 96px;
+}
+
+.intro__p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.intro__p--note {
+  font-size: 12.5px;
+  opacity: 0.75;
+}
+
+/* A numbered <ol>: the marker only renders while the <li> itself keeps
+   its default `display: list-item` — switching the <li> to flex (to lay
+   the icon out next to the text) drops the number in every browser, so
+   the icon+text row lives in an inner span instead and the <li> is left
+   alone. */
+.intro__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 12px 22px;
+  list-style-position: outside;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.intro__step-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.intro__step-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--wf-accent);
+}
+
+.intro__progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.intro__count {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+
+.intro__dots {
+  display: flex;
+  gap: 5px;
+}
+
+.intro__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.intro__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.intro__back,
+.intro__next {
+  min-height: 44px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--wf-pill-radius);
+}
+
+.intro__back {
+  padding: 0 8px;
+}
+
+.intro__back:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.intro__next {
+  flex: 1;
+  max-width: 220px;
+}
+
 /* ---------- day actions ---------- */
 
 /* Adding to the day belongs next to the day, not buried under the menu. */
