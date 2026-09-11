@@ -1818,6 +1818,14 @@ function seenSnapshotKey(accountId: string, tripId: string): string {
   return `wf-seen-content-${accountId}-${tripId}`;
 }
 
+/** Whether this account has already dismissed the first-open intro guide
+ *  on this trip — exported since TripPage needs it both to decide whether
+ *  to auto-show the guide and to record that it's been seen, not just to
+ *  compare a snapshot the way seenSnapshotKey's callers do. */
+export function introSeenKey(accountId: string, tripId: string): string {
+  return `wf-seen-intro-${accountId}-${tripId}`;
+}
+
 function snapshotOf(days: Day[], resolved: Record<string, string>): SeenSnapshot {
   const items: SeenSnapshot["items"] = {};
   for (const day of days) {

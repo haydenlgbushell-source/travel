@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import { ThemeProvider, Wordmark, type Theme } from "../../theme";
 import { brandTheme, loadTripBranding, type AgencyBranding } from "../agency/branding";
 import { OfflinePanel } from "./OfflinePanel";
+import { IntroGuide } from "./IntroGuide";
 import { DecisionsSheet } from "./DecisionsSheet";
 import { InfoTab } from "./InfoTab";
 import { ItemDetail } from "./ItemDetail";
@@ -43,6 +44,7 @@ import {
   createInvite,
   daysForRange,
   fromBaseAmount,
+  introSeenKey,
   isoDate,
   suggestSlots,
   loadTripContent,
@@ -259,6 +261,7 @@ export function TripPage({
     return () => clearInterval(tick);
   }, []);
   const [offlineMode, setOffline] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [voted, setVoted] = useState(false);
@@ -358,6 +361,33 @@ export function TripPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, accountId, isExample]);
+
+  /* A first-open orientation for a real trip — how to add it to a phone's
+     Home Screen, then a quick tour of the tabs. Waits for content to load
+     so it never flashes in ahead of the plan it's describing, and skips
+     the example trip, which is already its own kind of walkthrough. Reachable
+     again afterwards from More, whether this ever fires or the account
+     dismissed it early — a missing or unreadable localStorage entry means
+     "don't nag", not "show it every time". */
+  useEffect(() => {
+    if (contentLoading || isExample) return;
+    try {
+      if (localStorage.getItem(introSeenKey(accountId, event.id))) return;
+    } catch {
+      return;
+    }
+    setIntroOpen(true);
+  }, [contentLoading, isExample, accountId, event.id]);
+
+  function closeIntro() {
+    setIntroOpen(false);
+    try {
+      localStorage.setItem(introSeenKey(accountId, event.id), "1");
+    } catch {
+      /* Best-effort, same as every other localStorage write here — worst
+         case it's offered again next time, which costs nothing. */
+    }
+  }
 
   useEffect(() => {
     if (!event.agencyId) {
@@ -1359,9 +1389,17 @@ export function TripPage({
             setMoreOpen(false);
             onOpenTrips();
           }}
+          onOpenIntro={() => {
+            setMoreOpen(false);
+            setIntroOpen(true);
+          }}
           onSignOut={onSignOut}
           theme={theme}
         />
+      )}
+
+      {introOpen && (
+        <IntroGuide tripName={eventName} tripDates={eventDates} theme={theme} onClose={closeIntro} />
       )}
     </ThemeProvider>
   );
