@@ -214,14 +214,31 @@ export function AdminPage({
   }
 
   function moveTrip(trip: AdminTripRow, nextAgencyId: string) {
+    const resolvedNext = nextAgencyId || undefined;
+    const previousAgencyId = trip.agencyId;
+    /* The dropdown's value is bound straight to this state. Without
+       updating it here, the row keeps rendering the *old* agencyId for
+       the whole round trip to the RPC — which forces the <select>, a
+       controlled input, right back to the value the admin just picked it
+       away from. Selecting an agency would visibly snap to "Personal"
+       and sit there, disabled, until the request resolved: indistinguishable,
+       for as long as that took, from the choice not having taken at all. */
+    setTrips((prev) => prev?.map((t) => (t.id === trip.id ? { ...t, agencyId: resolvedNext } : t)));
     void run(`trip:${trip.id}`, async () => {
-      await adminSetTripAgency(trip.id, nextAgencyId || undefined);
-      const agency = agencies?.find((a) => a.id === nextAgencyId);
+      try {
+        await adminSetTripAgency(trip.id, resolvedNext);
+      } catch (error) {
+        setTrips((prev) =>
+          prev?.map((t) => (t.id === trip.id ? { ...t, agencyId: previousAgencyId } : t)),
+        );
+        throw error;
+      }
+      const agency = agencies?.find((a) => a.id === resolvedNext);
       void adminLogAction(
         "move_trip",
-        `"${trip.name}" → ${nextAgencyId ? (agency?.name ?? "that agency") : "Personal"}`,
+        `"${trip.name}" → ${resolvedNext ? (agency?.name ?? "that agency") : "Personal"}`,
       );
-      return nextAgencyId
+      return resolvedNext
         ? `Moved "${trip.name}" to ${agency?.name ?? "that agency"}.`
         : `"${trip.name}" is no longer an agency trip.`;
     }, "Couldn't move that trip — the database refused the change.");
