@@ -2222,6 +2222,84 @@
   max-width: 220px;
 }
 
+/* The intro guide's one purely visual step: three day-strip-shaped pills,
+   the middle one "active", with a small glyph sliding across them on a
+   loop to show the gesture rather than just describe it. */
+.intro__swipe {
+  position: relative;
+  height: 56px;
+  margin-bottom: 4px;
+}
+
+.intro__swipe-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.intro__swipe-pill {
+  min-width: 54px;
+  padding: 7px 9px;
+  text-align: center;
+  border-radius: var(--wf-pill-radius);
+  border: 1px solid var(--wf-line);
+  background: var(--wf-card);
+  color: var(--wf-meta);
+  font-family: var(--wf-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.intro__swipe-pill--active {
+  border-color: var(--wf-accent);
+  color: var(--wf-ink);
+  background: color-mix(in oklab, var(--wf-accent) 12%, var(--wf-card));
+}
+
+.intro__swipe-hand {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--wf-accent);
+  opacity: 1;
+}
+
+/* Motion is the entire point of this element, so it's the one place in the
+   guide that's skipped outright rather than just shortened for someone who
+   has asked for less of it — they still get the static glyph over the
+   pills, and the sentence beside it already says what the motion would
+   have shown. */
+@media (prefers-reduced-motion: no-preference) {
+  .intro__swipe-hand {
+    animation: wf-swipe-hand 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes wf-swipe-hand {
+  0% {
+    transform: translate(calc(-50% + 26px), -50%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(calc(-50% - 26px), -50%);
+    opacity: 1;
+  }
+  62% {
+    opacity: 0;
+  }
+  100% {
+    transform: translate(calc(-50% + 26px), -50%);
+    opacity: 0;
+  }
+}
+
 /* ---------- day actions ---------- */
 
 /* Adding to the day belongs next to the day, not buried under the menu. */
