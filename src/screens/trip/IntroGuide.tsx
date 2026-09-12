@@ -9,6 +9,52 @@ interface Step {
   body: ReactNode;
 }
 
+/** A dot with two fading motion-trails behind it — reads as "drag this
+ *  way" without needing to draw an actual hand. Used once, only in the
+ *  swipe-days demo below, so it lives here rather than in NavIcons.tsx. */
+function SwipeGlyph() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+      <circle cx="17" cy="13" r="3.6" fill="currentColor" />
+      <path
+        d="M10.5 8.5c-1.7 1.2-2.7 3-2.7 4.5s1 3.3 2.7 4.5"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      <path
+        d="M6 6.5c-2.3 1.8-3.8 4.4-3.8 6.5s1.5 4.7 3.8 6.5"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        opacity="0.28"
+      />
+    </svg>
+  );
+}
+
+/** Three day-strip-shaped pills with the glyph above sliding across them on
+ *  a loop — the guide's one purely visual step. A sentence can say "swipe
+ *  left for the next day"; showing the motion is what actually lands it.
+ *  Decorative only (the text beside it carries the real explanation), so
+ *  it's hidden from assistive tech rather than read as three meaningless
+ *  day labels. */
+function SwipeDemo() {
+  return (
+    <div className="intro__swipe" aria-hidden="true">
+      <div className="intro__swipe-track">
+        <span className="intro__swipe-pill">MON 14</span>
+        <span className="intro__swipe-pill intro__swipe-pill--active">TUE 15</span>
+        <span className="intro__swipe-pill">WED 16</span>
+      </div>
+      <span className="intro__swipe-hand">
+        <SwipeGlyph />
+      </span>
+    </div>
+  );
+}
+
 /** The click-through's content. A pure function of the trip and the
  *  device, rather than JSX baked into the component below, so what each
  *  step actually says can be reasoned about — and this can grow to more
@@ -84,12 +130,15 @@ function buildSteps(tripName: string, tripDates: string, homeScreen: HomeScreenS
       ),
     },
     {
-      title: "Suggest, vote, done",
+      title: "Swipe between days",
       body: (
-        <p className="intro__p">
-          Anyone can suggest a stop — an editor approves it before it's part of the real plan. Open{" "}
-          <strong>Decisions</strong> from the bottom bar to see what's waiting on a vote.
-        </p>
+        <>
+          <SwipeDemo />
+          <p className="intro__p">
+            On the <strong>Plan</strong> tab, swipe left on the day itself to move to the next
+            one, right to go back — same as tapping a day up top, just without reaching for it.
+          </p>
+        </>
       ),
     },
   ];
