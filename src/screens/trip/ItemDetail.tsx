@@ -1,5 +1,6 @@
 import type { Theme } from "../../theme";
 import { MapPinIcon } from "./NavIcons";
+import { MapsMenuButton } from "./MapsMenu";
 import { Photo } from "./Photo";
 import { Sheet } from "./Sheet";
 import { flightTrackingUrl, formatDuration, looksLikeImage, money, type TripItem } from "./trip-data";
@@ -173,16 +174,15 @@ export function ItemDetail({
 
         <div className="item-detail__links">
           {item.mapsUrl && (
-            <a
+            <MapsMenuButton
+              item={item}
+              theme={theme}
               className="item__maps"
-              href={item.mapsUrl}
-              target="_blank"
-              rel="noreferrer noopener"
               style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
             >
               <MapPinIcon />
               Open in Maps
-            </a>
+            </MapsMenuButton>
           )}
           {website && (
             <a

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Theme } from "../../theme";
-import { locatedItems, mapsLink, type Day } from "./trip-data";
+import { locatedItems, type Day } from "./trip-data";
+import { MapsMenuButton } from "./MapsMenu";
 import { TripMap } from "./TripMap";
 
 type View = "day" | "whole";
@@ -127,13 +128,7 @@ export function MapTab({
               style={{ background: theme.card, borderColor: theme.line }}
             >
               {items.map((entry) => (
-                <a
-                  key={entry.item.id}
-                  className="map-row"
-                  href={mapsLink(entry.item)}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
+                <MapsMenuButton key={entry.item.id} item={entry.item} theme={theme} className="map-row">
                   <span
                     className="map-row__pin"
                     style={{
@@ -161,7 +156,7 @@ export function MapTab({
                   >
                     Maps ↗
                   </span>
-                </a>
+                </MapsMenuButton>
               ))}
             </div>
           </div>

@@ -1073,6 +1073,38 @@ export function mapsLink(item: TripItem): string {
   return item.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(`${item.title} ${item.place}`)}`;
 }
 
+export interface MapChoice {
+  label: string;
+  url: string;
+}
+
+/** One link per app someone might actually have on their phone, built from
+ *  the same place every provider needs — "Maps" stopped meaning "Google
+ *  Maps, whether or not that's what you use." Coordinates make for an exact
+ *  pin where the item has them; its title and place carry it where it
+ *  doesn't. */
+export function mapChoices(item: TripItem): MapChoice[] {
+  const coords = pinCoords(item);
+  const query = encodeURIComponent(`${item.title} ${item.place}`.trim());
+  const ll = coords ? `${coords.lat},${coords.lng}` : undefined;
+  return [
+    {
+      label: "Apple Maps",
+      url: ll ? `https://maps.apple.com/?ll=${ll}&q=${query}` : `https://maps.apple.com/?q=${query}`,
+    },
+    {
+      label: "Google Maps",
+      url: item.mapsUrl ?? (ll
+        ? `https://www.google.com/maps/search/?api=1&query=${ll}`
+        : `https://www.google.com/maps/search/?api=1&query=${query}`),
+    },
+    {
+      label: "Waze",
+      url: ll ? `https://waze.com/ul?ll=${ll}&navigate=yes` : `https://waze.com/ul?q=${query}&navigate=yes`,
+    },
+  ];
+}
+
 /** Where the group is staying, and who to call if a phone is dead. */
 export const EMERGENCY_NUMBER = "911";
 

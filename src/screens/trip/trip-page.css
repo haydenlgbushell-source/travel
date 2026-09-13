@@ -2608,6 +2608,20 @@
   text-transform: uppercase;
 }
 
+/* ---------- maps-choice sheet ---------- */
+
+.maps-sheet__item {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 15px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
 .add-sheet__pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
