@@ -17,7 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, money, timeForPosition, walkingSummary, type Day, type TripItem } from "./trip-data";
+import { dayTotal, money, timeForPosition, type Day, type TripItem } from "./trip-data";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -116,10 +116,9 @@ export function PlanTab({
      the middle of the day does not leave a gap in the numbering. */
   const pinOf = new Map(live.map((item, i) => [item.id, i]));
   const chips = [
-    { label: "Planned", value: `${live.length}` },
+    { label: "Planned activities", value: `${live.length}` },
     { label: "First move", value: live[0]?.time ?? "—" },
     { label: "Each", value: money(dayTotal(day, resolved), currency) },
-    { label: "On foot", value: walkingSummary(live) },
   ];
   const notes = [day.conflict, ...(day.flags ?? [])].filter(Boolean) as string[];
 

@@ -1440,58 +1440,6 @@ export function clashAt(
   );
 }
 
-/* ---------- walking ---------- */
-
-/** Kilometres between two coordinates, as the crow flies — the standard
- *  haversine great-circle distance. Multiplied by a routing factor where
- *  it's used below, since nothing here calls a real directions API to
- *  learn the actual streets. */
-function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLng = ((bLng - aLng) * Math.PI) / 180;
-  const lat1 = (aLat * Math.PI) / 180;
-  const lat2 = (bLat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-/** A real street path is never the straight line between two points — this
- *  is the commonly used rule of thumb for how much longer it actually runs,
- *  in the absence of a routing API to ask instead. */
-const ROUTING_FACTOR = 1.3;
-
-/** "On foot" for the day — how far the group covers walking between the
- *  day's own stops, not driving between towns. Takes whichever items the
- *  caller already counts as live, the same set the "Planned" and "Each"
- *  chips beside it are built from, so declining a stop removes it from
- *  this figure exactly as it does from those — this used to be a fixed
- *  string authored once when the day was written and never revisited, so
- *  it kept quoting the original walk regardless of what was later declined.
- *
- *  Only Eat/Stay/Do items with real coordinates count as stops to walk
- *  between; a Travel item is a drive or flight between towns, never a
- *  walk, and an item with no located address can't be placed in the
- *  chain at all. Two or fewer such stops means there's nothing between
- *  them to walk. */
-export function walkingSummary(items: TripItem[]): string {
-  const stops = items.filter(
-    (item): item is TripItem & { lat: number; lng: number } =>
-      item.kind !== "Travel" && item.lat !== undefined && item.lng !== undefined,
-  );
-  if (stops.length < 2) return "No walking";
-
-  let km = 0;
-  for (let i = 1; i < stops.length; i++) {
-    km += haversineKm(stops[i - 1].lat, stops[i - 1].lng, stops[i].lat, stops[i].lng);
-  }
-  km *= ROUTING_FACTOR;
-
-  if (km < 1) return `${Math.max(50, Math.round(km * 1000 / 50) * 50)} m`;
-  return `${km.toFixed(1)} km`;
-}
-
 /* ---------- money ---------- */
 
 /** An unapproved suggestion is not money anyone has agreed to spend, so it
