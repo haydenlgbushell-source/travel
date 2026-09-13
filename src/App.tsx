@@ -14,6 +14,7 @@ import { TripPage } from "./screens/trip/TripPage";
 import { PastTripScreen } from "./screens/trip/PastTripScreen";
 import { PastTripsScreen } from "./screens/trip/PastTripsScreen";
 import { SharedListScreen } from "./screens/trip/SharedListScreen";
+import { LandingPage } from "./screens/landing/LandingPage";
 import { AuthPage } from "./screens/auth/AuthPage";
 import { NamePage } from "./screens/auth/NamePage";
 import { InviteAcceptScreen } from "./screens/auth/InviteAcceptScreen";
@@ -40,7 +41,7 @@ import { AdminPage } from "./screens/admin/AdminPage";
 import { AgencyPage } from "./screens/agency/AgencyPage";
 import { loadMyAgencies, redeemAgencyInvite, type Agency } from "./screens/agency/agency-data";
 
-type Screen = "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "agency";
+type Screen = "landing" | "auth" | "name" | "trips" | "setup" | "trip" | "past" | "pastTrip" | "agency";
 
 /** A shared list arrives in the fragment, so it needs no server route and
  *  survives being pasted anywhere. */
@@ -89,7 +90,7 @@ async function initialState(account: Account | undefined) {
     return {
       events: [],
       currentId: undefined,
-      screen: "auth" as Screen,
+      screen: "landing" as Screen,
       pastTrips: [] as PastTrip[],
       agencies: [] as Agency[],
     };
@@ -145,7 +146,11 @@ function App() {
      once — by the setup screen's onCreate below — then cleared, so it can
      never silently tag a later, unrelated trip as this agency's. */
   const [pendingAgencyId, setPendingAgencyId] = useState<string | undefined>();
-  const [screen, setScreen] = useState<Screen>("auth");
+  const [screen, setScreen] = useState<Screen>("landing");
+  /* Which tab the auth screen opens on when reached from the landing page's
+     two CTAs — "Sign in" vs. "Start planning free". Left at "signin" the
+     rest of the time, which is the same default AuthPage already had. */
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signin");
   const [pastTrips, setPastTrips] = useState<PastTrip[]>([]);
   /* Empty for almost everyone — only populated for an account the admin has
      designated as an agency's Owner, or an Owner has added as an Agent —
@@ -575,6 +580,21 @@ function App() {
     );
   }
 
+  if (screen === "landing") {
+    return (
+      <LandingPage
+        onGetStarted={() => {
+          setAuthMode("signup");
+          setScreen("auth");
+        }}
+        onSignIn={() => {
+          setAuthMode("signin");
+          setScreen("auth");
+        }}
+      />
+    );
+  }
+
   if (screen === "auth") {
     return (
       <AuthPage
@@ -583,7 +603,7 @@ function App() {
             ? "Anonymous joining isn't available for this trip right now — create a free account and you'll land straight in it."
             : undefined
         }
-        initialMode={pendingAccessCodeRef.current ? "signup" : undefined}
+        initialMode={pendingAccessCodeRef.current ? "signup" : authMode}
         onAuthenticated={(acc) => {
           loadedAccountId.current = acc.id;
           setAccount(acc);
