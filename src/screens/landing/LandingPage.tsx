@@ -70,15 +70,16 @@ const STYLES = [
   { key: "postcard", label: "Postcard", swatch: "#12484B" },
 ];
 
-/** A small, self-contained mock of the Plan tab's day view — real enough to
- *  show what the Postcard style looks like without pulling in ItemCard and
- *  the trip data it expects. */
+/** A small, self-contained mock of the Plan tab's day view — built from the
+ *  actual "Ramble 2026" trip's Clare Valley cellar-door day (real stops,
+ *  real photos) rather than invented sample data, so this is what the
+ *  Postcard style genuinely looks like on a real itinerary. */
 function PlanPreview() {
   return (
     <div className="landing-mock" aria-hidden="true">
       <div className="landing-mock__head">
-        <span className="landing-mock__day">Day 3 · Clare Valley</span>
-        <span className="landing-mock__count">3 days away</span>
+        <span className="landing-mock__day">Clare Valley — cellar door day</span>
+        <span className="landing-mock__count">Day 10 of Ramble</span>
       </div>
       <div className="landing-mock__chips">
         <span className="landing-mock__chip landing-mock__chip--on">Plan</span>
@@ -86,24 +87,25 @@ function PlanPreview() {
         <span className="landing-mock__chip">Money</span>
       </div>
       <div className="landing-mock__card">
-        <div className="landing-mock__photo" />
+        <img className="landing-mock__photo" src="/trip-photos/sevenhill-cellars.jpg" alt="" />
         <div className="landing-mock__body">
           <div className="landing-mock__row">
-            <span className="landing-mock__tag">Dinner</span>
-            <span className="landing-mock__price">$68</span>
-          </div>
-          <p className="landing-mock__title">Skillogalee</p>
-          <p className="landing-mock__meta">7:30pm · Table booked</p>
-        </div>
-      </div>
-      <div className="landing-mock__card landing-mock__card--ghost">
-        <div className="landing-mock__photo" />
-        <div className="landing-mock__body">
-          <div className="landing-mock__row">
-            <span className="landing-mock__tag landing-mock__tag--muted">Suggested</span>
+            <span className="landing-mock__tag landing-mock__tag--muted">Do</span>
+            <span className="landing-mock__time">11:00</span>
           </div>
           <p className="landing-mock__title">Sevenhill Cellars</p>
-          <p className="landing-mock__meta">Waiting on the group</p>
+          <p className="landing-mock__meta">Sevenhill, SA · Est. 1851</p>
+        </div>
+      </div>
+      <div className="landing-mock__card">
+        <img className="landing-mock__photo" src="/trip-photos/skillogalee.jpg" alt="" />
+        <div className="landing-mock__body">
+          <div className="landing-mock__row">
+            <span className="landing-mock__tag">Eat</span>
+            <span className="landing-mock__time">2:30pm</span>
+          </div>
+          <p className="landing-mock__title">Skillogalee — tasting menu lunch</p>
+          <p className="landing-mock__meta">Clare, SA · Confirmed</p>
         </div>
       </div>
     </div>

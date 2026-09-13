@@ -211,17 +211,13 @@
   border: 1px solid var(--wf-line);
 }
 
-.landing-mock__card--ghost {
-  opacity: 0.6;
-  border-style: dashed;
-}
-
 .landing-mock__photo {
   width: 52px;
   height: 52px;
   border-radius: calc(var(--wf-card-radius) - 6px);
   flex-shrink: 0;
   background: var(--wf-photo-fill);
+  object-fit: cover;
 }
 
 .landing-mock__body {
@@ -253,7 +249,7 @@
   color: var(--wf-meta);
 }
 
-.landing-mock__price {
+.landing-mock__time {
   margin-left: auto;
   font-family: var(--wf-font-mono);
   font-size: 12px;
