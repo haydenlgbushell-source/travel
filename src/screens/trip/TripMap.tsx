@@ -11,12 +11,14 @@ export interface MapPin {
   number: number;
 }
 
-/** A real, pannable map with CARTO's Voyager tiles — a clean, labelled
- *  style close to Google Maps' look, free and keyless — and a numbered pin
- *  per located item. Nearby pins (several West Loop venues sit metres
- *  apart) cluster into a single marker until zoomed in, so one never sits
- *  invisibly under another. Replaces the old abstract dot-spiral
- *  visualisation with actual roads and geography. */
+/** A real, pannable map with OpenStreetMap's standard tiles — free and
+ *  keyless, unlike CARTO's Voyager style this used to run on, which now
+ *  stamps every tile "API KEY REQUIRED" without a (free, but signed-up-for)
+ *  CARTO account behind it — and a numbered pin per located item. Nearby
+ *  pins (several West Loop venues sit metres apart) cluster into a single
+ *  marker until zoomed in, so one never sits invisibly under another.
+ *  Replaces the old abstract dot-spiral visualisation with actual roads
+ *  and geography. */
 export function TripMap({
   pins,
   center,
@@ -43,12 +45,11 @@ export function TripMap({
       zoomControl: true,
       attributionControl: true,
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      subdomains: "abcd",
-      detectRetina: true,
+      subdomains: "abc",
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     mapRef.current = map;
     layerRef.current = L.markerClusterGroup({
