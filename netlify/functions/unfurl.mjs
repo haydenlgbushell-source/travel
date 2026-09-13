@@ -9,9 +9,19 @@
 const TIMEOUT_MS = 6000;
 const MAX_BYTES = 512 * 1024;
 
+const MAX_REDIRECTS = 5;
+
 /** Hosts that only make sense from inside a network — never worth fetching
  *  on a visitor's behalf. */
-const BLOCKED_HOST = /^(localhost$|127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/i;
+const BLOCKED_HOST_V4 = /^(localhost$|127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i;
+
+/** IPv6 loopback, unique-local (fc00::/7) and link-local (fe80::/10) ranges. */
+const BLOCKED_HOST_V6 = /^(::1$|::$|f[cd][0-9a-f]{0,2}:|fe[89ab][0-9a-f]:)/i;
+
+function isBlockedHost(hostname) {
+  const bare = hostname.replace(/^\[/, "").replace(/\]$/, "");
+  return BLOCKED_HOST_V4.test(bare) || BLOCKED_HOST_V6.test(bare);
+}
 
 function metaContent(html, patterns) {
   for (const pattern of patterns) {
@@ -77,21 +87,41 @@ export default async function handler(request) {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     return reply({ error: "Only http and https" }, 400);
   }
-  if (BLOCKED_HOST.test(parsed.hostname)) {
+  if (isBlockedHost(parsed.hostname)) {
     return reply({ error: "That host is not reachable from here" }, 400);
   }
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(parsed.toString(), {
-      signal: abort.signal,
-      redirect: "follow",
-      headers: {
-        accept: "text/html,application/xhtml+xml",
-        "user-agent": "WayfareBot/1.0 (+link preview)",
-      },
-    });
+    /* Follow redirects manually so each hop is re-checked against the
+       blocklist — a public host could otherwise redirect the fetch to an
+       internal address. */
+    let current = parsed;
+    let response;
+    for (let hop = 0; ; hop += 1) {
+      response = await fetch(current.toString(), {
+        signal: abort.signal,
+        redirect: "manual",
+        headers: {
+          accept: "text/html,application/xhtml+xml",
+          "user-agent": "WayfareBot/1.0 (+link preview)",
+        },
+      });
+      if (response.status < 300 || response.status >= 400 || !response.headers.get("location")) break;
+      if (hop >= MAX_REDIRECTS) return reply({ error: "Too many redirects" }, 502);
+
+      let next;
+      try {
+        next = new URL(response.headers.get("location"), current);
+      } catch {
+        return reply({ error: "Could not reach that site" }, 502);
+      }
+      if ((next.protocol !== "http:" && next.protocol !== "https:") || isBlockedHost(next.hostname)) {
+        return reply({ error: "That host is not reachable from here" }, 400);
+      }
+      current = next;
+    }
     if (!response.ok) return reply({ error: `The site answered ${response.status}` }, 502);
 
     const type = response.headers.get("content-type") ?? "";
