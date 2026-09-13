@@ -50,12 +50,68 @@ function readShareLink(): SharedList | undefined {
   return match ? decodeShare(match[1]) : undefined;
 }
 
+/* `invite` and `access` tokens both live only in the URL fragment, but a
+ * fragment doesn't survive every way this app can come back to the
+ * foreground: an email-confirmation redirect lands on a bare origin (see
+ * readAgencyInviteToken below), and so — on iOS and Android alike — does the
+ * app's own Home Screen icon, which always opens the manifest's start_url
+ * rather than wherever a link happened to be tapped. Someone who opens an
+ * invite link and installs the app before finishing (the intro guide
+ * suggests exactly that) would otherwise reopen to a bare app with the
+ * invite silently gone. Mirroring it into localStorage the moment it's read
+ * — and clearing it once the flow completes — means a fresh launch still
+ * has somewhere to recover it from.
+ *
+ * The mirror is timestamped and bounded so that simply abandoning a link —
+ * closing the tab without tapping "Not now" — can't resurrect it as an
+ * unwanted redirect the next time the app opens normally, days later. Both
+ * the redirects this exists for (an email confirmation, a fresh Home Screen
+ * launch) happen within minutes, not hours. */
+const PENDING_TTL_MS = 30 * 60 * 1000;
+
+function readPending(key: string): string | undefined {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return undefined;
+    const { value, savedAt } = JSON.parse(raw) as { value: string; savedAt: number };
+    if (Date.now() - savedAt > PENDING_TTL_MS) {
+      localStorage.removeItem(key);
+      return undefined;
+    }
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+function rememberPending(key: string, value: string) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ value, savedAt: Date.now() }));
+  } catch {
+    /* Best-effort — worst case a Home Screen relaunch loses the token same
+       as before this existed. */
+  }
+}
+function forgetPending(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* Nothing to clean up if this fails; see rememberPending. */
+  }
+}
+
+const PENDING_INVITE_KEY = "wf-pending-invite";
+const PENDING_ACCESS_KEY = "wf-pending-access";
+
 /** An invite token in the fragment, parallel to `#s=` above — but this one
  *  needs a real signed-in account before it can be acted on, since it grants
  *  real write access rather than a read-only snapshot. */
 function readInviteToken(): string | undefined {
   const match = /[#&]invite=([^&]+)/.exec(window.location.hash);
-  return match?.[1];
+  if (match) {
+    rememberPending(PENDING_INVITE_KEY, match[1]);
+    return match[1];
+  }
+  return readPending(PENDING_INVITE_KEY);
 }
 
 /** A client access code, same fragment pattern again — but unlike an invite
@@ -63,7 +119,11 @@ function readInviteToken(): string | undefined {
  *  anonymous session itself if there isn't one already. */
 function readAccessCode(): string | undefined {
   const match = /[#&]access=([^&]+)/.exec(window.location.hash);
-  return match?.[1];
+  if (match) {
+    rememberPending(PENDING_ACCESS_KEY, match[1]);
+    return match[1];
+  }
+  return readPending(PENDING_ACCESS_KEY);
 }
 
 /** A direct, bookmarkable link to the admin page — no token, just a flag,
@@ -198,9 +258,15 @@ function App() {
    *  one to redeem, so each caller knows whether to fall through to its
    *  normal boot instead. */
   function redeemPendingAccessCode(acc: Account): boolean {
-    if (!pendingAccessCodeRef.current) return false;
-    const code = pendingAccessCodeRef.current;
+    /* The ref covers the common case — sign-up completing in the same tab
+       it started in — but not one that left and came back (an email
+       confirmation redirect, or the account relaunching from a freshly
+       added Home Screen icon mid-detour), so it falls back to whatever
+       readAccessCode() last mirrored into localStorage. */
+    const code = pendingAccessCodeRef.current ?? readPending(PENDING_ACCESS_KEY);
+    if (!code) return false;
     pendingAccessCodeRef.current = undefined;
+    forgetPending(PENDING_ACCESS_KEY);
     redeemAccessCode(code)
       .then((tripId) => loadEvents().then((events) => ({ events, tripId })))
       .then(({ events, tripId }) => {
@@ -474,6 +540,7 @@ function App() {
         onJoined={(tripId) => {
           window.location.hash = "";
           setAccessCode(undefined);
+          forgetPending(PENDING_ACCESS_KEY);
           loadEvents()
             .then((next) => {
               setEvents(next);
@@ -486,9 +553,14 @@ function App() {
         onDecline={() => {
           window.location.hash = "";
           setAccessCode(undefined);
+          forgetPending(PENDING_ACCESS_KEY);
           setScreen(currentId ? "trip" : events.length > 0 ? "trips" : "setup");
         }}
         onNeedsAccount={() => {
+          /* Left in localStorage rather than forgotten here — this is the
+             detour redeemPendingAccessCode exists to complete once an
+             account exists, however long that takes or however many
+             redirects it goes through. */
           pendingAccessCodeRef.current = accessCode;
           window.location.hash = "";
           setAccessCode(undefined);
@@ -560,6 +632,7 @@ function App() {
         onJoined={(tripId) => {
           window.location.hash = "";
           setInviteToken(undefined);
+          forgetPending(PENDING_INVITE_KEY);
           loadEvents()
             .then((next) => {
               setEvents(next);
@@ -574,6 +647,7 @@ function App() {
         onDecline={() => {
           window.location.hash = "";
           setInviteToken(undefined);
+          forgetPending(PENDING_INVITE_KEY);
           setScreen(currentId ? "trip" : events.length > 0 ? "trips" : "setup");
         }}
       />
