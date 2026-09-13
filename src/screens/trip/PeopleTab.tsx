@@ -244,7 +244,7 @@ export function PeopleTab({
                 Codes you've issued
               </span>
               {codes.map((c) => {
-                const expired = new Date(c.expiresAt).getTime() < Date.now();
+                const expired = c.expiresAt !== undefined && new Date(c.expiresAt).getTime() < Date.now();
                 const usedUp = c.maxUses !== undefined && c.useCount >= c.maxUses;
                 const dead = c.revokedAt !== undefined || expired || usedUp;
                 return (

@@ -22,13 +22,14 @@ export function AuthPage({
    *  back" directly under a banner telling them to sign up. */
   initialMode?: "signup" | "signin";
 }) {
-  const [mode, setMode] = useState<"signup" | "signin" | "reset">(initialMode ?? "signin");
+  const [mode, setMode] = useState<"signup" | "signin" | "reset" | "code">(initialMode ?? "signin");
   const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const [mobile, setMobile] = useState("");
   const fullMobile = combineMobile(dialCode, mobile);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [tripCode, setTripCode] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [confirmationPending, setConfirmationPending] = useState(false);
@@ -36,14 +37,34 @@ export function AuthPage({
 
   const isSignUp = mode === "signup";
   const isReset = mode === "reset";
+  const isCode = mode === "code";
 
-  function switchMode(next: "signup" | "signin" | "reset") {
+  function switchMode(next: "signup" | "signin" | "reset" | "code") {
     setMode(next);
     setError(undefined);
     setConfirmationPending(false);
     setResetSent(false);
     setPassword("");
     setConfirmPassword("");
+    setTripCode("");
+  }
+
+  /** A trip code is just an access code someone would otherwise have
+   *  reached by tapping a link — routing through the same `#access=`
+   *  fragment App.tsx already watches means this needs no redemption logic
+   *  of its own, and the organiser sees identical behaviour whichever way
+   *  it was typed in. */
+  function handleCodeSubmit(e: FormEvent) {
+    e.preventDefault();
+    /* Codes are issued upper-case (see createAccessCode) and matched
+       exactly server-side — normalising here means a lower-case guess from
+       a desktop keyboard isn't a silent, confusing miss. */
+    const trimmed = tripCode.trim().toUpperCase();
+    if (!trimmed) {
+      setError("Enter the code you were given.");
+      return;
+    }
+    window.location.hash = `access=${encodeURIComponent(trimmed)}`;
   }
 
   async function handleResetRequest(e: FormEvent) {
@@ -168,6 +189,49 @@ export function AuthPage({
             it to set a new password, then come back here and sign in.
           </p>
           <button type="button" className="auth-submit" onClick={() => switchMode("signin")}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isCode) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <span className="auth-wordmark">Wayfare</span>
+          <h1 className="auth-title">Enter your trip code</h1>
+          <p className="auth-lede">
+            No account needed — whoever's organising the trip can hand you a short code that opens
+            it straight away, and keeps opening it, even if your phone asks you to sign in again.
+          </p>
+
+          <form className="auth-form" onSubmit={handleCodeSubmit} noValidate>
+            <label className="auth-field">
+              <span className="auth-field__label">Trip code</span>
+              <input
+                className="auth-field__input auth-field__input--code"
+                type="text"
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                autoComplete="off"
+                autoFocus
+                placeholder="A1B2C3"
+                value={tripCode}
+                onChange={(e) => setTripCode(e.target.value)}
+              />
+            </label>
+
+            {error && <div className="auth-error" role="alert">{error}</div>}
+
+            <button type="submit" className="auth-submit">
+              Continue
+            </button>
+          </form>
+
+          <button type="button" className="auth-switch" onClick={() => switchMode("signin")}>
             Back to sign in
           </button>
         </div>
@@ -341,6 +405,11 @@ export function AuthPage({
         >
           {isSignUp ? "Already have an account? Sign in" : "New here? Create an account"}
         </button>
+        {!isSignUp && (
+          <button type="button" className="auth-switch" onClick={() => switchMode("code")}>
+            Have a trip code instead?
+          </button>
+        )}
       </div>
     </div>
   );

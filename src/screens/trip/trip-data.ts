@@ -327,7 +327,8 @@ export async function acceptInvite(token: string): Promise<string> {
 
 /** A short, human-typeable code rather than a link-only token — meant for
  *  handing to a client who won't be creating an account, not just pasting
- *  a URL. Organiser-of-the-trip only, per RLS. */
+ *  a URL. Organiser-of-the-trip only, per RLS. Left to run until revoked —
+ *  a trip code is meant for the length of the trip, not a 90-day guess. */
 export async function createAccessCode(
   tripId: string,
   role: "Editor" | "Contributor",
@@ -335,7 +336,7 @@ export async function createAccessCode(
 ): Promise<string> {
   const { data, error } = await supabase
     .from("trip_access_codes")
-    .insert({ trip_id: tripId, role, max_uses: maxUses ?? null })
+    .insert({ trip_id: tripId, role, max_uses: maxUses ?? null, expires_at: null })
     .select("code")
     .single();
   if (error) throw error;
@@ -346,7 +347,8 @@ export interface AccessCode {
   id: string;
   code: string;
   role: "Editor" | "Contributor";
-  expiresAt: string;
+  /** Absent means it never expires. */
+  expiresAt?: string;
   maxUses?: number;
   useCount: number;
   revokedAt?: string;
@@ -357,7 +359,7 @@ interface AccessCodeRow {
   id: string;
   code: string;
   role: "Editor" | "Contributor";
-  expires_at: string;
+  expires_at: string | null;
   max_uses: number | null;
   use_count: number;
   revoked_at: string | null;
@@ -378,7 +380,7 @@ export async function loadAccessCodes(tripId: string): Promise<AccessCode[]> {
     id: r.id,
     code: r.code,
     role: r.role,
-    expiresAt: r.expires_at,
+    expiresAt: r.expires_at ?? undefined,
     maxUses: r.max_uses ?? undefined,
     useCount: r.use_count,
     revokedAt: r.revoked_at ?? undefined,
