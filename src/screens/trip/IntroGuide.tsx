@@ -90,7 +90,10 @@ function buildSteps(tripName: string, tripDates: string, homeScreen: HomeScreenS
             </ol>
             <p className="intro__p intro__p--note">
               It opens like a real app from here — no browser bar, no typing the address in again. Has
-              to be done in Safari, not another browser.
+              to be done in Safari, not another browser. One thing to expect: the first time you open
+              it from the Home Screen, it'll ask you to sign in again — Apple keeps a Home Screen app's
+              storage separate from Safari's, so it doesn't yet know you were already signed in there.
+              After that one time, it stays signed in.
             </p>
           </>
         ) : (
@@ -106,7 +109,8 @@ function buildSteps(tripName: string, tripDates: string, homeScreen: HomeScreenS
       body: (
         <p className="intro__p">
           Check-ins, meals, drives, things to do — in order on the <strong>Plan</strong> tab. Tap{" "}
-          <strong>Maps</strong> on any card to navigate straight there.
+          <strong>Maps</strong> on any card to open it in Apple Maps, Google Maps or Waze — whichever
+          you actually use.
         </p>
       ),
     },

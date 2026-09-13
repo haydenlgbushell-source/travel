@@ -2,6 +2,7 @@ import { useEffect, useRef, type HTMLAttributes } from "react";
 import type { Theme } from "../../theme";
 import { Photo } from "./Photo";
 import { MapPinIcon, PaperclipIcon } from "./NavIcons";
+import { MapsMenuButton } from "./MapsMenu";
 import type { TripItem } from "./trip-data";
 
 export type Verdict = "approved" | "declined";
@@ -324,21 +325,19 @@ export function ItemCard({
             )}
             <span className="item__foot-spacer" />
             {item.mapsUrl && (
-              <a
+              <MapsMenuButton
+                item={item}
+                theme={theme}
                 className="item__maps"
-                href={item.mapsUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                onClick={(e) => e.stopPropagation()}
                 /* Every card in a day carries one of these, so "Maps" on its
                    own tells a screen reader nothing about which place is
-                   about to open — name the item, and say it leaves the app. */
-                aria-label={`Open ${item.title} in Maps (opens in a new tab)`}
+                   about to open — name the item. */
+                ariaLabel={`Open ${item.title} in Maps`}
                 style={{ fontFamily: theme.fontMono, color: theme.accentInk }}
               >
                 <MapPinIcon />
                 Maps
-              </a>
+              </MapsMenuButton>
             )}
           </div>
         </div>

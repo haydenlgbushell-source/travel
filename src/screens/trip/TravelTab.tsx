@@ -1,5 +1,6 @@
 import type { Theme } from "../../theme";
 import { flightTrackingUrl, formatDuration, type Day, type TripItem } from "./trip-data";
+import { MapsMenuButton } from "./MapsMenu";
 
 /** What the mode reads as when it isn't spelled out for you. */
 const MODE_LABEL: Record<string, string> = {
@@ -145,15 +146,9 @@ function StayCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme
             {item.title}
           </div>
           {item.place !== "Not set" && (
-            <a
-              className="stay__address"
-              style={{ color: theme.body }}
-              href={item.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(item.place)}`}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
+            <MapsMenuButton item={item} theme={theme} className="stay__address" style={{ color: theme.body }}>
               {item.place}
-            </a>
+            </MapsMenuButton>
           )}
         </div>
         {item.bookingKind && (
