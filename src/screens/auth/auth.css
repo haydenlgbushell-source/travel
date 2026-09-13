@@ -120,6 +120,13 @@
   min-width: 0;
 }
 
+.auth-field__input--code {
+  font-family: "DM Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+
 .auth-error {
   font-size: 13px;
   color: oklch(0.5 0.16 25);
