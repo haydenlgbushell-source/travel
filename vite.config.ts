@@ -31,10 +31,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png}'],
         runtimeCaching: [
           {
-            // CARTO map tiles: once panned into view, they stay available —
+            // OpenStreetMap tiles: once panned into view, they stay available —
             // a trip's geography doesn't change, so there's no reason to
             // ever refetch a tile that's already been seen.
-            urlPattern: /^https:\/\/[a-d]\.basemaps\.cartocdn\.com\//,
+            urlPattern: /^https:\/\/[a-c]\.tile\.openstreetmap\.org\//,
             handler: 'CacheFirst',
             options: {
               cacheName: 'map-tiles',
