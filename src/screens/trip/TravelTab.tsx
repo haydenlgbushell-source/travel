@@ -1,5 +1,12 @@
+import { useEffect, useRef } from "react";
 import type { Theme } from "../../theme";
 import { flightTrackingUrl, formatDuration, type Day, type TripItem } from "./trip-data";
+
+/** How far below the scroll container's own top edge a day group has to
+ *  cross before it counts as "current" — enough to clear the sticky day
+ *  strip and actions row above the scrolling body, so the group readable
+ *  right under them is the one the date tile agrees with. */
+const ACTIVE_DAY_OFFSET_PX = 24;
 
 /** What the mode reads as when it isn't spelled out for you. */
 const MODE_LABEL: Record<string, string> = {
@@ -193,9 +200,19 @@ function StayCard({ item, day, theme }: { item: TripItem; day: Day; theme: Theme
 export function TravelTab({
   days,
   theme,
+  scrollContainerRef,
+  onVisibleDayChange,
 }: {
   days: Day[];
   theme: Theme;
+  /** The tab panel's own scrolling element — day groups are measured
+   *  against its top, not the window's, since it's the div that actually
+   *  scrolls. */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /** Called with a day's date as its group scrolls to the top of the
+   *  list, so the date tile strip above can track along instead of
+   *  staying frozen on whichever day Plan last had open. */
+  onVisibleDayChange?: (date: string) => void;
 }) {
   /* Every Stay and Travel item on the plan, grouped by day so a road trip's
      dozen driving legs read as an itinerary rather than one undifferentiated
@@ -212,6 +229,51 @@ export function TravelTab({
       items: day.items.filter((item) => item.kind === "Travel" || item.kind === "Stay"),
     }))
     .filter((group) => group.items.length > 0);
+
+  const groupEls = useRef(new Map<string, HTMLDivElement>());
+  const lastReported = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!onVisibleDayChange) return;
+    const container = scrollContainerRef?.current;
+    if (!container) return;
+
+    function findActiveDate() {
+      const containerTop = container!.getBoundingClientRect().top;
+      let current: string | undefined;
+      for (const { day } of dayGroups) {
+        const el = groupEls.current.get(day.date);
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top - containerTop;
+        if (top <= ACTIVE_DAY_OFFSET_PX) current = day.date;
+        else break;
+      }
+      return current ?? dayGroups[0]?.day.date;
+    }
+
+    let frame = 0;
+    function onScroll() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const date = findActiveDate();
+        if (date && date !== lastReported.current) {
+          lastReported.current = date;
+          onVisibleDayChange!(date);
+        }
+      });
+    }
+
+    onScroll();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      container.removeEventListener("scroll", onScroll);
+    };
+    // dayGroups is derived fresh from `days` every render — keying off
+    // `days` instead avoids tearing the listener down and rebuilding it
+    // on every render for a value that's really the same list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, scrollContainerRef, onVisibleDayChange]);
 
   if (dayGroups.length === 0) {
     return (
@@ -235,7 +297,14 @@ export function TravelTab({
   return (
     <div className="trip-page__stack trip-page__tab-panel">
       {dayGroups.map(({ day, items }) => (
-        <div key={day.date} className="travel-day-group">
+        <div
+          key={day.date}
+          className="travel-day-group"
+          ref={(el) => {
+            if (el) groupEls.current.set(day.date, el);
+            else groupEls.current.delete(day.date);
+          }}
+        >
           <div
             className="travel-day-group__head"
             style={{ fontFamily: theme.fontMono, color: theme.meta }}

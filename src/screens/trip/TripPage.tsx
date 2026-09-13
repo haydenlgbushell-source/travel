@@ -312,8 +312,17 @@ export function TripPage({
   const body = useRef<HTMLDivElement>(null);
   const swipeStart = useRef<{ x: number; y: number } | undefined>(undefined);
   const wikiAttempted = useRef<Set<string>>(new Set());
+  const dayChips = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  /* Keeps the day strip's own highlighted chip in view whenever the active
+     day changes — including from Stay & travel's scroll sync, where the
+     day that just became current was never tapped and so was never
+     scrolled to. A no-op when the chip's already visible. */
+  useEffect(() => {
+    dayChips.current.get(dayIndex)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [dayIndex]);
 
   /* Loads whatever's actually saved for this trip, fitted to its current
      date range so editing the dates keeps everything planned on days that
@@ -1076,6 +1085,10 @@ export function TripPage({
               aria-pressed={on}
               aria-label={`${d.fullDate}${flagged ? ", has a clash" : ""}`}
               className="trip-page__reset trip-page__day"
+              ref={(el) => {
+                if (el) dayChips.current.set(i, el);
+                else dayChips.current.delete(i);
+              }}
               onClick={() => pickDay(i)}
               style={{
                 background: on ? theme.ink : theme.card,
@@ -1189,7 +1202,17 @@ export function TripPage({
                 theme={theme}
               />
             )}
-            {tab === 1 && <TravelTab days={days} theme={theme} />}
+            {tab === 1 && (
+              <TravelTab
+                days={days}
+                theme={theme}
+                scrollContainerRef={body}
+                onVisibleDayChange={(date) => {
+                  const i = days.findIndex((d) => d.date === date);
+                  if (i !== -1) setDayIndex(i);
+                }}
+              />
+            )}
             {tab === 2 && (
               <MoneyTab
                 days={days}
