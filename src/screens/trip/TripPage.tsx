@@ -99,16 +99,18 @@ const TRAVEL_CARD_BADGE_KEY = "wf-seen-travel-card-2026-08";
 
 /** What sits in the bottom tablist. Money and People are one tap further,
  *  behind the hamburger in the header — this is what a thumb reaches for
- *  most often. */
+ *  most often. Info moved up into the header instead, in Search's old
+ *  spot, so Search could take the thumb-friendly last slot here. */
 type NavEntry =
   | { label: string; short: string; kind: "tab"; tab: number; icon: ComponentType }
-  | { label: string; short: string; kind: "map"; icon: ComponentType };
+  | { label: string; short: string; kind: "map"; icon: ComponentType }
+  | { label: string; short: string; kind: "search"; icon: ComponentType };
 
 const NAV_TABS: NavEntry[] = [
   { label: "Plan", short: "Plan", kind: "tab", tab: 0, icon: PlanIcon },
   { label: "Stay & travel", short: "Travel", kind: "tab", tab: 1, icon: TravelIcon },
   { label: "Trip map", short: "Map", kind: "map", icon: MapIcon },
-  { label: "Info", short: "Info", kind: "tab", tab: 3, icon: InfoIcon },
+  { label: "Search", short: "Search", kind: "search", icon: SearchIcon },
 ];
 
 /* On a desktop the tab bar is a sidebar with room to spare, so the two tabs
@@ -602,9 +604,13 @@ export function TripPage({
      to the first entry when the open tab has no button at this width —
      Money and People on a phone, reached through the menu instead. */
   const selectedNavIndex = Math.max(
-    navEntries.findIndex((entry) =>
-      entry.kind === "map" ? mapOpen : !mapOpen && entry.tab === tab,
-    ),
+    navEntries.findIndex((entry) => {
+      if (entry.kind === "map") return mapOpen;
+      /* Search opens a sheet over whatever's showing rather than owning
+         the tab panel itself, so it never claims to be the selected tab. */
+      if (entry.kind === "search") return false;
+      return !mapOpen && entry.tab === tab;
+    }),
     0,
   );
   const editing = editingId ? day.items.find((i) => i.id === editingId) : undefined;
@@ -713,6 +719,15 @@ export function TripPage({
     setMapOpen(true);
     setOffline(false);
     toTop();
+  }
+
+  /** What tapping (or arrowing to) a bottom-nav entry does — shared by the
+   *  click handler and the roving-tabindex keyboard nav so the two can't
+   *  drift apart on what each kind of entry means. */
+  function activateNav(entry: NavEntry) {
+    if (entry.kind === "map") setMapOpenTab();
+    else if (entry.kind === "search") setSearchOpen(true);
+    else pickTab(entry.tab);
   }
 
   function updateDay(change: (d: Day) => Day) {
@@ -1009,11 +1024,12 @@ export function TripPage({
             <button
               type="button"
               className="trip-page__reset trip-page__hamburger"
-              aria-label="Search this trip"
-              onClick={() => setSearchOpen(true)}
+              aria-label="Trip info"
+              aria-pressed={tab === 3 && !offlineMode && !mapOpen}
+              onClick={() => pickTab(3)}
               style={{ color: theme.headInk }}
             >
-              <SearchIcon />
+              <InfoIcon />
             </button>
             <button
               type="button"
@@ -1243,14 +1259,20 @@ export function TripPage({
 
       {/* The menu sits under the thumb; the day's actions sit up by the day.
           Money and People live behind the hamburger in the header — Plan,
-          Travel, Map and Info are what a thumb needs most often. */}
+          Travel, Map and Search are what a thumb needs most often. Info
+          moved up into the header, in Search's old spot. */}
       <div
         role="tablist"
         className="trip-page__nav"
         style={{ background: theme.bg, borderTopColor: STRIP_LINE }}
       >
         {navEntries.map((entry, i) => {
-          const on = entry.kind === "map" ? mapOpen && !offlineMode : tab === entry.tab && !offlineMode && !mapOpen;
+          const on =
+            entry.kind === "map"
+              ? mapOpen && !offlineMode
+              : entry.kind === "search"
+                ? searchOpen
+                : tab === entry.tab && !offlineMode && !mapOpen;
           const Icon = entry.icon;
           const isNew = entry.kind === "tab" && entry.tab === 1 && !travelCardSeen;
           return (
@@ -1259,21 +1281,21 @@ export function TripPage({
               type="button"
               role="tab"
               id={`wf-tab-nav-${i}`}
-              aria-controls="wf-tabpanel"
+              /* Search opens a sheet of its own rather than the shared tab
+                 panel, so it doesn't claim to control it. */
+              aria-controls={entry.kind === "search" ? undefined : "wf-tabpanel"}
               aria-selected={on}
               aria-label={isNew ? `${entry.label} — new` : entry.label}
               tabIndex={on ? 0 : -1}
               className="trip-page__reset trip-page__nav-item"
-              onClick={() => (entry.kind === "map" ? setMapOpenTab() : pickTab(entry.tab))}
+              onClick={() => activateNav(entry)}
               onKeyDown={(e) => {
                 /* Arrow keys move between tabs, as the tab pattern expects. */
                 const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
                 if (step === 0) return;
                 e.preventDefault();
                 const next = (i + step + navEntries.length) % navEntries.length;
-                const nextEntry = navEntries[next];
-                if (nextEntry.kind === "map") setMapOpenTab();
-                else pickTab(nextEntry.tab);
+                activateNav(navEntries[next]);
                 document.getElementById(`wf-tab-nav-${next}`)?.focus();
               }}
               style={{ color: on ? theme.ink : theme.meta }}
