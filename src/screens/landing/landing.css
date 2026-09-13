@@ -150,123 +150,50 @@
   justify-content: center;
 }
 
-/* ---------- phone-style plan mock ---------- */
+/* ---------- iPhone-framed screen ----------
+   Holds the real `.trip-page` markup (from trip-page.css) at a fixed
+   375×812-ish size instead of that class's usual 100dvh, inside a device
+   bezel — the frame is ours, everything inside it is the app's own CSS. */
 
-.landing-mock {
-  width: min(320px, 88vw);
-  background: var(--wf-card);
-  border: 1px solid var(--wf-line);
-  border-radius: var(--wf-frame-radius);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 24px 48px -28px rgba(23, 58, 60, 0.35);
-}
-
-.landing-mock__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.landing-mock__day {
-  font-family: var(--wf-font-display);
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--wf-ink);
-}
-
-.landing-mock__count {
-  font-family: var(--wf-font-mono);
-  font-size: 11px;
-  color: var(--wf-meta);
-}
-
-.landing-mock__chips {
-  display: flex;
-  gap: 8px;
-}
-
-.landing-mock__chip {
-  font-family: var(--wf-font-mono);
-  font-size: 11px;
-  padding: 6px 10px;
-  border-radius: var(--wf-chip-radius);
-  background: var(--wf-strip);
-  color: var(--wf-meta);
-}
-
-.landing-mock__chip--on {
-  background: var(--wf-head-bg);
-  color: var(--wf-head-ink);
-}
-
-.landing-mock__card {
-  display: flex;
-  gap: 12px;
+.iphone {
+  position: relative;
+  width: min(300px, 78vw);
+  aspect-ratio: 375 / 812;
+  background: #101312;
+  border-radius: 46px;
   padding: 12px;
-  border-radius: var(--wf-card-radius);
-  background: var(--wf-strip);
-  border: 1px solid var(--wf-line);
+  box-shadow:
+    0 24px 48px -20px rgba(23, 58, 60, 0.4),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-.landing-mock__photo {
-  width: 52px;
-  height: 52px;
-  border-radius: calc(var(--wf-card-radius) - 6px);
-  flex-shrink: 0;
-  background: var(--wf-photo-fill);
-  object-fit: cover;
+.iphone .trip-page {
+  border-radius: 34px;
+  overflow: hidden;
 }
 
-.landing-mock__body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.iphone__notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38%;
+  height: 22px;
+  background: #101312;
+  border-radius: 0 0 14px 14px;
+  z-index: 2;
 }
 
-.landing-mock__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.landing-mock__tag {
-  font-family: var(--wf-font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 3px 8px;
-  border-radius: var(--wf-chip-radius);
-  background: var(--wf-tag-bg);
-  color: var(--wf-tag-ink);
-}
-
-.landing-mock__tag--muted {
-  background: var(--wf-line);
-  color: var(--wf-meta);
-}
-
-.landing-mock__time {
-  margin-left: auto;
-  font-family: var(--wf-font-mono);
-  font-size: 12px;
-  color: var(--wf-meta);
-}
-
-.landing-mock__title {
-  font-family: var(--wf-font-display);
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--wf-ink);
-}
-
-.landing-mock__meta {
-  font-family: var(--wf-font-mono);
-  font-size: 11px;
-  color: var(--wf-meta);
+.iphone__home {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(20, 23, 26, 0.28);
+  z-index: 2;
 }
 
 /* ---------- section shell ---------- */

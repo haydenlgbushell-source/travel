@@ -1,8 +1,71 @@
 import type { ReactNode } from "react";
-import { getTheme, ThemeProvider } from "../../theme";
+import { getTheme, ThemeProvider, Wordmark } from "../../theme";
+import { ItemCard } from "../trip/ItemCard";
+import { HamburgerIcon, InfoIcon, MapIcon, PlanIcon, SearchIcon, TravelIcon } from "../trip/NavIcons";
+import { PEOPLE, type TripItem } from "../trip/trip-data";
+import "../trip/trip-page.css";
 import "./landing.css";
 
 const THEME = getTheme("postcard");
+
+/** The Clare Valley cellar-door day from the real "Ramble 2026" trip
+ *  (Sydney to Adelaide, run in Postcard) — same field shapes TripItem
+ *  expects, photos swapped for the copies already checked into
+ *  public/trip-photos, so this renders through the actual ItemCard rather
+ *  than a lookalike. */
+const RAMBLE_DAY: { label: string; items: TripItem[] } = {
+  label: "Clare Valley — cellar door day",
+  items: [
+    {
+      id: "i86",
+      kind: "Do",
+      time: "11:00",
+      title: "Sevenhill Cellars",
+      note: "Stop for a look at the oldest winery in the valley, est. 1851. Note: group tastings for 6+ need 48hrs notice. sevenhill.com.au",
+      place: "Sevenhill, SA",
+      meta: "Group tastings need 48hrs notice",
+      lat: -33.8931,
+      lng: 138.6386,
+      who: "All six",
+      accent: "oklch(0.58 0.13 60)",
+      photo: "Sevenhill, SA",
+      photoUrl: "/trip-photos/sevenhill-cellars.jpg",
+      mapsUrl: "https://maps.google.com/?q=Sevenhill%20Cellars%20Sevenhill%2C%20SA",
+    },
+    {
+      id: "i39",
+      kind: "Eat",
+      time: "14:30",
+      title: "Skillogalee — tasting menu lunch",
+      note: "Tasting menu lunch, ~2 hours. Note: the historic sandstone restaurant is undergoing renovation — currently running from the Barrel House in the vineyards. skillogalee.com.au",
+      place: "Clare, SA",
+      meta: "~2 hours",
+      lat: -33.8339,
+      lng: 138.6106,
+      who: "All six",
+      accent: "oklch(0.52 0.11 155)",
+      photo: "Clare Valley vines",
+      photoUrl: "/trip-photos/skillogalee.jpg",
+      mapsUrl: "https://maps.google.com/?q=Skillogalee%20Clare%2C%20SA",
+      bookingKind: "Confirmed",
+      booking: [
+        { label: "Lunch", value: "24 Sep" },
+        { label: "Time", value: "2:30pm" },
+      ],
+    },
+  ],
+};
+
+/** Real calendar days around 24 Sep 2026, the date above — Tue–Sat, with
+ *  Thursday (the cellar-door day) selected, same shape TripPage's own day
+ *  strip builds from `daysForRange`. */
+const RAMBLE_DAYS = [
+  { dow: "Tue", num: "22" },
+  { dow: "Wed", num: "23" },
+  { dow: "Thu", num: "24" },
+  { dow: "Fri", num: "25" },
+  { dow: "Sat", num: "26" },
+];
 
 type Feature = {
   title: string;
@@ -70,44 +133,145 @@ const STYLES = [
   { key: "postcard", label: "Postcard", swatch: "#12484B" },
 ];
 
-/** A small, self-contained mock of the Plan tab's day view — built from the
- *  actual "Ramble 2026" trip's Clare Valley cellar-door day (real stops,
- *  real photos) rather than invented sample data, so this is what the
- *  Postcard style genuinely looks like on a real itinerary. */
-function PlanPreview() {
+/** A full iPhone-shaped screen, built out of the same markup and CSS
+ *  classes (`.trip-page`, `.item__*`) and the same `ItemCard`/`Wordmark`
+ *  components TripPage itself renders — not a lookalike drawn from
+ *  scratch, so the header, day strip, cards and bottom nav are pixel-for-
+ *  pixel what the app actually looks like, holding the real Ramble day
+ *  from above. Static: no handlers fire, nothing is actually tappable. */
+function PhonePreview() {
   return (
-    <div className="landing-mock" aria-hidden="true">
-      <div className="landing-mock__head">
-        <span className="landing-mock__day">Clare Valley — cellar door day</span>
-        <span className="landing-mock__count">Day 10 of Ramble</span>
-      </div>
-      <div className="landing-mock__chips">
-        <span className="landing-mock__chip landing-mock__chip--on">Plan</span>
-        <span className="landing-mock__chip">Stay &amp; travel</span>
-        <span className="landing-mock__chip">Money</span>
-      </div>
-      <div className="landing-mock__card">
-        <img className="landing-mock__photo" src="/trip-photos/sevenhill-cellars.jpg" alt="" />
-        <div className="landing-mock__body">
-          <div className="landing-mock__row">
-            <span className="landing-mock__tag landing-mock__tag--muted">Do</span>
-            <span className="landing-mock__time">11:00</span>
+    <div className="iphone" aria-hidden="true">
+      <div className="iphone__notch" />
+      <div
+        className="trip-page"
+        style={{
+          height: "100%",
+          maxWidth: "none",
+          margin: 0,
+          background: "var(--wf-bg)",
+          color: "var(--wf-ink)",
+          pointerEvents: "none",
+        }}
+      >
+        <div className="trip-page__head" style={{ background: "var(--wf-head-bg)", color: "var(--wf-head-ink)" }}>
+          <div className="trip-page__head-row">
+            <div className="trip-page__head-left">
+              <span className="trip-page__reset trip-page__hamburger">
+                <HamburgerIcon />
+              </span>
+              <span
+                className="trip-page__reset trip-page__wordmark"
+                style={{ fontFamily: "var(--wf-font-display)", letterSpacing: "var(--wf-word-track)" }}
+              >
+                <Wordmark theme={THEME} />
+              </span>
+            </div>
+            <div className="trip-page__head-actions">
+              <span className="trip-page__countdown" style={{ fontFamily: "var(--wf-font-mono)", color: "oklch(0.78 0.13 60)" }}>
+                2 days away
+              </span>
+              <span className="trip-page__reset trip-page__hamburger" style={{ color: "var(--wf-head-ink)" }}>
+                <InfoIcon />
+              </span>
+            </div>
           </div>
-          <p className="landing-mock__title">Sevenhill Cellars</p>
-          <p className="landing-mock__meta">Sevenhill, SA · Est. 1851</p>
+          <div className="trip-page__head-main trip-page__head-main--compact">
+            <div className="trip-page__dates" style={{ fontFamily: "var(--wf-font-mono)", color: "var(--wf-head-meta)" }}>
+              15 September – 4 October 2026
+            </div>
+            <div className="trip-page__avatars">
+              {PEOPLE.slice(0, 3).map((p) => (
+                <div
+                  key={p.id}
+                  className="trip-page__avatar"
+                  style={{
+                    fontFamily: "var(--wf-font-mono)",
+                    background: "var(--wf-avatar-bg)",
+                    borderColor: "var(--wf-head-bg)",
+                    color: "#D5D8D2",
+                  }}
+                >
+                  {p.initials}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="trip-page__days" style={{ background: "var(--wf-bg)", borderBottomColor: "var(--wf-line)" }}>
+          {RAMBLE_DAYS.map((d) => {
+            const on = d.num === "24";
+            return (
+              <span
+                key={d.num}
+                className="trip-page__reset trip-page__day"
+                style={{
+                  background: on ? "var(--wf-ink)" : "var(--wf-card)",
+                  borderColor: on ? "var(--wf-ink)" : "var(--wf-line)",
+                  borderRadius: "var(--wf-chip-radius)",
+                }}
+              >
+                <span className="trip-page__day-dow" style={{ fontFamily: "var(--wf-font-mono)", color: on ? "#9DBCBB" : "var(--wf-meta)" }}>
+                  {d.dow}
+                </span>
+                <span className="trip-page__day-num" style={{ fontFamily: "var(--wf-font-display)", color: on ? "var(--wf-bg)" : "var(--wf-ink)" }}>
+                  {d.num}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+
+        <div className="trip-page__actions" style={{ background: "var(--wf-bg)", borderBottomColor: "var(--wf-line)" }}>
+          <span
+            className="trip-page__reset trip-page__add"
+            style={{ color: "var(--wf-bg)", background: "var(--wf-ink)", borderColor: "var(--wf-ink)" }}
+          >
+            Add to this day
+          </span>
+        </div>
+
+        <div className="trip-page__body">
+          <div className="items">
+            {RAMBLE_DAY.items.map((item, i) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                index={i}
+                canApprove
+                onResolve={() => {}}
+                theme={THEME}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div
+          className="trip-page__nav"
+          style={{ background: "var(--wf-bg)", borderTopColor: "var(--wf-line)", paddingBottom: "16px" }}
+        >
+          {[
+            { label: "Plan", icon: PlanIcon, on: true },
+            { label: "Travel", icon: TravelIcon, on: false },
+            { label: "Map", icon: MapIcon, on: false },
+            { label: "Search", icon: SearchIcon, on: false },
+          ].map((entry) => (
+            <span
+              key={entry.label}
+              className="trip-page__reset trip-page__nav-item"
+              style={{ color: entry.on ? "var(--wf-ink)" : "var(--wf-meta)" }}
+            >
+              <span className="trip-page__nav-mark" style={{ background: "var(--wf-accent)", opacity: entry.on ? 1 : 0 }} />
+              <span className="trip-page__nav-icon">
+                <entry.icon />
+              </span>
+              {entry.label}
+            </span>
+          ))}
         </div>
       </div>
-      <div className="landing-mock__card">
-        <img className="landing-mock__photo" src="/trip-photos/skillogalee.jpg" alt="" />
-        <div className="landing-mock__body">
-          <div className="landing-mock__row">
-            <span className="landing-mock__tag">Eat</span>
-            <span className="landing-mock__time">2:30pm</span>
-          </div>
-          <p className="landing-mock__title">Skillogalee — tasting menu lunch</p>
-          <p className="landing-mock__meta">Clare, SA · Confirmed</p>
-        </div>
-      </div>
+      <div className="iphone__home" />
     </div>
   );
 }
@@ -148,7 +312,7 @@ export function LandingPage({
           <p className="landing__fineprint">No credit card. Set up your first day in a couple of minutes.</p>
         </div>
         <div className="landing__hero-visual">
-          <PlanPreview />
+          <PhonePreview />
         </div>
       </section>
 
