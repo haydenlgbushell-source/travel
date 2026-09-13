@@ -329,14 +329,19 @@ function App() {
       try {
         await upsertEventRow(account.id, tagged, !exists);
       } catch {
-        /* Personal trips can live in local state until the next edit
-           retries, but an agency trip that never reached the database
-           won't come back from loadAgencyTrips — so the agent would be
-           looking at a client trip their colleagues can't see. Say so
-           rather than letting the two lists quietly disagree. */
-        if (tagged.agencyId) {
-          setSaveError("That client trip didn't save — check your connection and edit it to try again.");
-        }
+        /* A personal trip's local state looks exactly like a saved one —
+           same fields, same UI — so a silently failed write here used to
+           read as success right up until the next load (another device,
+           or this one after a reload) quietly reverted it. Every trip gets
+           the same word now: an agency trip that never reached the
+           database also won't come back from loadAgencyTrips, so the
+           agent would otherwise be looking at a client trip their
+           colleagues can't see. */
+        setSaveError(
+          tagged.agencyId
+            ? "That client trip didn't save — check your connection and edit it to try again."
+            : "That change didn't save — check your connection and edit the trip again to retry.",
+        );
       }
     }
     openEvent(tagged.id);
