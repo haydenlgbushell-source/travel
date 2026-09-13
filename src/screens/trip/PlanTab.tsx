@@ -17,7 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Theme } from "../../theme";
 import { ItemCard, type Verdict } from "./ItemCard";
-import { dayTotal, money, timeForPosition, type Day, type TripItem } from "./trip-data";
+import { dayTotal, money, timeForPosition, walkingSummary, type Day, type TripItem } from "./trip-data";
 
 const SKELETONS = ["132px", "196px", "150px"];
 const CONFLICT_BG = "oklch(0.96 0.04 60)";
@@ -119,7 +119,7 @@ export function PlanTab({
     { label: "Planned", value: `${live.length}` },
     { label: "First move", value: live[0]?.time ?? "—" },
     { label: "Each", value: money(dayTotal(day, resolved), currency) },
-    { label: "On foot", value: day.walk },
+    { label: "On foot", value: walkingSummary(live) },
   ];
   const notes = [day.conflict, ...(day.flags ?? [])].filter(Boolean) as string[];
 
